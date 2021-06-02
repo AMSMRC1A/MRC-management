@@ -10,7 +10,7 @@ I1 = 100;
 H1 = 0;
 D1 = 0;
 R1 = 0;
-ci = 0;
+%ci = 0;
 
 % patch 2
 N2 = 0;
@@ -22,7 +22,7 @@ D2 = 0;
 R2 = 0;
 
 % combine into single vector
-y0 = [S1, E1, I1, H1, D1, R1, S2, E2, I2, H2, D2, R2, ci];
+y0 = [S1, E1, I1, H1, D1, R1, S2, E2, I2, H2, D2, R2];
 
 
 
@@ -44,12 +44,18 @@ xi1 = 0.222;
 xi2 = 0.222;
 mu1 = 1e-4;
 mu2 = 1e-4;
-v1 = 0;
-v2 = 0;
-m1 = 0;
-m2 = 0;
+%v1 = 0;
+%v2 = 0;
+m1 = 0;%0.005;
+m2 = 0;%0.005;
 n1 = 0;
 n2 = 0;
+b1 = 1;
+b2 = 1;
+C1 = 1;
+C2 = 1;
+epsilon1 = 0.01;
+epsilon2 = 0.01;
 
 % calculate betas based on R0
 R0 = 1.7;
@@ -87,12 +93,18 @@ par.xi1 = xi1;
 par.xi2 = xi2;
 par.mu1 = mu1;
 par.mu2 = mu2;
-par.v1 = v1;
-par.v2 = v2;
+%par.v1 = v1;
+%par.v2 = v2;
 par.m1 = m1;
 par.m2 = m2;
 par.n1 = n1;
 par.n2 = n2;
+par.b1 = b1;
+par.b2 = b2;
+par.C1 = C1;
+par.C2 = C2;
+par.epsilon1 = epsilon1;
+par.epsilon2 = epsilon2;
 
 
 
