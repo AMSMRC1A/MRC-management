@@ -26,7 +26,7 @@ chol <- function(t, y, params){
 }
 
 # define parameters
-params <- c(mu1 = 1E-4, mu2 = 1E-4,                # natural birth/death rate
+params <- c(mu1 = 0, mu2 = 0,                # natural birth/death rate 1E-4
             beta_I1 = 2.14E-5, beta_I2 = 2.14E-5,  # transmission rate from people
             beta_W1 = 1.01E-5, beta_W2 = 1.01E-5,  # transmission rate from water
             v1 = 0, v2 = 0,                        # vaccination rate
@@ -36,27 +36,27 @@ params <- c(mu1 = 1E-4, mu2 = 1E-4,                # natural birth/death rate
             delta1 = 5E-4, delta2 = 5E-4,          # disease induced mortality
             xi1 = 7.56E-3, xi2 = 7.56E-3,          # pathogen survival rate in water
             nu1 = 7.56E-3, nu2 = 7.56E-3,          # pathogen clearance rate in water
-            rho1 = 0.05, rho2 = 0.05,              # pathogen movement rate in water
-            b1 = 1, b2 = 1,                        # control cost for new cases
-            C1 = 10, C2 = 10,                      # control cost for vaccination
-            epsilon1 = 1, epsilon2 = 1)            # control quadratic term 
+            rho1 = 0.05, rho2 = 0.05)#,              # pathogen movement rate in water
+            #b1 = 1, b2 = 1,                        # control cost for new cases
+            #C1 = 10, C2 = 10,                      # control cost for vaccination
+            #epsilon1 = 1, epsilon2 = 1)            # control quadratic term 
+
+# define time (days)
+t <- seq(0,200,0.01)
 
 # time varying vaccination
-v1 = data.frame(times = times, v1 = rep(0,length(times)))
+v1 = data.frame(times = t, v1 = rep(0,length(t)))
 v1_interp <- approxfun(v1, rule = 2)
-v2 = data.frame(times = times, v2 = rep(0,length(times)))
+v2 = data.frame(times = t, v2 = rep(0,length(t)))
 v2_interp <- approxfun(v2, rule = 2)
 
 # define ICs
-IC <- c(S1 = 10000-300, S2 = 10000,
-        I1 = 300,    I2 = 10, 
+IC <- c(S1 = 10000-100, S2 = 10000-10,
+        I1 = 100,    I2 = 10, 
         R1 = 0,      R2 = 0,
         W1 = 300,    W2 = 10)#,
        # c1 = 0,      c2 = 0, # added c to count new cases
        #  V1 = 0,      V2 = 0) # added V to count vaccinations
-
-# define time (days)
-t <- seq(0,200,0.01)
 
 # solve ODE
 out <- ode(y = IC, times = t, func = chol, parms = params)
@@ -67,7 +67,7 @@ out$compartment = factor(out$compartment, levels = c("S", "I", "R", "W", "c", "V
 out$patch = substr(out$variable, 2,2)
 
 # plot output
-ggplot(data = out %>% filter(compartment %in% c("I", "W")), aes(x = time, y = value, color = patch))+
+ggplot(data = out, aes(x = time, y = value, color = patch))+
   geom_line()+
   facet_wrap(vars(compartment), scales = "free")+
   theme_bw()
