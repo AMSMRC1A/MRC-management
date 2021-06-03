@@ -7,7 +7,7 @@ clear
 tic
 
 %% Use parameter_settings to call parameters
-parameter_settings;
+baseline_parameter_settings;
 
 %% Create time vector 
 t0 = 0;
