@@ -17,24 +17,25 @@ v2 = data.frame(times = times, v2 = rep(0,length(times)))
 v2_interp <- approxfun(v2, rule = 2)
 v2 = v2[,2]
 # adjoints
-x = IC
-lambda = rep(0,8)
-names(lambda) = paste0("lambda",1:8)
+x = matrix(0, nrow = length(t), ncol = 9)
+lambda = matrix(0, nrow = length(t), ncol = 9)
+lambda_init = rep(0,8)
+names(lambda_init) = paste0("lambda",1:8)
 # bounds
 M1 = 0.015
 
 # setup OC
-delta = 0.001
+delta = 0.01
 test = -1
 oc_params <- c(b1 = 1, b2 = 1,
-               C1 = 1, C2 = 1, 
-               epsilon1  = 1, epsilon2 = 1)
+               C1 = 200, C2 = 200, 
+               epsilon1  = 10, epsilon2 = 10)
 
 # define norm(X,1) command from matlab
 norm <- function(x){sum(abs(x))}
 
 counter <- 1
-
+test = -1
 while(test < 0 & counter < 50){
   counter <- counter + 1
   # set previous control, state, and adjoint 
@@ -48,29 +49,36 @@ while(test < 0 & counter < 50){
   v2_interp <- approxfun(v2, rule = 2)
   
   # solve states
-  x <- ode(y = x, times = t, func = chol, parms = params)
+  x <- ode(y = IC, times = t, func = chol, parms = params)
   
   # interpolate x (state)
   x_interp <- lapply(2:ncol(solx), function(x){approxfun(solx[,c(1,x)], rule = 2)})
   
   # solve adjoint
-  lambda <- ode(y = lambda, times = t, func = adj, 
-                parms = params, oc_params = oc_params,
-                method = "bdf") # ?? implements backward differentiation?
-  
+  lambda <- ode(y = lambda_init, times = rev(t), func = adj, 
+                parms = params, oc_params = oc_params)#,
+                #method = "bdf") # ?? implements backward differentiation?
+  lambda <- lambda[nrow(lambda):1,]
+
   # calculate v1* and v2*
-  temp_v1 <- ((lambda[,"lambda1"]- oc_params["C1"] - lambda[,"lambda3"])*x[,"S1"])/
+  temp_v1 <- ((lambda[,"lambda1"] - oc_params["C1"] - lambda[,"lambda3"])*x[,"S1"])/
     (2*oc_params["epsilon1"])
   temp_v2 <- ((lambda[,"lambda5"]- oc_params["C2"] - lambda[,"lambda7"])*x[,"S2"])/
     (2*oc_params["epsilon2"])
   v1 <- min(M1, max(0, temp_v1))
   v1 <- 0.5*(v1 + oldv1)
+  v2 <- min(M1, max(0, temp_v2))
+  v2 <- 0.5*(v2 + oldv2)
   
   # recalculate test
-  test <- min(delta*norm(v1)-norm(oldv1-v1),
-              delta*norm(x)-norm(oldy-x),
+  if(length(x) != length(oldx)){browser()}
+  test <- min(delta*norm(c(v1,v2))-norm(c(oldv1,oldv2)-c(v1,v2)),
+              delta*norm(x)-norm(oldx-x),
               delta*norm(lambda)-norm(oldlambda-lambda))
-  
+  print(counter)
+  print(test)
 }
 
+plot(x)
+plot(v1)
 

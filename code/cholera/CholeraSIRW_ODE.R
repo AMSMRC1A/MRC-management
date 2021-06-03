@@ -16,11 +16,11 @@ chol <- function(t, y, params){
     dR2 <- gamma2*I2 - mu2*R2 + v2*S2 + m1*R1 - m2*R2
     dW1 <- xi1*I1 - nu1*W1 - rho1*W1
     dW2 <- xi2*I2 - nu2*W2 + rho1*W1 - rho2*W2
-    dc1 <- beta_I1*S1*I1 +  beta_W1*S1*W1
-    dc2 <- beta_I2*S2*I2 + beta_W2*S2*W2
-    dV1 <- v1*S1
-    dV2 <- v2*S2
-    ret <- c(dS1, dS2, dI1, dI2, dR1, dR2, dW1, dW2, dc1, dc2, dV1, dV2)
+    #dc1 <- beta_I1*S1*I1 +  beta_W1*S1*W1
+    #dc2 <- beta_I2*S2*I2 + beta_W2*S2*W2
+    #dV1 <- v1*S1
+    #dV2 <- v2*S2
+    ret <- c(dS1, dS2, dI1, dI2, dR1, dR2, dW1, dW2)#, dc1, dc2, dV1, dV2)
     return(list(ret))
   })
 }
@@ -51,9 +51,9 @@ v2_interp <- approxfun(v2, rule = 2)
 IC <- c(S1 = 10000-300, S2 = 10000,
         I1 = 300,    I2 = 10, 
         R1 = 0,      R2 = 0,
-        W1 = 300,    W2 = 10,
-        c1 = 0,      c2 = 0, # added c to count new cases
-        V1 = 0,      V2 = 0) # added V to count vaccinations
+        W1 = 300,    W2 = 10)#,
+       # c1 = 0,      c2 = 0, # added c to count new cases
+       #  V1 = 0,      V2 = 0) # added V to count vaccinations
 
 # define time (days)
 t <- seq(0,200,0.01)
@@ -67,7 +67,7 @@ out$compartment = factor(out$compartment, levels = c("S", "I", "R", "W", "c", "V
 out$patch = substr(out$variable, 2,2)
 
 # plot output
-ggplot(data = out, aes(x = time, y = value, color = patch))+
+ggplot(data = out %>% filter(compartment %in% c("I", "W")), aes(x = time, y = value, color = patch))+
   geom_line()+
   facet_wrap(vars(compartment), scales = "free")+
   theme_bw()
