@@ -53,7 +53,7 @@ while(test < 0 && count < 50)
     % pull out states and adjoints needed in v*
     S1 = x(:,1);
     E1 = x(:,2);
-    S2 = x(:,7);
+    I1 = x(:,3);S2 = x(:,7);
     E2 = x(:,8);
     lambda1 = lambda(:,1);
     lambda6 = lambda(:,6);
@@ -79,6 +79,19 @@ end
 
 %% Calculate J
 
+% pull out states and adjoints needed in J
+S1 = x(:,1);
+E1 = x(:,2);
+I1 = x(:,3);
+D1 = x(:,5);
+S2 = x(:,7);
+E2 = x(:,8);
+I2 = x(:,9);
+D2 = x(:,11);
+
+J1 = sum((b1*(betaI1*S1.*I1 + betaD1*S1.*D1) + b2*(betaI2*S2.*I2 + betaD2*S2.*D2)).*dt) % approx. total cost of new cases
+J2 = sum((C1*v1.*(S1 + E1) + epsilon1*v1.^2 + C2*v2.*(S2 + E2) + epsilon2*v2.^2).*dt) % approx. total cost of vaccination
+
 %% Plots
 
 figure(1) % patch 1
@@ -103,7 +116,7 @@ subplot(4,2,6);ylabel('R1')
 subplot(4,2,7);plot(tvec,v1)
 subplot(4,2,7);xlabel('Time')
 subplot(4,2,7);ylabel('v1')
-subplot(4,2,7);axis([0 T -0.1 M1+0.05])
+subplot(4,2,7);axis([0 T -0.02 M1+0.02])
 
 figure(2) % patch 2
 subplot(4,2,1);plot(tvec,x(:,7))
@@ -127,7 +140,7 @@ subplot(4,2,6);ylabel('R2')
 subplot(4,2,7);plot(tvec,v2)
 subplot(4,2,7);xlabel('Time')
 subplot(4,2,7);ylabel('v2')
-subplot(4,2,7);axis([0 T -0.1 M2+0.05])
+subplot(4,2,7);axis([0 T -0.02 M2+0.02])
 
 % figure(3) % adjoints for patch 1
 % subplot(4,2,1);plot(tvec,lambda(:,1))
@@ -168,4 +181,24 @@ subplot(4,2,7);axis([0 T -0.1 M2+0.05])
 % subplot(4,2,6);plot(tvec,lambda(:,12))
 % subplot(4,2,6);xlabel('Time')
 % subplot(4,2,6);ylabel('R2')
+
+figure(5)
+subplot(2,2,1);plot(tvec,x(:,3),tvec,x(:,9),'linewidth',2)
+subplot(2,2,1);xlabel('Time')
+subplot(2,2,1);ylabel('Infectious')
+legend('patch 1','patch2')
+axis([0,150,0,300])
+set(gca, 'FontSize', 24)
+subplot(2,2,2);plot(tvec,x(:,4),tvec,x(:,10),'linewidth',2)
+subplot(2,2,2);xlabel('Time')
+subplot(2,2,2);ylabel('Dead Bodies')
+legend('patch 1','patch2')
+axis([0,150,0,400])
+set(gca, 'FontSize', 24)
+subplot(2,1,2);plot(tvec,v1,tvec,v2,'linewidth',2)
+subplot(2,1,2);xlabel('Time')
+subplot(2,1,2);ylabel('Vaccination Strategy')
+legend('patch 1','patch2')
+subplot(2,1,2);axis([0 150 -0.02 M1+0.02])
+set(gca, 'FontSize', 24)
           
