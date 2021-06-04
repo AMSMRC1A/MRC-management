@@ -4,7 +4,7 @@ clc
 
 parameter_settings
 
-T=100;
+T=200;
 
 M1 = 0.05;
 M2 = 0.05;
@@ -12,8 +12,10 @@ M2 = 0.05;
 test = -1;
 
 delta = 0.01;
-M = 1000;
-tvec=linspace(0,T,M+1)';
+tvec = 0:0.05:T;
+M = length(tvec)-1;
+%M = 1000;
+%tvec=linspace(0,T,M+1)';
 
 x=zeros(M+1,12);
 lambda=zeros(M+1,12);
@@ -30,10 +32,10 @@ while(test < 0 && count < 50)
     oldx = x;
     oldlambda = lambda;
     
-    solx = ode45(@(t,x) states(t,x,tvec,v1,v2,par),tvec,y0);
+    solx = ode45(@(t,x) ebola_optimal_states(t,x,tvec,v1,v2,par),tvec,y0);
     x = deval(solx,tvec)';
 
-    sollamb = ode45(@(t,lambda) adjoints(t,lambda,tvec,x,v1,v2,par),[T 0],zeros(1,12));
+    sollamb = ode45(@(t,lambda) ebola_optimal_adjoints(t,lambda,tvec,x,v1,v2,par),[T 0],zeros(1,12));
     lambda = deval(sollamb,tvec)';
     
     S1=x(:,1);
@@ -84,25 +86,25 @@ subplot(4,2,7);xlabel('Time')
 subplot(4,2,7);ylabel('v1')
 subplot(4,2,7);axis([0 T -0.1 M1+0.05])
 
-figure(3)
-subplot(4,2,1);plot(tvec,lambda(:,1))
-subplot(4,2,1);xlabel('Time')
-subplot(4,2,1);ylabel('S1')
-subplot(4,2,2);plot(tvec,lambda(:,2))
-subplot(4,2,2);xlabel('Time')
-subplot(4,2,2);ylabel('E1')
-subplot(4,2,3);plot(tvec,lambda(:,3))
-subplot(4,2,3);xlabel('Time')
-subplot(4,2,3);ylabel('I1')
-subplot(4,2,4);plot(tvec,lambda(:,4))
-subplot(4,2,4);xlabel('Time')
-subplot(4,2,4);ylabel('H1')
-subplot(4,2,5);plot(tvec,lambda(:,5))
-subplot(4,2,5);xlabel('Time')
-subplot(4,2,5);ylabel('D1')
-subplot(4,2,6);plot(tvec,lambda(:,6))
-subplot(4,2,6);xlabel('Time')
-subplot(4,2,6);ylabel('R1')
+% figure(3)
+% subplot(4,2,1);plot(tvec,lambda(:,1))
+% subplot(4,2,1);xlabel('Time')
+% subplot(4,2,1);ylabel('S1')
+% subplot(4,2,2);plot(tvec,lambda(:,2))
+% subplot(4,2,2);xlabel('Time')
+% subplot(4,2,2);ylabel('E1')
+% subplot(4,2,3);plot(tvec,lambda(:,3))
+% subplot(4,2,3);xlabel('Time')
+% subplot(4,2,3);ylabel('I1')
+% subplot(4,2,4);plot(tvec,lambda(:,4))
+% subplot(4,2,4);xlabel('Time')
+% subplot(4,2,4);ylabel('H1')
+% subplot(4,2,5);plot(tvec,lambda(:,5))
+% subplot(4,2,5);xlabel('Time')
+% subplot(4,2,5);ylabel('D1')
+% subplot(4,2,6);plot(tvec,lambda(:,6))
+% subplot(4,2,6);xlabel('Time')
+% subplot(4,2,6);ylabel('R1')
 
 figure(2)
 subplot(4,2,1);plot(tvec,x(:,7))
@@ -128,23 +130,23 @@ subplot(4,2,7);xlabel('Time')
 subplot(4,2,7);ylabel('v2')
 subplot(4,2,7);axis([0 T -0.1 M2+0.05])
 
-figure(4)
-subplot(4,2,1);plot(tvec,lambda(:,7))
-subplot(4,2,1);xlabel('Time')
-subplot(4,2,1);ylabel('S2')
-subplot(4,2,2);plot(tvec,lambda(:,8))
-subplot(4,2,2);xlabel('Time')
-subplot(4,2,2);ylabel('E2')
-subplot(4,2,3);plot(tvec,lambda(:,9))
-subplot(4,2,3);xlabel('Time')
-subplot(4,2,3);ylabel('I2')
-subplot(4,2,4);plot(tvec,lambda(:,10))
-subplot(4,2,4);xlabel('Time')
-subplot(4,2,4);ylabel('H2')
-subplot(4,2,5);plot(tvec,lambda(:,11))
-subplot(4,2,5);xlabel('Time')
-subplot(4,2,5);ylabel('D2')
-subplot(4,2,6);plot(tvec,lambda(:,12))
-subplot(4,2,6);xlabel('Time')
-subplot(4,2,6);ylabel('R2')
+% figure(4)
+% subplot(4,2,1);plot(tvec,lambda(:,7))
+% subplot(4,2,1);xlabel('Time')
+% subplot(4,2,1);ylabel('S2')
+% subplot(4,2,2);plot(tvec,lambda(:,8))
+% subplot(4,2,2);xlabel('Time')
+% subplot(4,2,2);ylabel('E2')
+% subplot(4,2,3);plot(tvec,lambda(:,9))
+% subplot(4,2,3);xlabel('Time')
+% subplot(4,2,3);ylabel('I2')
+% subplot(4,2,4);plot(tvec,lambda(:,10))
+% subplot(4,2,4);xlabel('Time')
+% subplot(4,2,4);ylabel('H2')
+% subplot(4,2,5);plot(tvec,lambda(:,11))
+% subplot(4,2,5);xlabel('Time')
+% subplot(4,2,5);ylabel('D2')
+% subplot(4,2,6);plot(tvec,lambda(:,12))
+% subplot(4,2,6);xlabel('Time')
+% subplot(4,2,6);ylabel('R2')
           

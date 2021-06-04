@@ -1,4 +1,4 @@
-function [ dlambda ] = adjoints(t,lambda,tvec,x,v1,v2,par)
+function [ dlambda ] = ebola_optimal_adjoints(t,lambda,tvec,x,v1,v2,par)
 
 % pull out parameters
 betaI1 = par.betaI1;

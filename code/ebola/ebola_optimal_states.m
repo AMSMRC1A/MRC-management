@@ -1,4 +1,4 @@
-function [ dx ] = states(t,x,tvec,v1,v2,par)
+function [ dx ] = ebola_optimal_states(t,x,tvec,v1,v2,par)
 
 % pull out parameters
 betaI1 = par.betaI1;

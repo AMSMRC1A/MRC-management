@@ -3,17 +3,17 @@
 %% Initial Conditions
 
 % patch 1
-N1 = 6e4;
-S1 = N1 - 1000;
-E1 = 500;
-I1 = 500;
+N1 = 6e5;
+S1 = N1 - 100;
+E1 = 50;
+I1 = 50;
 H1 = 0;
 D1 = 0;
 R1 = 0;
 ci = 0;
 
 % patch 2
-N2 = 6e4;
+N2 = 6e5;
 S2 = N2;
 E2 = 0;
 I2 = 0;
@@ -52,10 +52,10 @@ n1 = 0;
 n2 = 0;
 b1 = 1;
 b2 = 1;
-C1 = 1;
-C2 = 1;
-epsilon1 = 0.1;
-epsilon2 = 0.1;
+C1 = 0.5;
+C2 = 0.5;
+epsilon1 = 0.5;
+epsilon2 = 0.5;
 
 % calculate betas based on R0
 R0 = 1.7;
