@@ -2,6 +2,7 @@
 library(deSolve)
 library(reshape2)
 library(tidyverse)
+library(cowplot)
 
 # model equations
 chol <- function(t, y, params){
@@ -16,17 +17,17 @@ chol <- function(t, y, params){
     dR2 <- gamma2*I2 - mu2*R2 + v2*S2 + m1*R1 - m2*R2
     dW1 <- xi1*I1 - nu1*W1 - rho1*W1
     dW2 <- xi2*I2 - nu2*W2 + rho1*W1 - rho2*W2
-    #dc1 <- beta_I1*S1*I1 +  beta_W1*S1*W1
-    #dc2 <- beta_I2*S2*I2 + beta_W2*S2*W2
-    #dV1 <- v1*S1
-    #dV2 <- v2*S2
+    #dc1 <- beta_I1*S1*I1 +  beta_W1*S1*W1 # cumulative infections patch 1
+    #dc2 <- beta_I2*S2*I2 + beta_W2*S2*W2  # cumulative infections patch 2
+    #dV1 <- v1*S1                          # cumulative vaccinations patch 1      
+    #dV2 <- v2*S2                          # cumulative vaccinations patch 2      
     ret <- c(dS1, dS2, dI1, dI2, dR1, dR2, dW1, dW2)#, dc1, dc2, dV1, dV2)
     return(list(ret))
   })
 }
 
 # define parameters
-params <- c(mu1 = 0, mu2 = 0,                # natural birth/death rate 1E-4
+params <- c(mu1 = 0, mu2 = 0,                      # natural birth/death rate 1E-4
             beta_I1 = 2.14E-5, beta_I2 = 2.14E-5,  # transmission rate from people
             beta_W1 = 1.01E-5, beta_W2 = 1.01E-5,  # transmission rate from water
             v1 = 0, v2 = 0,                        # vaccination rate
@@ -51,7 +52,7 @@ v2 = data.frame(times = t, v2 = rep(0,length(t)))
 v2_interp <- approxfun(v2, rule = 2)
 
 # define ICs
-IC <- c(S1 = 10000-100, S2 = 10000-10,
+IC <- c(S1 = 10000-10, S2 = 10000-10,
         I1 = 100,    I2 = 10, 
         R1 = 0,      R2 = 0,
         W1 = 300,    W2 = 10)#,
@@ -68,7 +69,12 @@ out$patch = substr(out$variable, 2,2)
 
 # plot output
 ggplot(data = out, aes(x = time, y = value, color = patch))+
-  geom_line()+
+  geom_line(lwd=2)+
   facet_wrap(vars(compartment), scales = "free")+
-  theme_bw()
+  theme_half_open(12) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme(axis.text=element_text(size=16),
+        axis.title=element_text(size=14,face="bold"),
+        plot.title = element_text(size=18))
 
