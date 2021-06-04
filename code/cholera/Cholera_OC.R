@@ -2,6 +2,7 @@
 # http://desolve.r-forge.r-project.org/user2014/tutorial.pdf (see "Forcing" section)
 # https://cran.r-project.org/web/packages/deSolve/vignettes/deSolve.pdf
 
+## Pseudo-code
 # initial guesses, conditions
 # while
 #   solve states 
@@ -24,17 +25,17 @@ lambda = matrix(0, nrow = length(t), ncol = 9)
 lambda_init = rep(0,8)
 names(lambda_init) = paste0("lambda",1:8)
 # bounds
-M1 = 0.015
-M2 = 0.015
+M1 = 0.15
+M2 = 0.15
 
-# setup OC
+# setup optimal control parameters
 delta = 0.01
 test = -1
 oc_params <- c(b1 = 1, b2 = 1,
                C1 = 0.5, C2 = 0.5, 
                epsilon1  = 1000, epsilon2 = 1000)
 
-# define norm(X,1) command from matlab
+# define norm(X,1) command from matlab (! over-writes R "norm" function)
 norm <- function(x){sum(abs(x))}
 
 counter <- 1
@@ -47,17 +48,17 @@ while(test < 0 & counter < 50){
   oldx = x
   oldlambda = lambda
   
-  # interpolate v
+  # define interpolating functions for v
   v1_interp <- approxfun(t, v1, rule = 2)
   v2_interp <- approxfun(t, v2, rule = 2)
   
   # solve states
   x <- ode(y = IC, times = t, func = chol, parms = params)
   
-  # interpolate x (state)
+  # define interpolating functions for x (states)
   x_interp <- lapply(2:ncol(x), function(i){approxfun(x[,c(1,i)], rule = 2)})
   
-  # solve adjoint
+  # solve adjoint equations (backwards)
   lambda <- ode(y = lambda_init, times = rev(t), func = adj, 
                 parms = params, oc_params = oc_params)
   lambda <- lambda[nrow(lambda):1,]
@@ -68,9 +69,9 @@ while(test < 0 & counter < 50){
   temp_v2 <- ((lambda[,"lambda5"] - oc_params["C2"] - lambda[,"lambda7"])*x[,"S2"])/
     (2*oc_params["epsilon2"])
   
-  v1 <- min(M1, max(0, temp_v1))
+  v1 <- pmin(M1, pmax(0, temp_v1))
   v1 <- 0.5*(v1 + oldv1)
-  v2 <- min(M2, max(0, temp_v2))
+  v2 <- pmin(M2, pmax(0, temp_v2))
   v2 <- 0.5*(v2 + oldv2)
   
   # recalculate test
@@ -81,6 +82,22 @@ while(test < 0 & counter < 50){
   print(test)
 }
 
-plot(x)
-plot(v1)
-#plot(v2)
+# Collect trajectories and controls
+trajectories <- as.data.frame(x)
+trajectories$v1 = v1
+trajectories$v2 = v2
+trajectories <- melt(trajectories, id = c("time"))
+trajectories$compartment = substr(trajectories$variable,1,1)
+trajectories$compartment = factor(trajectories$compartment, levels = c("S", "I", "R", "W", "v"))
+trajectories$patch = substr(trajectories$variable, 2,2)
+
+# Plot trajectories and controls
+trajectories %>% ggplot(aes(x = time, y = value, color = patch)) +
+  geom_point(size=1.5)+
+  geom_line()+
+  facet_wrap(vars(compartment), scales = "free") +
+  theme_half_open(12) +
+  theme(axis.text=element_text(size=16),
+        axis.title=element_text(size=14,face="bold"),
+        plot.title = element_text(size=18))
+
