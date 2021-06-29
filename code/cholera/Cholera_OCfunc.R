@@ -83,3 +83,28 @@ oc_optim = function(v1, v2, x, lambda, # initial guesses
 
 # define norm(X,1) command from matlab
 norm_oc <- function(x){sum(abs(x))}
+
+# define cost function (j values)
+j_integrand <- function(params, optim_states){
+  with(as.list(c(params, optim_states)),{
+    dj = b1 * (beta_I1*S1*I1 + beta_W1*S1*W1) + C1*v1*S1 + epsilon1*(v1^2) +
+      b2 * (beta_I2*S2*I2 + beta_W2*S2*W2) + C2*v2*S2 + epsilon2*(v2^2)
+    return(dj)
+  })
+}
+
+calc_j <- function(params, optim_states, integrand_fn, 
+                   lower_lim, upper_lim, step_size){
+  # use trapezoid rule to integrate j
+  steps <- seq(lower_lim, upper_lim, step_size)
+  area = 0
+  for(i in 1:(length(steps)-1)){
+    a = steps[i]
+    b = steps[i+1]
+    j_a = integrand_fn(params, optim_states[i,])
+    j_b = integrand_fn(params, optim_states[i+1,])
+    area = area + (b-a)*(1/2)*(j_a+j_b)
+  }
+  return(area)
+}
+

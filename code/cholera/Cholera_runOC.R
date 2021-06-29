@@ -44,12 +44,12 @@ control_trajectories$compartment = factor(control_trajectories$compartment, leve
 control_trajectories$patch = substr(control_trajectories$variable, 2,2)
 
 # find no control ODE
-out <- ode(y = IC, times = t, func = chol, parms = params, 
+out_ode <- ode(y = IC, times = t, func = chol, parms = params, 
            v1_interp = approxfun(data.frame(times = t, v1 = rep(0,length(t))), rule = 2), 
            v2_interp = approxfun(data.frame(times = t, v1 = rep(0,length(t))), rule = 2))
 # reformat output for plotting
-out <- as.data.frame(out)
-out <- melt(out, id = c("time"))
+out_ode <- as.data.frame(out_ode)
+out <- melt(out_ode, id = c("time"))
 out$compartment = substr(out$variable,1,1)
 out$compartment = factor(out$compartment, levels = c("S", "I", "R", "W", "c", "V"))
 out$patch = substr(out$variable, 2,2)
@@ -65,4 +65,20 @@ control_plot <- control_trajectories %>% ggplot(aes(x = time, y = value, color =
         plot.title = element_text(size=18))
 
 control_plot
+
+
+# find j values
+j <- calc_j(params = c(params, oc_params), 
+            optim_states = cbind(oc$x, v1 = oc$v1, v2 = oc$v2), 
+            integrand_fn = j_integrand, 
+            lower_lim = min(t), upper_lim = max(t), step_size = 0.01)
+
+j_no_control <- calc_j(params = c(params, oc_params), 
+                       optim_states = cbind(out_ode, v1 = rep(0, nrow(out_ode)), v2 = rep(0, nrow(out_ode))), 
+                       integrand_fn = j_integrand, 
+                       lower_lim = min(t), upper_lim = max(t), step_size = 0.01)
+
+print(paste("No control:", round(j_no_control,1),
+            "Control: ", round(j,1),
+            "rel change", round(j/j_no_control,3)))
 
