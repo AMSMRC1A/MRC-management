@@ -3,17 +3,17 @@
 %% Initial Conditions
 
 % patch 1
-N1 = 6e4;
-S1 = N1 - 1000;
-E1 = 700;
-I1 = 300;
+N1 = 6e6; 
+S1 = N1-150; 
+E1 = 125; 
+I1 = 25; 
 H1 = 0;
 D1 = 0;
 R1 = 0;
 ci = 0;
 
 % patch 2
-N2 = 6e4;
+N2 = 6e6;
 S2 = N2;
 E2 = 0;
 I2 = 0;
@@ -30,8 +30,8 @@ y0 = [S1, E1, I1, H1, D1, R1, S2, E2, I2, H2, D2, R2];
 
 alpha1 = 0.1;
 alpha2 = 0.1;
-gammaI1 = 1/15; %originally 0.02 (Burton)
-gammaI2 = 1/15; %originally 0.02 (Burton)
+gammaI1 = 0.02;
+gammaI2 = 0.02; 
 gammaH1 = 0.028;
 gammaH2 = 0.028;
 phi1 = 0.236; %average from Burton
@@ -42,8 +42,8 @@ deltaH1 = 0.01;
 deltaH2 = 0.01;
 xi1 = 0.222;
 xi2 = 0.222;
-mu1 = 1e-4;
-mu2 = 1e-4;
+mu1 = 1e-4; 
+mu2 = 1e-4; 
 %v1 = 0;
 %v2 = 0;
 m1 = 0.005;
@@ -62,10 +62,11 @@ R0 = 1.7;
 p = 10; % scale betaI for transmission from D to get betaD % from Julie and Lauren's paper
 
 % patch 1
-betaI1 = 1e-9; % Burton
+betaI1 = 0.006/N1; %1e-9;
 %betaI1 = R0/(N1*(alpha1/(alpha1+mu1))*(1/(gammaI1+phi1+deltaI1+mu1))+p*N1*(alpha1/(alpha1+mu1))*(deltaI1/(gammaI1+phi1+deltaI1+mu1))*(1/(xi1)))/1;
-betaD1 = 5.5e-7; % Burton
+betaD1 = 3.3/N1; %5.5e-7; 
 %betaD1 = p*betaI1;
+R0 = N1 * alpha1/(alpha1 + mu1) * 1/(gammaI1 + phi1 + deltaI1 + mu1) * (betaI1 + betaD1*deltaI1/xi1)
 
 % patch 2
 %betaI2 = 1e-9;
