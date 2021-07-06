@@ -9,6 +9,8 @@
 %                 cholera_adjoints.m
 %                 cholera_costs.m
 %-------------------------------------------------------------------
+clear all
+close all
 
 % Set the parameters for the simulation.
 mu1 = 0;        mu2 = 0;                    % Natural Birth/death rate
@@ -87,6 +89,147 @@ while (test < 1E-16)
     %Update test (stopping criterion)
     test = min([tol*norm(v, 1) - norm(oldv-v, 1) tol*norm(x, 1) - norm(oldx-x, 1) tol*norm(L, 1) - norm(oldL - L, 1)]);
     count = count+1;
-    fprintf(' %2d    %10.8f  %10.8f \n', count, test, cholera_cost(oc_params, params, x, v1, v2, tfinal, tstep));
+    [J1b,J1c,J1e,J2b,J2c,J2e]=cholera_cost(oc_params, params, x, v1, v2, tfinal, tstep);
+    fprintf(' %2d    %10.8f  %10.8f \n', count, test, J1b+J1c+J1e+J2b+J2c+J2e);
     
 end
+fprintf('Count  | Test  |  |  Cost \n');
+fprintf('----------------------------------------------------------- \n');
+
+%% No Control
+v1nC = zeros(length(tvec), 1);
+v2nC = zeros(length(tvec), 1);
+
+solxnC = ode45(@(t,x) cholera_states(t, x, tvec, v1nC, v2nC, params), tvec, ICs);
+    xnC = deval(solxnC, tvec)';
+
+[J1bnC,J1cnC,J1enC,J2bnC,J2cnC,J2enC] = cholera_cost(oc_params, params, xnC, v1nC, v2nC, tfinal, tstep);
+
+disp(strrep(['No Control Objective Functional for Patch 1 Infection = ' sprintf(' %d,', J1bnC) ''], ')', ')'))
+
+disp(strrep(['No Control Objective Functional for Patch 1 Vaccination = ' sprintf(' %d,', J1cnC) ''], ')', ')'))
+
+disp(strrep(['No Control Objective Functional for Patch 1 Epsilon = ' sprintf(' %d,', J1enC) ''], ')', ')'))
+ 
+disp(strrep(['No Control Objective Functional for Patch 2 Infection = ' sprintf(' %d,', J2bnC) ''], ')', ')'))
+
+disp(strrep(['No Control Objective Functional for Patch 2 Vaccination = ' sprintf(' %d,', J2cnC) ''], ')', ')'))
+
+disp(strrep(['No Control Objective Functional for Patch 2 Epsilon = ' sprintf(' %d,', J2enC) ''], ')', ')'))
+
+disp(strrep(['No Control Objective Functional for Both Patches = ' sprintf(' %d,', J1bnC+J1cnC+J1enC+J2bnC+J2cnC+J2enC) ''], ')', ')'))
+
+fprintf('----------------------------------------------------------- \n');
+%% Maximum control
+
+v1mC = M1*ones(length(tvec), 1);
+v2mC = M2*ones(length(tvec), 1);
+
+solxmC = ode45(@(t,x) cholera_states(t, x, tvec, v1mC, v2mC, params), tvec, ICs);
+    xmC = deval(solxmC, tvec)';
+
+[J1bmC,J1cmC,J1emC,J2bmC,J2cmC,J2emC] = cholera_cost(oc_params, params, xmC, v1mC, v2mC, tfinal, tstep);
+
+
+disp(strrep(['Maximum Control Objective Functional for Patch 1 Infection = ' sprintf(' %d,', J1bmC) ''], ')', ')'))
+
+disp(strrep(['Maximum Control Objective Functional for Patch 1 Vaccination = ' sprintf(' %d,', J1cmC) ''], ')', ')'))
+
+disp(strrep(['Maximum Control Objective Functional for Patch 1 Epsilon = ' sprintf(' %d,', J1emC) ''], ')', ')'))
+ 
+disp(strrep(['Maximum Control Objective Functional for Patch 2 Infection = ' sprintf(' %d,', J2bmC) ''], ')', ')'))
+
+disp(strrep(['Maximum Control Objective Functional for Patch 2 Vaccination = ' sprintf(' %d,', J2cmC) ''], ')', ')'))
+
+disp(strrep(['Maximum Control Objective Functional for Patch 2 Epsilon = ' sprintf(' %d,', J2emC) ''], ')', ')'))
+
+disp(strrep(['Maximum Control Objective Functional for Both Patches = ' sprintf(' %d,', J1bmC+J1cmC+J1emC+J2bmC+J2cmC+J2emC) ''], ')', ')'))
+
+fprintf('----------------------------------------------------------- \n');
+%% Optimal Control
+
+[J1b,J1c,J1e,J2b,J2c,J2e]=cholera_cost(oc_params, params, x, v1, v2, tfinal, tstep);
+
+disp(strrep(['Objective Functional for Patch 1 Infection = ' sprintf(' %d,', J1b) ''], ')', ')'))
+
+disp(strrep(['Objective Functional for Patch 1 Vaccination = ' sprintf(' %d,', J1c) ''], ')', ')'))
+
+disp(strrep(['Objective Functional for Patch 1 Epsilon = ' sprintf(' %d,', J1e) ''], ')', ')'))
+ 
+disp(strrep(['Objective Functional for Patch 2 Infection = ' sprintf(' %d,', J2b) ''], ')', ')'))
+
+disp(strrep(['Objective Functional for Patch 2 Vaccination = ' sprintf(' %d,', J2c) ''], ')', ')'))
+
+disp(strrep(['Objective Functional for Patch 2 Epsilon = ' sprintf(' %d,', J2e) ''], ')', ')'))
+
+disp(strrep(['Objective Functional for Both Patches = ' sprintf(' %d,', J1b+J1c+J1e+J2b+J2c+J2e) ''], ')', ')'))
+
+fprintf('----------------------------------------------------------- \n');
+%% %%%%%%%%%%%%%%%%%%%%    Plots    %%%%%%%%%%%%%%%%%
+
+
+           subplot(2,4,1);
+           hold on
+           plot(tvec,x(:,1),'b-','LineWidth',2.5);
+           plot(tvec,x(:,5),'r--','LineWidth',2.5)
+           plot(tvec,xnC(:,1),'g-','LineWidth',1);
+           plot(tvec,xnC(:,5),'g--','LineWidth',1)
+           plot(tvec,xmC(:,1),'k-','LineWidth',1);
+           plot(tvec,xmC(:,5),'k--','LineWidth',1)
+           subplot(2,4,1);xlabel('Time')
+           subplot(2,4,1);ylabel('S')
+           
+           subplot(2,4,2);
+           hold on
+           plot(tvec,x(:,2),'b-','LineWidth',2.5);
+           plot(tvec,x(:,6),'r--','LineWidth',2.5)
+           plot(tvec,xnC(:,2),'g-','LineWidth',1);
+           plot(tvec,xnC(:,6),'g--','LineWidth',1)
+           plot(tvec,xmC(:,2),'k-','LineWidth',1);
+           plot(tvec,xmC(:,6),'k--','LineWidth',1)
+           subplot(2,4,2);xlabel('Time')
+           subplot(2,4,2);ylabel('I')
+           
+           subplot(2,4,3);
+           hold on
+           plot(tvec,x(:,3),'b-','LineWidth',2.5);
+           plot(tvec,x(:,7),'r--','LineWidth',2.5)
+           plot(tvec,xnC(:,3),'g-','LineWidth',1);
+           plot(tvec,xnC(:,7),'g--','LineWidth',1)
+           plot(tvec,xmC(:,3),'k-','LineWidth',1);
+           plot(tvec,xmC(:,7),'k--','LineWidth',1)
+           subplot(2,4,3);xlabel('Time')
+           subplot(2,4,3);ylabel('R')
+           
+           subplot(2,4,4); 
+           hold on
+           plot(tvec,x(:,4),'b-','LineWidth',2.5);
+           plot(tvec,x(:,8),'r--','LineWidth',2.5)
+           plot(tvec,xnC(:,4),'g-','LineWidth',1);
+           plot(tvec,xnC(:,8),'g--','LineWidth',1)
+           plot(tvec,xmC(:,4),'k-','LineWidth',1);
+           plot(tvec,xmC(:,8),'k--','LineWidth',1)
+           legend('Patch 1 Optimal', 'Patch 2 Optimal', 'Patch 1 No Control','Patch 2 No Control','Patch 1 Max Control','Patch 2 Max Control')
+           subplot(2,4,4);xlabel('Time')
+           subplot(2,4,4);ylabel('W')
+           
+           subplot(2,4,5);
+           hold on
+           plot(tvec,v1,'LineWidth',2.5)
+           plot(tvec,v1nC,'g-','LineWidth',1);
+           plot(tvec,v1mC,'k-','LineWidth',1);
+           legend('Patch 1 Optimal', 'Patch 1 No Control','Patch 1 Max Control')
+           subplot(2,4,5);xlabel('Time')
+           subplot(2,4,5);ylabel('v_1')
+           subplot(2,4,5);axis([0 tfinal -0.0001 M1+.0001])  
+              
+           subplot(2,4,6);
+           hold on
+           plot(tvec,v2,'LineWidth',2.5)
+           plot(tvec,v2nC,'g-','LineWidth',1);
+           plot(tvec,v1mC,'k-','LineWidth',1);
+           legend('Patch 2 Optimal', 'Patch 2 No Control','Patch 2 Max Control')
+           subplot(2,4,6);xlabel('Time')
+           subplot(2,4,6);ylabel('v_2')
+           subplot(2,4,6);axis([0 tfinal -0.0001 M2+.0001])  
+               
