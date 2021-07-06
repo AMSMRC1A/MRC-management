@@ -2,3 +2,7 @@
 .Rhistory
 .RData
 .DS_Store
+*.lyx~
+*.lyx#
+scratch/Cholera_R0_single-patch_notes.lyx
+*.lyx

@@ -1,0 +1,397 @@
+%% LyX 2.3.6.1 created this file.  For more info, see http://www.lyx.org/.
+%% Do not edit unless you really know what you are doing.
+\documentclass[oneside,english]{amsart}
+\usepackage[T1]{fontenc}
+\usepackage[latin9]{inputenc}
+\usepackage{geometry}
+\geometry{verbose}
+\usepackage{mathrsfs}
+\usepackage{amsbsy}
+\usepackage{amstext}
+\usepackage{amsthm}
+
+\makeatletter
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Textclass specific LaTeX commands.
+\numberwithin{equation}{section}
+\numberwithin{figure}{section}
+
+\makeatother
+
+\usepackage{babel}
+\begin{document}
+
+\section{Single-patch Ebola model:}
+
+\begin{align*}
+S' & =\mu N-\beta_{I}SI-\beta_{W}SW-\mu S\\
+I' & =\beta_{I}SI+\beta_{W}SW-\left(\gamma+\mu+\delta\right)I\\
+R' & =\gamma I-\mu R\\
+W' & =\xi_{\text{in}}I-\xi_{\text{out}}W
+\end{align*}
+where $N=S+I+R$.
+
+Check that compartments remain positive, i.e. $\frac{dx_{i}}{dt}\ge0$
+for any feasible set of initial conditions... (TBC)
+
+Define $x=\left(I,W,S,R\right)^{t}$. There is a unique disease free
+equilibrium given by $x_{0}=\left(N_{0},0,0,0\right)^{t}$, where
+$N_{0}=N\left(0\right)$.
+
+There are two infectious compartments: infected humans ($I$) and
+the water reservoir ($W$), but new infections only occur in the infected
+humans compartment.
+
+Let $\mathscr{F}\left(x\right)$ the rate of new infections and $\mathscr{V}\left(x\right)$
+the net rate of transfer for all other transitions.
+
+\begin{align*}
+\mathscr{F}\left(x\right) & =\begin{pmatrix}\beta_{I}SI+\beta_{W}SW\\
+0\\
+0\\
+0
+\end{pmatrix}\\
+\mathscr{V}\left(x\right) & =\begin{pmatrix}\left(\gamma+\mu+\delta\right)I\\
+\xi_{\text{out}}W-\xi_{\text{in}}I\\
+\beta_{I}SI+\beta_{W}SW+\mu S-\mu N\\
+\mu R-\gamma I
+\end{pmatrix}
+\end{align*}
+The Jacobians of these 
+\begin{align*}
+D\mathscr{F}\left(x\right) & =\begin{bmatrix}\beta_{I}S & \beta_{W}S & \beta_{I}I+\beta_{W}W & 0\\
+0 & 0 & 0 & 0\\
+0 & 0 & 0 & 0\\
+0 & 0 & 0 & 0
+\end{bmatrix}\\
+D\mathscr{V}\left(x\right) & =\begin{bmatrix}\gamma+\mu+\delta & 0 & 0 & 0\\
+-\xi_{\text{in}} & \xi_{\text{out}} & 0 & 0\\
+\beta_{I}S-\mu & \beta_{W}S & \beta_{I}I+\beta_{W}W & -\mu\\
+-\gamma & 0 & 0 & \mu
+\end{bmatrix}
+\end{align*}
+Taking the upper 2 by 2 quadrant of each matrix, to isolate the infected
+compartments, and evaluating at the disease-free equilibrium, $x_{0}$,
+gives us
+\begin{align*}
+F & =\begin{bmatrix}\beta_{I}N_{0} & \beta_{W}N_{0}\\
+0 & 0
+\end{bmatrix}\\
+V & =\begin{bmatrix}\gamma+\mu+\delta & 0\\
+-\xi_{\text{in}} & \xi_{\text{out}}
+\end{bmatrix}
+\end{align*}
+The next generation, $K=FV^{-1}$, is given byHence
+\begin{align*}
+K=FV^{-1} & =\begin{bmatrix}\beta_{I}N_{0}\frac{1}{\gamma+\mu+\delta}+\beta_{W}N_{0}\frac{\xi_{\text{in}}}{\xi_{\text{out}}\left(\gamma+\mu+\delta\right)} & \frac{\beta_{W}N_{0}}{\xi}\\
+0 & 0
+\end{bmatrix}
+\end{align*}
+
+
+\subsection{Basic reproduction number}
+
+The basic reproduction number, $\mathcal{R}_{0}$, defined as $\rho\left(K\right)$,
+is therefore
+\[
+\mathcal{R}_{0}=\beta_{I}N_{0}\left(\frac{1}{\gamma+\mu+\delta}\right)+\beta_{W}N_{0}\left(\xi_{\text{in}}\frac{1}{\gamma+\mu+\delta}\right)\left(\frac{1}{\xi_{\text{out}}}\right)
+\]
+This can be decomposed as $\mathcal{R}_{0}=\mathcal{R}_{I}+\mathcal{R}_{W}$
+where $\mathcal{R}_{I}$ represents the average number of new infections
+induced by direct contact with an infectious individual (while alive)
+and $\mathcal{R}_{W}$ represents the average number of new infections
+induced by viral shedding of an infected individual into the water
+source.
+
+The type reproduction numbers, $\mathcal{R}_{I}$ and $\mathcal{R}_{W}$
+can be interpreted as follows:
+\begin{align*}
+\mathcal{R}_{I} & =\beta_{I}N_{0}\left(\frac{1}{\gamma+\mu+\delta}\right)\\
+ & =\frac{\text{\# infectious contacts}}{\text{person}\times\text{time}}\times\text{\# susceptibles}\times\text{infectious period}\\
+\mathcal{R}_{W} & =\beta_{W}N_{0}\left(\xi_{\text{in}}\frac{1}{\gamma+\mu+\delta}\right)\left(\frac{1}{\xi_{\text{out}}}\right)\\
+ & =\frac{\text{\# infectious contacts}}{\text{infectious units}\times\text{time}}\times\text{\# susceptibles}\times\left(\frac{\text{infectious viral units}}{\text{time}}\times\text{infectious period}\right)\times\text{virus persistence time}
+\end{align*}
+
+Note that here we have made$\xi_{\text{in}}$ and $\xi_{\text{out}}$
+distinct to aid in the biological interpretation of the reproduction
+number (otherwise the term $\frac{\xi_{\text{in}}}{\xi_{\text{out}}}=1$
+would cancel out of the expression). 
+
+\section{Two-patch Ebola model with migration and water movement}
+
+\begin{align*}
+S_{1}' & =\mu_{1}N_{1}-\beta_{I1}S_{1}I_{1}-\beta_{W1}S_{1}W_{1}-\mu_{1}S_{1}-m_{1}S_{1}+m_{2}S_{2}\\
+I_{1}' & =\beta_{I1}S_{1}I_{1}+\beta_{W1}S_{1}W_{1}-(\gamma_{1}+\mu_{1}+\delta_{1})I_{1}-n_{1}I_{1}+n_{2}I_{2}\\
+R_{1}' & =\gamma_{1}I_{1}-\mu_{1}R_{1}-m_{1}R_{1}+m_{2}R_{2}\\
+W_{1}' & =\xi_{1,\text{in}}I_{1}-\xi_{1,\text{out}}W_{1}-\rho_{1}W_{1}+\rho_{2}W_{2}\\
+S_{2}' & =\mu_{2}N_{2}-\beta_{I2}S_{2}I_{2}-\beta_{W2}S_{2}W_{2}-\mu_{2}S_{2}+m_{1}S_{1}-m_{2}S_{2}\\
+I_{2}' & =\beta_{I2}S_{2}I_{2}+\beta_{W2}S_{2}W_{2}-(\gamma_{2}+\mu_{2}+\delta_{2})I_{2}+n_{1}I_{1}-n_{2}I_{2}\\
+R_{2}' & =\gamma_{2}I_{2}-\mu_{2}R_{2}+m_{1}R_{1}-m_{2}R_{2}\\
+W_{2}' & =\xi_{2,\text{in}}I_{2}-\xi_{2,\text{out}}W_{2}+\rho_{1}W_{1}-\rho_{2}W_{2}
+\end{align*}
+where $N_{i}=S_{i}+I_{i}+R_{i}$, $i=1,2$.
+
+Check that compartments remain positive, i.e. $\frac{dx_{i}}{dt}\ge0$
+for any feasible set of initial conditions... (TBC). Define $x=\left(I_{1},I_{2},W_{1},W_{2},S_{1},S_{2},R_{1},R_{2}\right)^{t}$.
+There is a unique disease free equilibrium given by $x_{0}=\left(0,0,0,0,N_{1,0},N_{2,0},0,0\right)^{t}$,
+where $N_{i,0}=N_{i}\left(0\right)$. There are two infectious compartments
+in each patch: infected humans ($I_{1},I_{2}$) and the water reservoir
+($W_{1},W_{2}$), but new infections only occur in the infected humans
+compartments. Let $\mathscr{F}\left(x\right)$ the rate of new infections
+and $\mathscr{V}\left(x\right)$ the net rate of transfer out of a
+compartment (for all transitions except new infections).
+
+\begin{align*}
+\mathscr{F}\left(x\right) & =\begin{pmatrix}\beta_{I1}S_{1}I_{1}+\beta_{W1}S_{1}W_{1}\\
+\beta_{I2}S_{2}I_{2}+\beta_{W2}S_{2}W_{2}\\
+0\\
+0\\
+0\\
+0\\
+0\\
+0
+\end{pmatrix}\\
+\mathscr{V}\left(x\right) & =\begin{pmatrix}(\gamma_{1}+\mu_{1}+\delta_{1})I_{1}+n_{1}I_{1}-n_{2}I_{2}\\
+-n_{1}I_{1}+(\gamma_{2}+\mu_{2}+\delta_{2})I_{2}+n_{2}I_{2}\\
+-\xi_{1,\text{in}}I_{1}+\xi_{1,\text{out}}W_{1}+\rho_{1}W_{1}-\rho_{2}W_{2}\\
+-\rho_{1}W_{1}-\xi_{2,\text{in}}I_{2}+\xi_{2,\text{out}}W_{2}+\rho_{2}W_{2}\\
+\beta_{I1}S_{1}I_{1}+\beta_{W1}S_{1}W_{1}-\mu_{1}N_{1}+\mu_{1}S_{1}+m_{1}S_{1}-m_{2}S_{2}\\
+-\gamma_{1}I_{1}+\mu_{1}R_{1}+m_{1}R_{1}-m_{2}R_{2}\\
+\beta_{I2}S_{2}I_{2}+\beta_{W2}S_{2}W_{2}-\mu_{2}N_{2}+\mu_{2}S_{2}-m_{1}S_{1}+m_{2}S_{2}\\
+-m_{1}R_{1}-\gamma_{2}I_{2}+\mu_{2}R_{2}+m_{2}R_{2}
+\end{pmatrix}
+\end{align*}
+The Jacobians of these operators, restricted to the rows and columns
+representing infected compartments, and evaluated at the DFE, $x_{0}$,
+are given by the matrices
+\begin{align*}
+F & =\begin{bmatrix}\beta_{I1}N_{1,0} & 0 & \beta_{W1}N_{1,0} & 0\\
+0 & \beta_{I2}N_{2,0} & 0 & \beta_{W2}N_{2,0}\\
+0 & 0 & 0 & 0\\
+0 & 0 & 0 & 0
+\end{bmatrix}\\
+V & =\begin{bmatrix}\gamma_{1}+\mu_{1}+\delta_{1}+n_{1} & -n_{2} & 0 & 0\\
+-n_{1} & \gamma_{2}+\mu_{2}+\delta_{2}+n_{2} & 0 & 0\\
+-\xi_{1,\text{in}} & 0 & \xi_{1,\text{out}}+\rho_{1} & -\rho_{2}\\
+0 & -\xi_{2,\text{in}} & -\rho_{1} & \xi_{2,\text{out}}+\rho_{2}
+\end{bmatrix}
+\end{align*}
+To simplify our calculations, we can re-write these in block form:
+\begin{align*}
+F & =\begin{bmatrix}\boldsymbol{F_{I}} & \boldsymbol{F_{W}}\\
+\boldsymbol{0_{2}} & \boldsymbol{0_{2}}
+\end{bmatrix},V=\begin{bmatrix}\boldsymbol{V_{I}} & \boldsymbol{0_{2}}\\
+\boldsymbol{D} & \boldsymbol{V_{W}}
+\end{bmatrix}
+\end{align*}
+ where 
+\begin{align*}
+\boldsymbol{F_{I}} & =\begin{bmatrix}\beta_{I1}N_{1,0} & 0\\
+0 & \beta_{I2}N_{2,0}
+\end{bmatrix},\\
+\boldsymbol{F_{W}} & =\begin{bmatrix}\beta_{W1}N_{1,0} & 0\\
+0 & \beta_{W2}N_{2,0}
+\end{bmatrix},\\
+\boldsymbol{V_{I}} & =\begin{bmatrix}\gamma_{1}+\mu_{1}+\delta_{1}+n_{1} & -n_{2}\\
+-n_{1} & \gamma_{2}+\mu_{2}+\delta_{2}+n_{2}
+\end{bmatrix},\\
+\boldsymbol{V_{W}} & =\begin{bmatrix}\xi_{1,\text{out}}+\rho_{1} & -\rho_{2}\\
+-\rho_{1} & \xi_{2,\text{out}}+\rho_{2}
+\end{bmatrix},\\
+\boldsymbol{D} & =\begin{bmatrix}-\xi_{1,\text{in}} & 0\\
+0 & -\xi_{2,\text{in}}
+\end{bmatrix}.
+\end{align*}
+Note that each of $\boldsymbol{V_{I}}$, $\boldsymbol{V_{W}}$, and
+$\boldsymbol{D}$ are invertible with biologically feasible parameters
+(i.e. not all are zero). The inverse of $V$ can also be written in
+block form as:
+\[
+V^{-1}=\begin{bmatrix}\boldsymbol{V_{I}}^{-1} & \boldsymbol{0_{2}}\\
+-\boldsymbol{V_{W}}^{-1}\boldsymbol{D}\boldsymbol{V_{I}}^{-1} & \boldsymbol{V_{W}}^{-1}
+\end{bmatrix}
+\]
+and the next generation matrix, $K=FV^{-1}$, can be determined in
+block-matrix form:
+\begin{align*}
+K=FV^{-1} & =\begin{bmatrix}\boldsymbol{F_{I}} & \boldsymbol{F_{W}}\\
+\boldsymbol{0_{2}} & \boldsymbol{0_{2}}
+\end{bmatrix}\begin{bmatrix}\boldsymbol{V_{I}}^{-1} & \boldsymbol{0_{2}}\\
+-\boldsymbol{V_{W}}^{-1}\boldsymbol{D}\boldsymbol{V_{I}}^{-1} & \boldsymbol{V_{W}}^{-1}
+\end{bmatrix}\\
+ & =\begin{bmatrix}\boldsymbol{F_{I}}\boldsymbol{V_{I}}^{-1}-\boldsymbol{F_{W}}\boldsymbol{V_{W}}^{-1}\boldsymbol{D}\boldsymbol{V_{I}}^{-1} & \boldsymbol{F_{W}}\boldsymbol{V_{W}}^{-1}\\
+\boldsymbol{0_{2}} & \boldsymbol{0_{2}}
+\end{bmatrix}
+\end{align*}
+We see immediately that $K$ will have at least two zero eigenvalues.
+The remaining eigenvalues are the eigenvalues of $K_{I}=\boldsymbol{F_{I}}\boldsymbol{V_{I}}^{-1}-\boldsymbol{F_{W}}\boldsymbol{V_{W}}^{-1}\boldsymbol{D}\boldsymbol{V_{I}}^{-1}$.
+We proceed in computing the eigenvalues of $K_{I}$ by first determining
+$\boldsymbol{V_{I}}^{-1}$ and $\boldsymbol{V_{W}}^{-1}$.
+
+We will work through the determination of $\boldsymbol{V_{I}}^{-1}$
+below in a deliberate manner in order to facilitate the biological
+interpretation of the next generation matrix and the basic reproduction
+number. We start by introducing some new notation. Let $\lambda_{i}=\frac{1}{\gamma_{i}+\mu_{i}+\delta_{i}+n_{i}}$
+and $\sigma_{i}=\frac{n_{i}}{\gamma_{i}+\mu_{i}+\delta_{i}+n_{i}}=n_{i}\lambda_{i}$,
+$i=1,2$. The quantity $\lambda_{i}$ represents the average amount
+of time an infectious individual in patch $i$ will remain in patch
+$i$ before recovering, dying (due to disease or natural mortality),
+or migrating. The quantity $\sigma_{i}$ represents the probability
+that an infectious individual in patch $i$ will migrate to another
+patch before recovering or dying. With these definitions, we can write
+$\boldsymbol{V_{I}}^{-1}$ much more compactly:
+\begin{align*}
+\boldsymbol{V_{I}}^{-1} & =\left(\frac{1}{1-\sigma_{1}\sigma_{2}}\right)\begin{bmatrix}\lambda_{1} & 0\\
+0 & \lambda_{2}
+\end{bmatrix}\begin{bmatrix}1 & \sigma_{2}\\
+\sigma_{1} & 1
+\end{bmatrix}
+\end{align*}
+Note that since $\sigma_{1}$ and $\sigma_{2}$ are probabilities,
+the quantity $\frac{1}{1-\sigma_{1}\sigma_{2}}$ is equivalent to
+the series $\sum_{n=1}^{\infty}\left(\sigma_{1}\sigma_{2}\right)^{n}$,
+which gives the average number of migrations an infectious individual
+makes before either recovering or dying. Note that this quantity is
+the same whether an individual starts in patch $1$ or in patch $2$,
+thus we can let $\nu=\frac{1}{1-\sigma_{1}\sigma_{2}}$ and drop the
+subscript.
+
+Notice that $\boldsymbol{V_{W}}$ is structured very similarly to
+$\boldsymbol{V_{I}}$. Thus we can immediately determine the inverse
+of $\boldsymbol{V_{W}}$ after defining some quantities similar to
+those in $\boldsymbol{V_{I}}^{-1}$. Let $\eta_{i}=\frac{1}{\xi_{i,\text{out}}+\rho_{i}}$,
+$\omega_{i}=\frac{\rho_{i}}{\xi_{i,\text{out}}+\rho_{i}}$, and $\tau=\frac{1}{1-\omega_{1}\omega_{2}}$.
+$\eta_{i}$, $\omega_{i}$, and $\tau$ have equivalent interpretations
+to $\lambda_{i}$, $\sigma_{i}$, and $\nu$ but for the transport
+of virus shed in the water, as opposed to human migration. With these
+defined, we can write down the inverse of $\boldsymbol{V_{W}}$:
+\[
+\boldsymbol{V_{W}}^{-1}=\tau\begin{bmatrix}\eta_{1} & 0\\
+0 & \eta_{2}
+\end{bmatrix}\begin{bmatrix}1 & \omega_{2}\\
+\omega_{1} & 1
+\end{bmatrix}
+\]
+
+Now to compute $K_{I}$, note that $\boldsymbol{F_{I}}\boldsymbol{V_{I}}^{-1}-\boldsymbol{F_{W}}\boldsymbol{V_{W}}^{-1}\boldsymbol{D}\boldsymbol{V_{I}}^{-1}=\left(\boldsymbol{F_{I}}-\boldsymbol{F_{W}}\boldsymbol{V_{W}}^{-1}\boldsymbol{D}\right)\boldsymbol{V_{I}}^{-1}$.
+Computing the bracketed portion first:
+\begin{align*}
+\boldsymbol{F_{I}}-\boldsymbol{F_{W}}\boldsymbol{V_{W}}^{-1}\boldsymbol{D} & =\begin{bmatrix}\beta_{I1}N_{1,0} & 0\\
+0 & \beta_{I2}N_{2,0}
+\end{bmatrix}-\begin{bmatrix}\beta_{W1}N_{1,0} & 0\\
+0 & \beta_{W2}N_{2,0}
+\end{bmatrix}\tau\begin{bmatrix}\eta_{1} & 0\\
+0 & \eta_{2}
+\end{bmatrix}\begin{bmatrix}1 & \omega_{2}\\
+\omega_{1} & 1
+\end{bmatrix}\begin{bmatrix}-\xi_{1,\text{in}} & 0\\
+0 & -\xi_{2,\text{in}}
+\end{bmatrix}\\
+ & =\begin{bmatrix}\beta_{I1}N_{1,0}+\tau\beta_{W1}N_{1,0}\eta_{1}\xi_{1,\text{in}} & \tau\beta_{W1}N_{1,0}\eta_{1}\omega_{2}\xi_{2,\text{in}}\\
+\tau\beta_{W2}N_{2,0}\eta_{2}\omega_{1}\xi_{1,\text{in}} & \beta_{I2}N_{2,0}+\tau\beta_{W2}N_{2,0}\eta_{2}\xi_{2,\text{in}}
+\end{bmatrix}
+\end{align*}
+Finally,
+\begin{align*}
+K_{I} & =\begin{bmatrix}k_{11} & k_{12}\\
+k_{21} & k_{22}
+\end{bmatrix}
+\end{align*}
+where 
+\begin{align*}
+k_{11} & =\beta_{I1}N_{1,0}\lambda_{1}\nu+\beta_{W1}N_{1,0}\xi_{1,\text{in}}\lambda_{1}\left(\tau\eta_{1}\right)\nu+\beta_{W1}N_{1,0}\xi_{2,\text{in}}\lambda_{2}\left(\tau\eta_{1}\omega_{2}\right)\left(\nu\sigma_{1}\right),\\
+k_{12} & =\beta_{I1}N_{1,0}\lambda_{1}\nu\sigma_{2}+\beta_{W1}N_{1,0}\xi_{1,\text{in}}\lambda_{1}\left(\tau\eta_{1}\right)\left(\nu\sigma_{2}\right)+\beta_{W1}N_{1,0}\xi_{2,\text{in}}\lambda_{2}\left(\tau\eta_{1}\omega_{2}\right)\nu,\\
+k_{21} & =\beta_{I2}N_{2,0}\lambda_{2}\nu\sigma_{1}+\beta_{W2}N_{2,0}\xi_{2,\text{in}}\lambda_{2}\left(\tau\eta_{2}\right)\left(\nu\sigma_{1}\right)+\beta_{W2}N_{2,0}\xi_{1,\text{in}}\lambda_{1}\left(\tau\eta_{2}\omega_{1}\right)\nu,\\
+k_{22} & =\beta_{I2}N_{2,0}\lambda_{2}\nu+\beta_{W2}N_{2,0}\xi_{2,\text{in}}\lambda_{2}\left(\tau\eta_{2}\right)\nu+\beta_{W2}N_{2,0}\xi_{1,\text{in}}\lambda_{1}\left(\tau\eta_{2}\omega_{1}\right)\left(\nu\sigma_{2}\right).
+\end{align*}
+We will argue that $k_{ij}$ represents the average number of new
+infections induced in patch $i$ by an infectious individual who started
+in patch $j$. Define
+\begin{align*}
+\mathcal{R}_{Ii} & =\beta_{Ii}N_{i,0}\lambda_{i},\\
+\mathcal{R}_{Wi} & =\beta_{Wi}N_{i,0}\xi_{i,\text{in}}\lambda_{i}\eta_{i}.
+\end{align*}
+These are the within-patch type reproduction numbers when there is
+no human migration or water transportation. It is also helpful to
+recall the interpretations of the several quantities introduced above:
+\begin{align*}
+\nu & =\text{average number of "there and back" migrations before recovering or dying}\\
+\lambda_{i} & =\text{average infectious period of an infected individual remaining in patch \ensuremath{i}}\\
+\sigma_{i} & =\text{probability of migrating out of patch \ensuremath{i} before recovering or dying }\\
+\tau & =\text{average number of "there and back" transportations of shed virus in water before decaying}\\
+\eta_{i} & =\text{average lifetime of shed virus in the water of patch \ensuremath{i}}\\
+\omega_{i} & =\text{probability of shed virus being transported out of patch \ensuremath{i} before decaying}
+\end{align*}
+Then we can re-write the entries of $K$ as:
+\begin{align*}
+k_{11} & =\nu\mathcal{R}_{I1}+\nu\tau\mathcal{R}_{W1}+\left(\sigma_{1}\nu\right)\left(\omega_{2}\tau\right)\frac{\xi_{2,\text{in}}\lambda_{2}}{\xi_{1,\text{in}}\lambda_{1}}\mathcal{R}_{W1}\\
+k_{12} & =\sigma_{2}\nu\mathcal{R}_{I1}+\left(\sigma_{2}\nu\right)\tau\mathcal{R}_{W1}+\nu\left(\omega_{2}\tau\right)\frac{\xi_{2,\text{in}}\lambda_{2}}{\xi_{1,\text{in}}\lambda_{1}}\mathcal{R}_{W1}\\
+k_{22} & =\sigma_{1}\nu\mathcal{R}_{I2}+\left(\sigma_{1}\nu\right)\tau\mathcal{R}_{W2}+\nu\left(\omega_{1}\tau\right)\frac{\xi_{1,\text{in}}\lambda_{1}}{\xi_{2,\text{in}}\lambda_{2}}\mathcal{R}_{W2}\\
+k_{22} & =\nu\mathcal{R}_{I2}+\nu\tau\mathcal{R}_{W2}+\left(\nu\sigma_{2}\right)\left(\tau\omega_{1}\right)\frac{\xi_{1,\text{in}}\lambda_{1}}{\xi_{2,\text{in}}\lambda_{2}}\mathcal{R}_{W2}
+\end{align*}
+
+The quantities $k_{ij}$ gives the average number of new infections
+in patch $i$ induced by an infected individual initially in patch
+$j$. Each $k_{ij}$ is composed of three terms which correspond to
+the three ways this individual may have contributed to infections
+in patch $i$: direct transmission after migrating to or starting
+in patch $i$, environmental transmission after migrating to patch
+$i$ and shedding virus there, and finally environmental transmission
+from shedding virus in patch $j$ which is then transported by the
+water to patch $i$.
+
+So, for example, looking at $k_{12}$, the term $\sigma_{2}\nu\mathcal{R}_{I1}$
+represents the average number of new infections induced in patch $1$
+by an infectious individual who started in patch $2$ then migrated
+to patch $1$ (with probability $\sigma_{2}$), including all ``there
+and back'' migrations ($\nu$). The next term, $\left(\sigma_{2}\nu\right)\tau\mathcal{R}_{W1}$
+gives the number of new infections induced in patch $1$ through the
+water caused by an infected individual who started in patch $2$ and
+migrated before recovery or death ($\sigma_{2}$), then while in there
+in patch $1$, shed virus into the water, which leads to on average,
+$\mathcal{R}_{W1}$ new infections. Finally, $\nu\left(\omega_{2}\tau\right)\frac{\xi_{2,\text{in}}\lambda_{2}}{\xi_{1,\text{in}}\lambda_{1}}\mathcal{R}_{W1}$
+gives the number of infections induced by an infectious individual
+in patch $2$ whose shed virus is transported to patch $1$ in the
+water, with the term $\frac{\xi_{2,\text{in}}\lambda_{2}}{\xi_{1,\text{in}}\lambda_{1}}$
+accounting for differences in the flow of water and infectious periods
+in each patch.
+
+Note that when migration and water transport are turned off in one
+direction, then the corresponding type reproduction number is zero.
+For example, if there is no movement of individuals or water say movement
+from patch $1$ to patch $2$ (i.e. $\sigma_{1}=\omega_{1}=0$), then
+$k_{12}=0$. Thus we rename the entries of $K_{i}$ to $\mathcal{R}_{ij}=k_{ij}$.
+With this notation, we can easily write down the basic reproduction
+number of the full system in terms of these patch-reproduction numbers:
+\begin{align*}
+\mathcal{R}_{0} & =\frac{1}{2}\left(\mathcal{R}_{11}+\mathcal{R}_{22}\right)+\frac{1}{2}\sqrt{\left(\mathcal{R}_{11}-\mathcal{R}_{22}\right)^{2}+4\mathcal{R}_{12}\mathcal{R}_{21}}
+\end{align*}
+
+
+\subsection{Some initial observations about the basic reproduction number}
+\begin{itemize}
+\item If there is no movement whatsoever of people or water ($\sigma_{i}=\omega_{i}=0$),
+then $\mathcal{R}_{0}=\max\left\{ \mathcal{R}_{11},\mathcal{R}_{22}\right\} $.
+\item In general, $\max\left\{ \mathcal{R}_{11},\mathcal{R}_{22}\right\} \le\mathcal{R}_{0}\le\max\left\{ \mathcal{R}_{11},\mathcal{R}_{22}\right\} +\sqrt{\mathcal{R}_{12}\mathcal{R}_{21}}$
+\end{itemize}
+
+\subsection{Water flowing in a single direction}
+
+This scenario has water only flowing out of patch $1$, into patch
+$2$, then out of patch $2$ but \textbf{not }back in to patch $1$,
+we would need to rename our variables. This changes the structure
+of the matrix $V$. Unfortunately we cannot check this easily (say,
+by setting some parameters to zero) because the original model is
+structurally different from the one represented in this scenario i.e.
+we cannot set ``one'' of the $\rho_{2}$s to zero with the other
+positive.
+
+But, just as an example, suppose $\rho_{2}=0$. Then $\omega_{2}=0$
+and $\tau=1$ and we get
+\begin{align*}
+\mathcal{R}_{11} & =\nu\mathcal{R}_{I1}+\eta_{1}\nu\mathcal{R}_{W1}\\
+\mathcal{R}_{21} & =\nu\sigma_{2}\mathcal{R}_{I1}+\eta_{1}\nu\sigma_{2}\mathcal{R}_{W1}\\
+\mathcal{R}_{12} & =\nu\sigma_{1}\mathcal{R}_{I2}+\eta_{2}\nu\left[\left(\sigma_{1}\right)+\frac{\xi_{1,\text{in}}\lambda_{1}}{\xi_{2,\text{in}}\lambda_{2}}\left(\omega_{1}\right)\right]\mathcal{R}_{W2}\\
+\mathcal{R}_{22} & =\nu\mathcal{R}_{I2}+\eta_{2}\nu\left[1+\frac{\xi_{1,\text{in}}\lambda_{1}}{\xi_{2,\text{in}}\lambda_{2}}\left(\omega_{1}\right)\left(\sigma_{2}\right)\right]\mathcal{R}_{W2}
+\end{align*}
+
+\end{document}
