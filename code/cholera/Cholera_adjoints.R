@@ -1,5 +1,5 @@
 # adjoints
-adj <- function(t, y, params, oc_params, v1_interp, v2_interp, x_interp, x){
+adj <- function(t, y, params, v1_interp, v2_interp, x_interp, x){
   # calculate state at time t using interpolated function
   # state = sapply(1:length(x_interp), function(i){x_interp[[i]](t)})
   # names(state) = colnames(x)[-1]
@@ -10,7 +10,7 @@ adj <- function(t, y, params, oc_params, v1_interp, v2_interp, x_interp, x){
   v1 = v1_interp(t)
   v2 = v2_interp(t)
   # adjoint equations
-  with(as.list(c(y, params, oc_params, state)),{
+  with(as.list(c(y, params, state)),{
     dlambda1 = -(b1*(beta_I1*I1 + beta_W1*W1) + C1*v1 +
                    lambda1*(mu1 - beta_I1*I1 - beta_W1*W1 - mu1 - v1 - m1)+
                    lambda2*(beta_I1*I1 + beta_W1*W1)+

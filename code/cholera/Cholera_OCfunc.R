@@ -12,9 +12,26 @@
 #   calculate optimal control
 #   test optimal control
 
+# replicate oc analysis across multiple parameters
+apply_oc = function(change_params,guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
+                    t, params, delta) {
+  if("counter" %in% names(change_params)){print(as.numeric(change_params["counter"]))}
+  # update parameters
+  new_params <- params 
+  p_loc <- match(names(change_params), names(new_params))
+  new_params[p_loc[!is.na(p_loc)]] = change_params[!is.na(p_loc)]
+  oc <- run_oc(guess_v1, guess_v2, init_x, bounds, ode_fn, adj_fn,
+               t, new_params, delta)
+  # for now, return v1, v2 time series and j
+  ret <- data.frame(t(change_params), freq = length(oc$v1)) %>% 
+    uncount(freq) %>% 
+    bind_cols(time = t, v1 = oc$v1, v2 = oc$v2, j = oc$j)
+  return(ret)
+}
+
 # function to implement optimal control analysis
 run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
-                  t, params, oc_params, delta){
+                  t, params, delta){
   # setup variables 
   x = matrix(0, nrow = length(t), ncol = 9)
   lambda = matrix(0, nrow = length(t), ncol = 9)
@@ -27,7 +44,11 @@ run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
   oc = oc_optim(v1, v2, x, lambda, 
                 IC, lambda_init, 
                 bounds, delta, ode_fn, adj_fn, 
-                t, params, oc_params)
+                t, params)
+  oc$j <- calc_j(params = params, 
+              optim_states = cbind(oc$x, v1 = oc$v1, v2 = oc$v2), 
+              integrand_fn = j_integrand, 
+              lower_lim = min(t), upper_lim = max(t), step_size = (range(t)[2] - range(t)[1])/(length(t)-1))
   return(oc)
 }
 
@@ -35,7 +56,7 @@ run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
 oc_optim = function(v1, v2, x, lambda, # initial guesses
                     IC, lambda_init, # state ICs & final time adjoints
                     bounds, delta, ode_fn, adj_fn,
-                    t, params, oc_params){
+                    t, params){
   with(as.list(bounds),{
     counter = 1
     test = -1
@@ -54,15 +75,14 @@ oc_optim = function(v1, v2, x, lambda, # initial guesses
       # define interpolating functions for x (states)
       x_interp <- lapply(2:ncol(x), function(i){approxfun(x[,c(1,i)], rule = 2)})
       # solve adjoint equations (backwards)
-      lambda <- ode(y = lambda_init, times = rev(t), func = adj_fn, 
-                    parms = params, oc_params = oc_params, 
+      lambda <- ode(y = lambda_init, times = rev(t), func = adj_fn, parms = params,
                     v1_interp = v1_interp, v2_interp = v2_interp, x_interp = x_interp, x = x)
       lambda <- lambda[nrow(lambda):1,]
       # calculate v1* and v2*
-      temp_v1 <- ((lambda[,"lambda1"] - oc_params["C1"] - lambda[,"lambda3"])*x[,"S1"])/
-        (2*oc_params["epsilon1"])
-      temp_v2 <- ((lambda[,"lambda5"] - oc_params["C2"] - lambda[,"lambda7"])*x[,"S2"])/
-        (2*oc_params["epsilon2"])
+      temp_v1 <- ((lambda[,"lambda1"] - params["C1"] - lambda[,"lambda3"])*x[,"S1"])/
+        (2*params["epsilon1"])
+      temp_v2 <- ((lambda[,"lambda5"] - params["C2"] - lambda[,"lambda7"])*x[,"S2"])/
+        (2*params["epsilon2"])
       # include bounds
       v1 = pmin(M1, pmax(0, temp_v1))
       v2 = pmin(M2, pmax(0, temp_v2))
@@ -73,8 +93,8 @@ oc_optim = function(v1, v2, x, lambda, # initial guesses
       test <- min(delta*norm_oc(c(v1,v2))-norm_oc(c(oldv1,oldv2)-c(v1,v2)),
                   delta*norm_oc(x[,-1])-norm_oc(oldx[,-1]-x[,-1]),
                   delta*norm_oc(lambda[,-1])-norm_oc(oldlambda[,-1]-lambda[,-1]))
-      print(counter)
-      print(test)
+      #print(counter)
+      #print(test)
       counter <- counter + 1
     }
     return(list(x = x, lambda = lambda, v1 = v1, v2 = v2))
