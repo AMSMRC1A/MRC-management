@@ -14,6 +14,12 @@ params <- c(mu1 = 0, mu2 = 0,                      # natural birth/death rate 1E
 #C1 = 10, C2 = 10,                     # control cost for vaccination
 #epsilon1 = 1, epsilon2 = 1)           # control quadratic term 
 
+# parameters at maximum of control
+bounds = c(M1 = 0.015, M2 = 0.015)
+max_params <- params
+max_params["v1"] <- bounds[[1]]
+max_params["v2"] <- bounds[[2]]
+
 # define time (days)
 t <- seq(0,200,0.05)
 
@@ -23,7 +29,7 @@ t <- seq(0,200,0.05)
 IC <- c(S1 = 10000-100, S2 = 10000-10,
         I1 = 100,    I2 = 10, 
         R1 = 0,      R2 = 0,
-        W1 = 100,    W2 = 10)#,
+        W1 = 100,    W2 = 100)#,
 # c1 = 0,      c2 = 0, # added c to count new cases
 #  V1 = 0,      V2 = 0) # added V to count vaccinations
 

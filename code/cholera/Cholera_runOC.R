@@ -20,7 +20,7 @@ guess_v2 = rep(0,length(t))
 # lambda_init = rep(0,8)
 # names(lambda_init) = paste0("lambda",1:8)
 # bounds
-bounds = c(M1 = 0.015, M2 = 0.015)
+
 
 
 # setup optimal control parameters
@@ -46,7 +46,12 @@ control_trajectories$patch = substr(control_trajectories$variable, 2,2)
 # find no control ODE
 out_ode <- ode(y = IC, times = t, func = chol, parms = params, 
            v1_interp = approxfun(data.frame(times = t, v1 = rep(0,length(t))), rule = 2), 
-           v2_interp = approxfun(data.frame(times = t, v1 = rep(0,length(t))), rule = 2))
+           v2_interp = approxfun(data.frame(times = t, v2 = rep(0,length(t))), rule = 2))
+# find max control ODE
+max_control_ode <- ode(y = IC, times = t, func = chol, parms = max_params, 
+                       v1_interp = approxfun(data.frame(times = t, v1 = rep(bounds[[1]],length(t))), rule = 2), 
+                       v2_interp = approxfun(data.frame(times = t, v2 = rep(bounds[[2]],length(t))), rule = 2))
+
 # reformat output for plotting
 out_ode <- as.data.frame(out_ode)
 out <- melt(out_ode, id = c("time"))
@@ -78,7 +83,14 @@ j_no_control <- calc_j(params = c(params, oc_params),
                        integrand_fn = j_integrand, 
                        lower_lim = min(t), upper_lim = max(t), step_size = 0.01)
 
+j_max_control <- calc_j(params = c(max_params, oc_params), 
+                       optim_states = cbind(max_control_ode, v1 = rep(bounds[[1]], nrow(max_control_ode)),
+                                            v2 = rep(bounds[[2]], nrow(max_control_ode))), 
+                       integrand_fn = j_integrand, 
+                       lower_lim = min(t), upper_lim = max(t), step_size = 0.01)
+
 print(paste("No control:", round(j_no_control,1),
             "Control: ", round(j,1),
+            "Max control:", round(j_max_control,1),
             "rel change", round(j/j_no_control,3)))
 
