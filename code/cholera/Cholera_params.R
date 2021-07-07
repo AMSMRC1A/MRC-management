@@ -15,12 +15,12 @@ params <- c(mu1 = 0, mu2 = 0,                      # natural birth/death rate 1E
 #epsilon1 = 1, epsilon2 = 1)           # control quadratic term 
 
 # define time (days)
-t <- seq(0,200,0.01)
+t <- seq(0,200,0.05)
 
 
 
 # define ICs
-IC <- c(S1 = 10000-10, S2 = 10000-10,
+IC <- c(S1 = 10000-100, S2 = 10000-10,
         I1 = 100,    I2 = 10, 
         R1 = 0,      R2 = 0,
         W1 = 100,    W2 = 10)#,
