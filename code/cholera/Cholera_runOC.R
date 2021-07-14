@@ -102,7 +102,7 @@ print(paste("No control:", round(j_no_control,1),
 # assume costs are equal in both patches
 equal <- expand.grid(b1 = c(1,10), 
                      C1 = c(0.125, 0.625, 1.25), 
-                     epsilon1 = c(1000, 100000))
+                     epsilon1 = c(1000, 100000)) # consider changing to 3E5
 equal$b2 <- equal$b1
 equal$C2 <- equal$C1
 equal$epsilon2 <- equal$epsilon1
@@ -110,7 +110,7 @@ equal$scenario <- 1
 # assume patch 2 has 5X cost of patch 1
 p2greater <- expand.grid(b1 = c(1,10), 
                          C1 = c(0.125, 0.625, 1.25), 
-                         epsilon1 = c(1000, 100000))
+                         epsilon1 = c(1000, 100000)) # consider changing to 3E5
 p2greater$b2 <- 5*p2greater$b1
 p2greater$C2 <- 5*p2greater$C1
 p2greater$epsilon2 <- 5*p2greater$epsilon1
@@ -118,7 +118,7 @@ p2greater$scenario <- 2
 # assume patch 1 has 5X cost of patch 2
 p1greater <- expand.grid(b1 = c(1,10)*5, 
                          C1 = c(0.125, 0.625, 1.25)*5, 
-                         epsilon1 = c(1000, 100000)*5)
+                         epsilon1 = c(1000, 100000)*5) # consider changing to 3E5
 p1greater$b2 <- 1/5*p1greater$b1
 p1greater$C2 <- 1/5*p1greater$C1
 p1greater$epsilon2 <- 1/5*p1greater$epsilon1
