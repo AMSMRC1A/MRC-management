@@ -14,27 +14,27 @@
 
 # replicate oc analysis across multiple parameters
 apply_oc = function(change_params,guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
-                    t, params, delta) {
+                    times, params, delta) {
   if("counter" %in% names(change_params)){print(as.numeric(change_params["counter"]))}
   # update parameters
   new_params <- params 
   p_loc <- match(names(change_params), names(new_params))
   new_params[p_loc[!is.na(p_loc)]] = change_params[!is.na(p_loc)]
   oc <- run_oc(guess_v1, guess_v2, init_x, bounds, ode_fn, adj_fn,
-               t, new_params, delta)
+               times, new_params, delta)
   # for now, return v1, v2 time series and j
   ret <- data.frame(t(change_params), freq = length(oc$v1)) %>% 
     uncount(freq) %>% 
-    bind_cols(time = t, v1 = oc$v1, v2 = oc$v2, j = oc$j)
+    bind_cols(time = times, v1 = oc$v1, v2 = oc$v2, j = oc$j)
   return(ret)
 }
 
 # function to implement optimal control analysis
 run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
-                  t, params, delta){
+                  times, params, delta){
   # setup variables 
-  x = matrix(0, nrow = length(t), ncol = 9)
-  lambda = matrix(0, nrow = length(t), ncol = 9)
+  x = matrix(0, nrow = length(times), ncol = 9)
+  lambda = matrix(0, nrow = length(times), ncol = 9)
   v1 = guess_v1
   v2 = guess_v2
   # final time adjoints
@@ -44,11 +44,11 @@ run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
   oc = oc_optim(v1, v2, x, lambda, 
                 IC, lambda_init, 
                 bounds, delta, ode_fn, adj_fn, 
-                t, params)
+                times, params)
   oc$j <- calc_j(params = params, 
               optim_states = cbind(oc$x, v1 = oc$v1, v2 = oc$v2), 
               integrand_fn = j_integrand, 
-              lower_lim = min(t), upper_lim = max(t), step_size = (range(t)[2] - range(t)[1])/(length(t)-1))
+              lower_lim = min(times), upper_lim = max(times), step_size = (range(times)[2] - range(times)[1])/(length(times)-1))
   return(oc)
 }
 
@@ -56,7 +56,7 @@ run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
 oc_optim = function(v1, v2, x, lambda, # initial guesses
                     IC, lambda_init, # state ICs & final time adjoints
                     bounds, delta, ode_fn, adj_fn,
-                    t, params){
+                    times, params){
   with(as.list(bounds),{
     counter = 1
     test = -1
@@ -67,15 +67,15 @@ oc_optim = function(v1, v2, x, lambda, # initial guesses
       oldx = x
       oldlambda = lambda
       # define interpolating functions for v
-      v1_interp <- approxfun(t, v1, rule = 2)
-      v2_interp <- approxfun(t, v2, rule = 2)
+      v1_interp <- approxfun(times, v1, rule = 2)
+      v2_interp <- approxfun(times, v2, rule = 2)
       # solve states
-      x <- ode(y = IC, times = t, func = ode_fn, parms = params, 
+      x <- ode(y = IC, times = times, func = ode_fn, parms = params, 
                v1_interp = v1_interp, v2_interp = v2_interp)
       # define interpolating functions for x (states)
       x_interp <- lapply(2:ncol(x), function(i){approxfun(x[,c(1,i)], rule = 2)})
       # solve adjoint equations (backwards)
-      lambda <- ode(y = lambda_init, times = rev(t), func = adj_fn, parms = params,
+      lambda <- ode(y = lambda_init, times = rev(times), func = adj_fn, parms = params,
                     v1_interp = v1_interp, v2_interp = v2_interp, x_interp = x_interp, x = x)
       lambda <- lambda[nrow(lambda):1,]
       # calculate v1* and v2*

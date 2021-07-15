@@ -4,17 +4,17 @@ library(reshape2)
 library(tidyverse)
 library(cowplot)
 
-source("code/cholera/CholeraSIRW_ODE.R")
-source("code/cholera/Cholera_params.R")
+source("CholeraSIRW_ODE.R")
+source("Cholera_params.R")
 
 # time varying vaccination
-v1 = data.frame(times = t, v1 = rep(0,length(t)))
+v1 = data.frame(times = times, v1 = rep(0,length(times)))
 v1_interp <- approxfun(v1, rule = 2)
-v2 = data.frame(times = t, v2 = rep(0,length(t)))
+v2 = data.frame(times = times, v2 = rep(0,length(times)))
 v2_interp <- approxfun(v2, rule = 2)
 
 # solve ODE
-out <- ode(y = IC, times = t, func = chol, parms = params, v1_interp = v1_interp, v2_interp = v2_interp)
+out <- ode(y = IC, times = times, func = chol, parms = params, v1_interp = v1_interp, v2_interp = v2_interp)
 
 # reformat output for plotting
 out <- as.data.frame(out)

@@ -21,7 +21,7 @@ max_params["v1"] <- bounds[[1]]
 max_params["v2"] <- bounds[[2]]
 
 # define time (days)
-t <- seq(0,200,0.05)
+times <- seq(0,200,0.05)
 
 
 

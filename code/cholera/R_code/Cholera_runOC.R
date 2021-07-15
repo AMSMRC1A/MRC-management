@@ -5,18 +5,18 @@ library(tidyverse)
 library(cowplot)
 
 # load files
-source("code/cholera/CholeraSIRW_ODE.R")
-source("code/cholera/Cholera_params.R")
-source("code/cholera/Cholera_OCfunc.R")
-source("code/cholera/Cholera_adjoints.R")
+source("CholeraSIRW_ODE.R")
+source("Cholera_params.R")
+source("Cholera_OCfunc.R")
+source("Cholera_adjoints.R")
 
 # initial guesses - controls
-guess_v1 = rep(0,length(t))
-guess_v2 = rep(0, length(t))
+guess_v1 = rep(0,length(times))
+guess_v2 = rep(0, length(times))
 
 # adjoints
-# x = matrix(0, nrow = length(t), ncol = 9)
-# lambda = matrix(0, nrow = length(t), ncol = 9)
+# x = matrix(0, nrow = length(times), ncol = 9)
+# lambda = matrix(0, nrow = length(times), ncol = 9)
 # lambda_init = rep(0,8)
 # names(lambda_init) = paste0("lambda",1:8)
 # bounds
@@ -31,7 +31,7 @@ oc_params <- c(b1 = 1, b2 = 100,
 
 # run optimization
 oc = run_oc(guess_v1, guess_v2, IC, bounds, chol, adj,
-              t, c(params, oc_params), delta)
+              times, c(params, oc_params), delta)
 
 
 # collect trajectories and controls
@@ -44,13 +44,13 @@ control_trajectories$compartment = factor(control_trajectories$compartment, leve
 control_trajectories$patch = substr(control_trajectories$variable, 2,2)
 
 # find no control ODE
-out_ode <- ode(y = IC, times = t, func = chol, parms = params, 
-           v1_interp = approxfun(data.frame(times = t, v1 = rep(0,length(t))), rule = 2), 
-           v2_interp = approxfun(data.frame(times = t, v2 = rep(0,length(t))), rule = 2))
+out_ode <- ode(y = IC, times = times, func = chol, parms = params, 
+           v1_interp = approxfun(data.frame(times = times, v1 = rep(0,length(times))), rule = 2), 
+           v2_interp = approxfun(data.frame(times = times, v2 = rep(0,length(times))), rule = 2))
 # find max control ODE
-max_control_ode <- ode(y = IC, times = t, func = chol, parms = max_params, 
-                       v1_interp = approxfun(data.frame(times = t, v1 = rep(bounds[[1]],length(t))), rule = 2), 
-                       v2_interp = approxfun(data.frame(times = t, v2 = rep(bounds[[2]],length(t))), rule = 2))
+max_control_ode <- ode(y = IC, times = times, func = chol, parms = max_params, 
+                       v1_interp = approxfun(data.frame(times = times, v1 = rep(bounds[[1]],length(times))), rule = 2), 
+                       v2_interp = approxfun(data.frame(times = times, v2 = rep(bounds[[2]],length(times))), rule = 2))
 
 # reformat output for plotting
 out_ode <- as.data.frame(out_ode)
@@ -75,17 +75,17 @@ control_plot
 j <- calc_j(params = c(params, oc_params), 
             optim_states = cbind(oc$x, v1 = oc$v1, v2 = oc$v2), 
             integrand_fn = j_integrand, 
-            lower_lim = min(t), upper_lim = max(t), step_size = 0.01)
+            lower_lim = min(times), upper_lim = max(times), step_size = 0.01)
 j_no_control <- calc_j(params = c(params, oc_params), 
                        optim_states = cbind(out_ode, v1 = rep(0, nrow(out_ode)), v2 = rep(0, nrow(out_ode))), 
                        integrand_fn = j_integrand, 
-                       lower_lim = min(t), upper_lim = max(t), step_size = 0.01)
+                       lower_lim = min(times), upper_lim = max(times), step_size = 0.01)
 
 j_max_control <- calc_j(params = c(max_params, oc_params), 
                        optim_states = cbind(max_control_ode, v1 = rep(bounds[[1]], nrow(max_control_ode)),
                                             v2 = rep(bounds[[2]], nrow(max_control_ode))), 
                        integrand_fn = j_integrand, 
-                       lower_lim = min(t), upper_lim = max(t), step_size = 0.01)
+                       lower_lim = min(times), upper_lim = max(times), step_size = 0.01)
 
 print(paste("No control:", round(j_no_control,1),
             "Control: ", round(j,1),
@@ -133,7 +133,7 @@ mult_oc_params <- apply(test_params, 1, apply_oc,
                         guess_v1 = guess_v1, guess_v2 = guess_v2, 
                         init_x = IC, bounds = bounds,
                         ode_fn = chol, adj_fn = adj,
-                        t = t, params = c(params, oc_params), delta = delta)
+                        times = times, params = c(params, oc_params), delta = delta)
 mult_oc_params <- do.call(rbind, mult_oc_params)
 end_time <- Sys.time()
 end_time - start_time
