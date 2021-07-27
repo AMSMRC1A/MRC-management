@@ -11,11 +11,11 @@ clc
 
 % parameters
 parameter_settings
-M1 = 0.0; % max vaccination rate for patch 1
-M2 = 0.0; % max vaccination rate for patch 2
+M1 = 0.01; % max vaccination rate for patch 1
+M2 = 0.01; % max vaccination rate for patch 2
 
 % time interval
-T = 1200; % final time
+T = 500; % final time
 dt = 0.1; % time step
 tvec = 0:dt:T; % time interval of T/dt evenly spaced points
 M = length(tvec); % length of time interval 
