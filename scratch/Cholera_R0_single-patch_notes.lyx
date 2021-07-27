@@ -4,8 +4,13 @@
 \begin_header
 \save_transient_properties true
 \origin unavailable
-\textclass article
+\textclass amsart
 \use_default_options true
+\begin_modules
+theorems-ams
+eqs-within-sections
+figs-within-sections
+\end_modules
 \maintain_unincluded_children false
 \language english
 \language_package default
@@ -29,9 +34,10 @@
 \bibtex_command default
 \index_command default
 \paperfontsize default
+\spacing single
 \use_hyperref false
 \papersize default
-\use_geometry false
+\use_geometry true
 \use_package amsmath 1
 \use_package amssymb 1
 \use_package cancel 1
@@ -44,6 +50,7 @@
 \use_package undertilde 1
 \cite_engine basic
 \cite_engine_type default
+\biblio_style plain
 \use_bibtopic false
 \use_indices false
 \paperorientation portrait
@@ -75,14 +82,17 @@
 
 \begin_body
 
-\begin_layout Standard
+\begin_layout Section
 Single-patch Ebola model:
+\end_layout
+
+\begin_layout Standard
 \begin_inset Formula 
 \begin{align*}
-\frac{dS}{dt} & =\mu N-\beta_{I}SI-\beta_{W}SW-\mu S\\
-\frac{dI}{dt} & =\beta_{I}SI+\beta_{W}SW-\left(\gamma+\mu+\delta\right)I\\
-\frac{dR}{dt} & =\gamma I-\mu R\\
-\frac{dW}{dt} & =\xi I-\xi W
+S' & =\mu N-\beta_{I}SI-\beta_{W}SW-\mu S\\
+I' & =\beta_{I}SI+\beta_{W}SW-\left(\gamma+\mu+\delta\right)I\\
+R' & =\gamma I-\mu R\\
+W' & =\xi_{\text{in}}I-\xi_{\text{out}}W
 \end{align*}
 
 \end_inset
@@ -122,15 +132,7 @@ Define
 \end_layout
 
 \begin_layout Standard
-New 
-\begin_inset Quotes eld
-\end_inset
-
-infections
-\begin_inset Quotes erd
-\end_inset
-
- occur in two compartments: infected humans (
+There are two infectious compartments: infected humans (
 \begin_inset Formula $I$
 \end_inset
 
@@ -138,7 +140,7 @@ infections
 \begin_inset Formula $W$
 \end_inset
 
-).
+), but new infections only occur in the infected humans compartment.
 \end_layout
 
 \begin_layout Standard
@@ -157,10 +159,14 @@ Let
 \begin_inset Formula 
 \begin{align*}
 \mathscr{F}\left(x\right) & =\begin{pmatrix}\beta_{I}SI+\beta_{W}SW\\
-\xi I
+0\\
+0\\
+0
 \end{pmatrix}\\
 \mathscr{V}\left(x\right) & =\begin{pmatrix}\left(\gamma+\mu+\delta\right)I\\
-\xi W
+\xi_{\text{out}}W-\xi_{\text{in}}I\\
+\beta_{I}SI+\beta_{W}SW+\mu S-\mu N\\
+\mu R-\gamma I
 \end{pmatrix}
 \end{align*}
 
@@ -169,110 +175,903 @@ Let
 The Jacobians of these 
 \begin_inset Formula 
 \begin{align*}
-D\mathscr{F}\left(v_{0}\right) & =\begin{bmatrix}0 & \beta_{1}N_{0} & \beta_{2}N_{0} & 0 & 0 & 0\\
-0 & 0 & 0 & 0 & 0 & 0\\
-0 & 0 & 0 & 0 & 0 & 0\\
-0 & 0 & 0 & 0 & 0 & 0\\
-0 & 0 & 0 & 0 & 0 & 0\\
-0 & 0 & 0 & 0 & 0 & 0
+D\mathscr{F}\left(x\right) & =\begin{bmatrix}\beta_{I}S & \beta_{W}S & \beta_{I}I+\beta_{W}W & 0\\
+0 & 0 & 0 & 0\\
+0 & 0 & 0 & 0\\
+0 & 0 & 0 & 0
 \end{bmatrix}\\
-D\mathscr{V}\left(v_{0}\right) & =\begin{bmatrix}\left(\alpha+\mu\right) & 0 & 0 & 0 & 0 & 0\\
--\alpha & \left(\gamma_{1}+\varphi+\delta_{1}+\mu\right) & 0 & 0 & 0 & 0\\
-0 & -\delta_{1} & \xi & 0 & 0 & 0\\
--\mu & \beta_{1}N_{0}-\mu & \beta_{2}N_{0} & 0 & -\mu & 0\\
-0 & -\gamma_{1} & 0 & 0 & \mu & 0\\
-0 & -\varphi & 0 & 0 & 0 & \left(\gamma_{2}+\delta_{2}\right)
+D\mathscr{V}\left(x\right) & =\begin{bmatrix}\gamma+\mu+\delta & 0 & 0 & 0\\
+-\xi_{\text{in}} & \xi_{\text{out}} & 0 & 0\\
+\beta_{I}S-\mu & \beta_{W}S & \beta_{I}I+\beta_{W}W & -\mu\\
+-\gamma & 0 & 0 & \mu
 \end{bmatrix}
 \end{align*}
 
 \end_inset
 
 Taking the upper 2 by 2 quadrant of each matrix, to isolate the infected
- compartments, we get
+ compartments, and evaluating at the disease-free equilibrium, 
+\begin_inset Formula $x_{0}$
+\end_inset
+
+, gives us
 \begin_inset Formula 
 \begin{align*}
-F & =\begin{bmatrix}0 & \beta_{1}N_{0} & \beta_{2}N_{0}\\
-0 & 0 & 0\\
-0 & 0 & 0
+F & =\begin{bmatrix}\beta_{I}N_{0} & \beta_{W}N_{0}\\
+0 & 0
 \end{bmatrix}\\
-V & =\begin{bmatrix}\left(\alpha+\mu\right) & 0 & 0\\
--\alpha & \left(\gamma_{1}+\varphi+\delta_{1}+\mu\right) & 0\\
-0 & -\delta_{1} & \xi
+V & =\begin{bmatrix}\gamma+\mu+\delta & 0\\
+-\xi_{\text{in}} & \xi_{\text{out}}
 \end{bmatrix}
 \end{align*}
 
 \end_inset
 
+The next generation, 
+\begin_inset Formula $K=FV^{-1}$
+\end_inset
+
+, is given byHence
+\begin_inset Formula 
+\begin{align*}
+K=FV^{-1} & =\begin{bmatrix}\beta_{I}N_{0}\frac{1}{\gamma+\mu+\delta}+\beta_{W}N_{0}\frac{\xi_{\text{in}}}{\xi_{\text{out}}\left(\gamma+\mu+\delta\right)} & \frac{\beta_{W}N_{0}}{\xi}\\
+0 & 0
+\end{bmatrix}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Basic reproduction number
+\end_layout
+
+\begin_layout Standard
 The basic reproduction number, 
 \begin_inset Formula $\mathcal{R}_{0}$
 \end_inset
 
-, is defined as 
-\begin_inset Formula $\rho\left(FV^{-1}\right)$
+, defined as 
+\begin_inset Formula $\rho\left(K\right)$
 \end_inset
 
-.
- Here, we have
+, is therefore
 \begin_inset Formula 
 \[
-V^{-1}=\begin{bmatrix}\frac{1}{\alpha+\mu} & 0 & 0\\
-\left(\frac{\alpha}{\alpha+\mu}\right)\frac{1}{\gamma_{1}+\varphi+\delta_{1}+\mu} & \frac{1}{\gamma_{1}+\varphi+\delta_{1}+\mu} & 0\\
-\left(\frac{\alpha}{\alpha+\mu}\right)\left(\frac{\delta_{1}}{\gamma_{1}+\varphi+\delta_{1}+\mu}\right)\frac{1}{\xi} & \left(\frac{\delta_{1}}{\gamma_{1}+\varphi+\delta_{1}+\mu}\right)\frac{1}{\xi} & \frac{1}{\xi}
-\end{bmatrix}
-\]
-
-\end_inset
-
-Hence
-\begin_inset Formula 
-\begin{align*}
-FV^{-1} & =\begin{bmatrix}0 & \beta_{1}N_{0} & \beta_{2}N_{0}\\
-0 & 0 & 0\\
-0 & 0 & 0
-\end{bmatrix}\begin{bmatrix}\frac{1}{\alpha+\mu} & 0 & 0\\
-\left(\frac{\alpha}{\alpha+\mu}\right)\frac{1}{\gamma_{1}+\varphi+\delta_{1}+\mu} & \frac{1}{\gamma_{1}+\varphi+\delta_{1}+\mu} & 0\\
-\left(\frac{\alpha}{\alpha+\mu}\right)\left(\frac{\delta_{1}}{\gamma_{1}+\varphi+\delta_{1}+\mu}\right)\frac{1}{\xi} & \left(\frac{\delta_{1}}{\gamma_{1}+\varphi+\delta_{1}+\mu}\right)\frac{1}{\xi} & \frac{1}{\xi}
-\end{bmatrix}\\
-FV^{-1} & =\begin{bmatrix}N_{0}\left(\frac{\alpha}{\alpha+\mu}\right)\frac{1}{\gamma_{1}+\varphi+\delta_{1}+\mu}\left[\beta_{1}+\beta_{2}\delta_{1}\frac{1}{\xi}\right] & N_{0}\frac{1}{\gamma_{1}+\varphi+\delta_{1}+\mu}\left[\beta_{1}+\beta_{2}\delta_{1}\frac{1}{\xi}\right] & \beta_{2}N_{0}\frac{1}{\xi}\\
-0 & 0 & 0\\
-0 & 0 & 0
-\end{bmatrix}
-\end{align*}
-
-\end_inset
-
-Therefore,
-\begin_inset Formula 
-\[
-\mathcal{R}_{0}=\beta_{1}N_{0}\left(\frac{\alpha}{\alpha+\mu}\right)\left(\frac{1}{\gamma_{1}+\varphi+\delta_{1}+\mu}\right)+\beta_{2}N_{0}\left(\frac{\alpha}{\alpha+\mu}\right)\left(\frac{\delta_{1}}{\gamma_{1}+\varphi+\delta_{1}+\mu}\right)\frac{1}{\xi}
+\mathcal{R}_{0}=\beta_{I}N_{0}\left(\frac{1}{\gamma+\mu+\delta}\right)+\beta_{W}N_{0}\left(\xi_{\text{in}}\frac{1}{\gamma+\mu+\delta}\right)\left(\frac{1}{\xi_{\text{out}}}\right)
 \]
 
 \end_inset
 
 This can be decomposed as 
-\begin_inset Formula $\mathcal{R}_{0}=\mathcal{R}_{I}+\mathcal{R}_{D}$
+\begin_inset Formula $\mathcal{R}_{0}=\mathcal{R}_{I}+\mathcal{R}_{W}$
 \end_inset
 
  where 
 \begin_inset Formula $\mathcal{R}_{I}$
 \end_inset
 
- represents the average number of new infections induced by an infectious
- individual (while alive) and 
-\begin_inset Formula $\mathcal{R}_{D}$
+ represents the average number of new infections induced by direct contact
+ with an infectious individual (while alive) and 
+\begin_inset Formula $\mathcal{R}_{W}$
 \end_inset
 
- represents the average number of new infections induced by an infected
- individual who did not recover or was not hospitalized and succumbed to
- disease-induced mortality.
+ represents the average number of new infections induced by viral shedding
+ of an infected individual into the water source.
 \end_layout
 
 \begin_layout Standard
-Some other useful definitions:
+The type reproduction numbers, 
+\begin_inset Formula $\mathcal{R}_{I}$
+\end_inset
+
+ and 
+\begin_inset Formula $\mathcal{R}_{W}$
+\end_inset
+
+ can be interpreted as follows:
 \begin_inset Formula 
 \begin{align*}
-\frac{\alpha}{\alpha+\mu} & =\Pr\left(\text{surviving the "exposed" period}\right)\\
-\frac{\delta_{1}}{\gamma_{1}+\varphi+\delta_{1}+\mu} & =\Pr\left(\text{mortality due to disease}\right)
+\mathcal{R}_{I} & =\beta_{I}N_{0}\left(\frac{1}{\gamma+\mu+\delta}\right)\\
+ & =\frac{\text{\# infectious contacts}}{\text{person}\times\text{time}}\times\text{\# susceptibles}\times\text{infectious period}\\
+\mathcal{R}_{W} & =\beta_{W}N_{0}\left(\xi_{\text{in}}\frac{1}{\gamma+\mu+\delta}\right)\left(\frac{1}{\xi_{\text{out}}}\right)\\
+ & =\frac{\text{\# infectious contacts}}{\text{infectious units}\times\text{time}}\times\text{\# susceptibles}\times\left(\frac{\text{infectious viral units}}{\text{time}}\times\text{infectious period}\right)\times\text{virus persistence time}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Note that here we have made
+\begin_inset Formula $\xi_{\text{in}}$
+\end_inset
+
+ and 
+\begin_inset Formula $\xi_{\text{out}}$
+\end_inset
+
+ distinct to aid in the biological interpretation of the reproduction number
+ (otherwise the term 
+\begin_inset Formula $\frac{\xi_{\text{in}}}{\xi_{\text{out}}}=1$
+\end_inset
+
+ would cancel out of the expression).
+ 
+\end_layout
+
+\begin_layout Section
+Two-patch Ebola model with migration and water movement
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+S_{1}' & =\mu_{1}N_{1}-\beta_{I1}S_{1}I_{1}-\beta_{W1}S_{1}W_{1}-\mu_{1}S_{1}-m_{1}S_{1}+m_{2}S_{2}\\
+I_{1}' & =\beta_{I1}S_{1}I_{1}+\beta_{W1}S_{1}W_{1}-(\gamma_{1}+\mu_{1}+\delta_{1})I_{1}-n_{1}I_{1}+n_{2}I_{2}\\
+R_{1}' & =\gamma_{1}I_{1}-\mu_{1}R_{1}-m_{1}R_{1}+m_{2}R_{2}\\
+W_{1}' & =\xi_{1,\text{in}}I_{1}-\xi_{1,\text{out}}W_{1}-\rho_{1}W_{1}+\rho_{2}W_{2}\\
+S_{2}' & =\mu_{2}N_{2}-\beta_{I2}S_{2}I_{2}-\beta_{W2}S_{2}W_{2}-\mu_{2}S_{2}+m_{1}S_{1}-m_{2}S_{2}\\
+I_{2}' & =\beta_{I2}S_{2}I_{2}+\beta_{W2}S_{2}W_{2}-(\gamma_{2}+\mu_{2}+\delta_{2})I_{2}+n_{1}I_{1}-n_{2}I_{2}\\
+R_{2}' & =\gamma_{2}I_{2}-\mu_{2}R_{2}+m_{1}R_{1}-m_{2}R_{2}\\
+W_{2}' & =\xi_{2,\text{in}}I_{2}-\xi_{2,\text{out}}W_{2}+\rho_{1}W_{1}-\rho_{2}W_{2}
+\end{align*}
+
+\end_inset
+
+where 
+\begin_inset Formula $N_{i}=S_{i}+I_{i}+R_{i}$
+\end_inset
+
+, 
+\begin_inset Formula $i=1,2$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Check that compartments remain positive, i.e.
+ 
+\begin_inset Formula $\frac{dx_{i}}{dt}\ge0$
+\end_inset
+
+ for any feasible set of initial conditions...
+ (TBC).
+ Define 
+\begin_inset Formula $x=\left(I_{1},I_{2},W_{1},W_{2},S_{1},S_{2},R_{1},R_{2}\right)^{t}$
+\end_inset
+
+.
+ There is a unique disease free equilibrium given by 
+\begin_inset Formula $x_{0}=\left(0,0,0,0,N_{1,0},N_{2,0},0,0\right)^{t}$
+\end_inset
+
+, where 
+\begin_inset Formula $N_{i,0}=N_{i}\left(0\right)$
+\end_inset
+
+.
+ There are two infectious compartments in each patch: infected humans (
+\begin_inset Formula $I_{1},I_{2}$
+\end_inset
+
+) and the water reservoir (
+\begin_inset Formula $W_{1},W_{2}$
+\end_inset
+
+), but new infections only occur in the infected humans compartments.
+ Let 
+\begin_inset Formula $\mathscr{F}\left(x\right)$
+\end_inset
+
+ the rate of new infections and 
+\begin_inset Formula $\mathscr{V}\left(x\right)$
+\end_inset
+
+ the net rate of transfer out of a compartment (for all transitions except
+ new infections).
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{align*}
+\mathscr{F}\left(x\right) & =\begin{pmatrix}\beta_{I1}S_{1}I_{1}+\beta_{W1}S_{1}W_{1}\\
+\beta_{I2}S_{2}I_{2}+\beta_{W2}S_{2}W_{2}\\
+0\\
+0\\
+0\\
+0\\
+0\\
+0
+\end{pmatrix}\\
+\mathscr{V}\left(x\right) & =\begin{pmatrix}(\gamma_{1}+\mu_{1}+\delta_{1})I_{1}+n_{1}I_{1}-n_{2}I_{2}\\
+-n_{1}I_{1}+(\gamma_{2}+\mu_{2}+\delta_{2})I_{2}+n_{2}I_{2}\\
+-\xi_{1,\text{in}}I_{1}+\xi_{1,\text{out}}W_{1}+\rho_{1}W_{1}-\rho_{2}W_{2}\\
+-\rho_{1}W_{1}-\xi_{2,\text{in}}I_{2}+\xi_{2,\text{out}}W_{2}+\rho_{2}W_{2}\\
+\beta_{I1}S_{1}I_{1}+\beta_{W1}S_{1}W_{1}-\mu_{1}N_{1}+\mu_{1}S_{1}+m_{1}S_{1}-m_{2}S_{2}\\
+-\gamma_{1}I_{1}+\mu_{1}R_{1}+m_{1}R_{1}-m_{2}R_{2}\\
+\beta_{I2}S_{2}I_{2}+\beta_{W2}S_{2}W_{2}-\mu_{2}N_{2}+\mu_{2}S_{2}-m_{1}S_{1}+m_{2}S_{2}\\
+-m_{1}R_{1}-\gamma_{2}I_{2}+\mu_{2}R_{2}+m_{2}R_{2}
+\end{pmatrix}
+\end{align*}
+
+\end_inset
+
+The Jacobians of these operators, restricted to the rows and columns representin
+g infected compartments, and evaluated at the DFE, 
+\begin_inset Formula $x_{0}$
+\end_inset
+
+, are given by the matrices
+\begin_inset Formula 
+\begin{align*}
+F & =\begin{bmatrix}\beta_{I1}N_{1,0} & 0 & \beta_{W1}N_{1,0} & 0\\
+0 & \beta_{I2}N_{2,0} & 0 & \beta_{W2}N_{2,0}\\
+0 & 0 & 0 & 0\\
+0 & 0 & 0 & 0
+\end{bmatrix}\\
+V & =\begin{bmatrix}\gamma_{1}+\mu_{1}+\delta_{1}+n_{1} & -n_{2} & 0 & 0\\
+-n_{1} & \gamma_{2}+\mu_{2}+\delta_{2}+n_{2} & 0 & 0\\
+-\xi_{1,\text{in}} & 0 & \xi_{1,\text{out}}+\rho_{1} & -\rho_{2}\\
+0 & -\xi_{2,\text{in}} & -\rho_{1} & \xi_{2,\text{out}}+\rho_{2}
+\end{bmatrix}
+\end{align*}
+
+\end_inset
+
+To simplify our calculations, we can re-write these in block form:
+\begin_inset Formula 
+\begin{align*}
+F & =\begin{bmatrix}\boldsymbol{F_{I}} & \boldsymbol{F_{W}}\\
+\boldsymbol{0_{2}} & \boldsymbol{0_{2}}
+\end{bmatrix},V=\begin{bmatrix}\boldsymbol{V_{I}} & \boldsymbol{0_{2}}\\
+\boldsymbol{D} & \boldsymbol{V_{W}}
+\end{bmatrix}
+\end{align*}
+
+\end_inset
+
+ where 
+\begin_inset Formula 
+\begin{align*}
+\boldsymbol{F_{I}} & =\begin{bmatrix}\beta_{I1}N_{1,0} & 0\\
+0 & \beta_{I2}N_{2,0}
+\end{bmatrix},\\
+\boldsymbol{F_{W}} & =\begin{bmatrix}\beta_{W1}N_{1,0} & 0\\
+0 & \beta_{W2}N_{2,0}
+\end{bmatrix},\\
+\boldsymbol{V_{I}} & =\begin{bmatrix}\gamma_{1}+\mu_{1}+\delta_{1}+n_{1} & -n_{2}\\
+-n_{1} & \gamma_{2}+\mu_{2}+\delta_{2}+n_{2}
+\end{bmatrix},\\
+\boldsymbol{V_{W}} & =\begin{bmatrix}\xi_{1,\text{out}}+\rho_{1} & -\rho_{2}\\
+-\rho_{1} & \xi_{2,\text{out}}+\rho_{2}
+\end{bmatrix},\\
+\boldsymbol{D} & =\begin{bmatrix}-\xi_{1,\text{in}} & 0\\
+0 & -\xi_{2,\text{in}}
+\end{bmatrix}.
+\end{align*}
+
+\end_inset
+
+Note that each of 
+\begin_inset Formula $\boldsymbol{V_{I}}$
+\end_inset
+
+, 
+\begin_inset Formula $\boldsymbol{V_{W}}$
+\end_inset
+
+, and 
+\begin_inset Formula $\boldsymbol{D}$
+\end_inset
+
+ are invertible with biologically feasible parameters (i.e.
+ not all are zero).
+ The inverse of 
+\begin_inset Formula $V$
+\end_inset
+
+ can also be written in block form as:
+\begin_inset Formula 
+\[
+V^{-1}=\begin{bmatrix}\boldsymbol{V_{I}}^{-1} & \boldsymbol{0_{2}}\\
+-\boldsymbol{V_{W}}^{-1}\boldsymbol{D}\boldsymbol{V_{I}}^{-1} & \boldsymbol{V_{W}}^{-1}
+\end{bmatrix}
+\]
+
+\end_inset
+
+and the next generation matrix, 
+\begin_inset Formula $K=FV^{-1}$
+\end_inset
+
+, can be determined in block-matrix form:
+\begin_inset Formula 
+\begin{align*}
+K=FV^{-1} & =\begin{bmatrix}\boldsymbol{F_{I}} & \boldsymbol{F_{W}}\\
+\boldsymbol{0_{2}} & \boldsymbol{0_{2}}
+\end{bmatrix}\begin{bmatrix}\boldsymbol{V_{I}}^{-1} & \boldsymbol{0_{2}}\\
+-\boldsymbol{V_{W}}^{-1}\boldsymbol{D}\boldsymbol{V_{I}}^{-1} & \boldsymbol{V_{W}}^{-1}
+\end{bmatrix}\\
+ & =\begin{bmatrix}\boldsymbol{F_{I}}\boldsymbol{V_{I}}^{-1}-\boldsymbol{F_{W}}\boldsymbol{V_{W}}^{-1}\boldsymbol{D}\boldsymbol{V_{I}}^{-1} & \boldsymbol{F_{W}}\boldsymbol{V_{W}}^{-1}\\
+\boldsymbol{0_{2}} & \boldsymbol{0_{2}}
+\end{bmatrix}
+\end{align*}
+
+\end_inset
+
+We see immediately that 
+\begin_inset Formula $K$
+\end_inset
+
+ will have at least two zero eigenvalues.
+ The remaining eigenvalues are the eigenvalues of 
+\begin_inset Formula $K_{I}=\boldsymbol{F_{I}}\boldsymbol{V_{I}}^{-1}-\boldsymbol{F_{W}}\boldsymbol{V_{W}}^{-1}\boldsymbol{D}\boldsymbol{V_{I}}^{-1}$
+\end_inset
+
+.
+ We proceed in computing the eigenvalues of 
+\begin_inset Formula $K_{I}$
+\end_inset
+
+ by first determining 
+\begin_inset Formula $\boldsymbol{V_{I}}^{-1}$
+\end_inset
+
+ and 
+\begin_inset Formula $\boldsymbol{V_{W}}^{-1}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+We will work through the determination of 
+\begin_inset Formula $\boldsymbol{V_{I}}^{-1}$
+\end_inset
+
+ below in a deliberate manner in order to facilitate the biological interpretati
+on of the next generation matrix and the basic reproduction number.
+ We start by introducing some new notation.
+ Let 
+\begin_inset Formula $\lambda_{i}=\frac{1}{\gamma_{i}+\mu_{i}+\delta_{i}+n_{i}}$
+\end_inset
+
+ and 
+\begin_inset Formula $\sigma_{i}=\frac{n_{i}}{\gamma_{i}+\mu_{i}+\delta_{i}+n_{i}}=n_{i}\lambda_{i}$
+\end_inset
+
+, 
+\begin_inset Formula $i=1,2$
+\end_inset
+
+.
+ The quantity 
+\begin_inset Formula $\lambda_{i}$
+\end_inset
+
+ represents the average amount of time an infectious individual in patch
+ 
+\begin_inset Formula $i$
+\end_inset
+
+ will remain in patch 
+\begin_inset Formula $i$
+\end_inset
+
+ before recovering, dying (due to disease or natural mortality), or migrating.
+ The quantity 
+\begin_inset Formula $\sigma_{i}$
+\end_inset
+
+ represents the probability that an infectious individual in patch 
+\begin_inset Formula $i$
+\end_inset
+
+ will migrate to another patch before recovering or dying.
+ With these definitions, we can write 
+\begin_inset Formula $\boldsymbol{V_{I}}^{-1}$
+\end_inset
+
+ much more compactly:
+\begin_inset Formula 
+\begin{align*}
+\boldsymbol{V_{I}}^{-1} & =\left(\frac{1}{1-\sigma_{1}\sigma_{2}}\right)\begin{bmatrix}\lambda_{1} & 0\\
+0 & \lambda_{2}
+\end{bmatrix}\begin{bmatrix}1 & \sigma_{2}\\
+\sigma_{1} & 1
+\end{bmatrix}
+\end{align*}
+
+\end_inset
+
+Note that since 
+\begin_inset Formula $\sigma_{1}$
+\end_inset
+
+ and 
+\begin_inset Formula $\sigma_{2}$
+\end_inset
+
+ are probabilities, the quantity 
+\begin_inset Formula $\frac{1}{1-\sigma_{1}\sigma_{2}}$
+\end_inset
+
+ is equivalent to the series 
+\begin_inset Formula $\sum_{n=1}^{\infty}\left(\sigma_{1}\sigma_{2}\right)^{n}$
+\end_inset
+
+, which gives the average number of migrations an infectious individual
+ makes before either recovering or dying.
+ Note that this quantity is the same whether an individual starts in patch
+ 
+\begin_inset Formula $1$
+\end_inset
+
+ or in patch 
+\begin_inset Formula $2$
+\end_inset
+
+, thus we can let 
+\begin_inset Formula $\nu=\frac{1}{1-\sigma_{1}\sigma_{2}}$
+\end_inset
+
+ and drop the subscript.
+\end_layout
+
+\begin_layout Standard
+Notice that 
+\begin_inset Formula $\boldsymbol{V_{W}}$
+\end_inset
+
+ is structured very similarly to 
+\begin_inset Formula $\boldsymbol{V_{I}}$
+\end_inset
+
+.
+ Thus we can immediately determine the inverse of 
+\begin_inset Formula $\boldsymbol{V_{W}}$
+\end_inset
+
+ after defining some quantities similar to those in 
+\begin_inset Formula $\boldsymbol{V_{I}}^{-1}$
+\end_inset
+
+.
+ Let 
+\begin_inset Formula $\eta_{i}=\frac{1}{\xi_{i,\text{out}}+\rho_{i}}$
+\end_inset
+
+, 
+\begin_inset Formula $\omega_{i}=\frac{\rho_{i}}{\xi_{i,\text{out}}+\rho_{i}}$
+\end_inset
+
+, and 
+\begin_inset Formula $\tau=\frac{1}{1-\omega_{1}\omega_{2}}$
+\end_inset
+
+.
+ 
+\begin_inset Formula $\eta_{i}$
+\end_inset
+
+, 
+\begin_inset Formula $\omega_{i}$
+\end_inset
+
+, and 
+\begin_inset Formula $\tau$
+\end_inset
+
+ have equivalent interpretations to 
+\begin_inset Formula $\lambda_{i}$
+\end_inset
+
+, 
+\begin_inset Formula $\sigma_{i}$
+\end_inset
+
+, and 
+\begin_inset Formula $\nu$
+\end_inset
+
+ but for the transport of virus shed in the water, as opposed to human migration.
+ With these defined, we can write down the inverse of 
+\begin_inset Formula $\boldsymbol{V_{W}}$
+\end_inset
+
+:
+\begin_inset Formula 
+\[
+\boldsymbol{V_{W}}^{-1}=\tau\begin{bmatrix}\eta_{1} & 0\\
+0 & \eta_{2}
+\end{bmatrix}\begin{bmatrix}1 & \omega_{2}\\
+\omega_{1} & 1
+\end{bmatrix}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Now to compute 
+\begin_inset Formula $K_{I}$
+\end_inset
+
+, note that 
+\begin_inset Formula $\boldsymbol{F_{I}}\boldsymbol{V_{I}}^{-1}-\boldsymbol{F_{W}}\boldsymbol{V_{W}}^{-1}\boldsymbol{D}\boldsymbol{V_{I}}^{-1}=\left(\boldsymbol{F_{I}}-\boldsymbol{F_{W}}\boldsymbol{V_{W}}^{-1}\boldsymbol{D}\right)\boldsymbol{V_{I}}^{-1}$
+\end_inset
+
+.
+ Computing the bracketed portion first:
+\begin_inset Formula 
+\begin{align*}
+\boldsymbol{F_{I}}-\boldsymbol{F_{W}}\boldsymbol{V_{W}}^{-1}\boldsymbol{D} & =\begin{bmatrix}\beta_{I1}N_{1,0} & 0\\
+0 & \beta_{I2}N_{2,0}
+\end{bmatrix}-\begin{bmatrix}\beta_{W1}N_{1,0} & 0\\
+0 & \beta_{W2}N_{2,0}
+\end{bmatrix}\tau\begin{bmatrix}\eta_{1} & 0\\
+0 & \eta_{2}
+\end{bmatrix}\begin{bmatrix}1 & \omega_{2}\\
+\omega_{1} & 1
+\end{bmatrix}\begin{bmatrix}-\xi_{1,\text{in}} & 0\\
+0 & -\xi_{2,\text{in}}
+\end{bmatrix}\\
+ & =\begin{bmatrix}\beta_{I1}N_{1,0}+\tau\beta_{W1}N_{1,0}\eta_{1}\xi_{1,\text{in}} & \tau\beta_{W1}N_{1,0}\eta_{1}\omega_{2}\xi_{2,\text{in}}\\
+\tau\beta_{W2}N_{2,0}\eta_{2}\omega_{1}\xi_{1,\text{in}} & \beta_{I2}N_{2,0}+\tau\beta_{W2}N_{2,0}\eta_{2}\xi_{2,\text{in}}
+\end{bmatrix}
+\end{align*}
+
+\end_inset
+
+Finally,
+\begin_inset Formula 
+\begin{align*}
+K_{I} & =\begin{bmatrix}k_{11} & k_{12}\\
+k_{21} & k_{22}
+\end{bmatrix}
+\end{align*}
+
+\end_inset
+
+where 
+\begin_inset Formula 
+\begin{align*}
+k_{11} & =\beta_{I1}N_{1,0}\lambda_{1}\nu+\beta_{W1}N_{1,0}\xi_{1,\text{in}}\lambda_{1}\left(\tau\eta_{1}\right)\nu+\beta_{W1}N_{1,0}\xi_{2,\text{in}}\lambda_{2}\left(\tau\eta_{1}\omega_{2}\right)\left(\nu\sigma_{1}\right),\\
+k_{12} & =\beta_{I1}N_{1,0}\lambda_{1}\nu\sigma_{2}+\beta_{W1}N_{1,0}\xi_{1,\text{in}}\lambda_{1}\left(\tau\eta_{1}\right)\left(\nu\sigma_{2}\right)+\beta_{W1}N_{1,0}\xi_{2,\text{in}}\lambda_{2}\left(\tau\eta_{1}\omega_{2}\right)\nu,\\
+k_{21} & =\beta_{I2}N_{2,0}\lambda_{2}\nu\sigma_{1}+\beta_{W2}N_{2,0}\xi_{2,\text{in}}\lambda_{2}\left(\tau\eta_{2}\right)\left(\nu\sigma_{1}\right)+\beta_{W2}N_{2,0}\xi_{1,\text{in}}\lambda_{1}\left(\tau\eta_{2}\omega_{1}\right)\nu,\\
+k_{22} & =\beta_{I2}N_{2,0}\lambda_{2}\nu+\beta_{W2}N_{2,0}\xi_{2,\text{in}}\lambda_{2}\left(\tau\eta_{2}\right)\nu+\beta_{W2}N_{2,0}\xi_{1,\text{in}}\lambda_{1}\left(\tau\eta_{2}\omega_{1}\right)\left(\nu\sigma_{2}\right).
+\end{align*}
+
+\end_inset
+
+We will argue that 
+\begin_inset Formula $k_{ij}$
+\end_inset
+
+ represents the average number of new infections induced in patch 
+\begin_inset Formula $i$
+\end_inset
+
+ by an infectious individual who started in patch 
+\begin_inset Formula $j$
+\end_inset
+
+.
+ Define
+\begin_inset Formula 
+\begin{align*}
+\mathcal{R}_{Ii} & =\beta_{Ii}N_{i,0}\lambda_{i},\\
+\mathcal{R}_{Wi} & =\beta_{Wi}N_{i,0}\xi_{i,\text{in}}\lambda_{i}\eta_{i}.
+\end{align*}
+
+\end_inset
+
+These are the within-patch type reproduction numbers when there is no human
+ migration or water transportation.
+ It is also helpful to recall the interpretations of the several quantities
+ introduced above:
+\begin_inset Formula 
+\begin{align*}
+\nu & =\text{average number of "there and back" migrations before recovering or dying}\\
+\lambda_{i} & =\text{average infectious period of an infected individual remaining in patch \ensuremath{i}}\\
+\sigma_{i} & =\text{probability of migrating out of patch \ensuremath{i} before recovering or dying }\\
+\tau & =\text{average number of "there and back" transportations of shed virus in water before decaying}\\
+\eta_{i} & =\text{average lifetime of shed virus in the water of patch \ensuremath{i}}\\
+\omega_{i} & =\text{probability of shed virus being transported out of patch \ensuremath{i} before decaying}
+\end{align*}
+
+\end_inset
+
+Then we can re-write the entries of 
+\begin_inset Formula $K$
+\end_inset
+
+ as:
+\begin_inset Formula 
+\begin{align*}
+k_{11} & =\nu\mathcal{R}_{I1}+\nu\tau\mathcal{R}_{W1}+\left(\sigma_{1}\nu\right)\left(\omega_{2}\tau\right)\frac{\xi_{2,\text{in}}\lambda_{2}}{\xi_{1,\text{in}}\lambda_{1}}\mathcal{R}_{W1}\\
+k_{12} & =\sigma_{2}\nu\mathcal{R}_{I1}+\left(\sigma_{2}\nu\right)\tau\mathcal{R}_{W1}+\nu\left(\omega_{2}\tau\right)\frac{\xi_{2,\text{in}}\lambda_{2}}{\xi_{1,\text{in}}\lambda_{1}}\mathcal{R}_{W1}\\
+k_{22} & =\sigma_{1}\nu\mathcal{R}_{I2}+\left(\sigma_{1}\nu\right)\tau\mathcal{R}_{W2}+\nu\left(\omega_{1}\tau\right)\frac{\xi_{1,\text{in}}\lambda_{1}}{\xi_{2,\text{in}}\lambda_{2}}\mathcal{R}_{W2}\\
+k_{22} & =\nu\mathcal{R}_{I2}+\nu\tau\mathcal{R}_{W2}+\left(\nu\sigma_{2}\right)\left(\tau\omega_{1}\right)\frac{\xi_{1,\text{in}}\lambda_{1}}{\xi_{2,\text{in}}\lambda_{2}}\mathcal{R}_{W2}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The quantities 
+\begin_inset Formula $k_{ij}$
+\end_inset
+
+ gives the average number of new infections in patch 
+\begin_inset Formula $i$
+\end_inset
+
+ induced by an infected individual initially in patch 
+\begin_inset Formula $j$
+\end_inset
+
+.
+ Each 
+\begin_inset Formula $k_{ij}$
+\end_inset
+
+ is composed of three terms which correspond to the three ways this individual
+ may have contributed to infections in patch 
+\begin_inset Formula $i$
+\end_inset
+
+: direct transmission after migrating to or starting in patch 
+\begin_inset Formula $i$
+\end_inset
+
+, environmental transmission after migrating to patch 
+\begin_inset Formula $i$
+\end_inset
+
+ and shedding virus there, and finally environmental transmission from shedding
+ virus in patch 
+\begin_inset Formula $j$
+\end_inset
+
+ which is then transported by the water to patch 
+\begin_inset Formula $i$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+So, for example, looking at 
+\begin_inset Formula $k_{12}$
+\end_inset
+
+, the term 
+\begin_inset Formula $\sigma_{2}\nu\mathcal{R}_{I1}$
+\end_inset
+
+ represents the average number of new infections induced in patch 
+\begin_inset Formula $1$
+\end_inset
+
+ by an infectious individual who started in patch 
+\begin_inset Formula $2$
+\end_inset
+
+ then migrated to patch 
+\begin_inset Formula $1$
+\end_inset
+
+ (with probability 
+\begin_inset Formula $\sigma_{2}$
+\end_inset
+
+), including all 
+\begin_inset Quotes eld
+\end_inset
+
+there and back
+\begin_inset Quotes erd
+\end_inset
+
+ migrations (
+\begin_inset Formula $\nu$
+\end_inset
+
+).
+ The next term, 
+\begin_inset Formula $\left(\sigma_{2}\nu\right)\tau\mathcal{R}_{W1}$
+\end_inset
+
+ gives the number of new infections induced in patch 
+\begin_inset Formula $1$
+\end_inset
+
+ through the water caused by an infected individual who started in patch
+ 
+\begin_inset Formula $2$
+\end_inset
+
+ and migrated before recovery or death (
+\begin_inset Formula $\sigma_{2}$
+\end_inset
+
+), then while in there in patch 
+\begin_inset Formula $1$
+\end_inset
+
+, shed virus into the water, which leads to on average, 
+\begin_inset Formula $\mathcal{R}_{W1}$
+\end_inset
+
+ new infections.
+ Finally, 
+\begin_inset Formula $\nu\left(\omega_{2}\tau\right)\frac{\xi_{2,\text{in}}\lambda_{2}}{\xi_{1,\text{in}}\lambda_{1}}\mathcal{R}_{W1}$
+\end_inset
+
+ gives the number of infections induced by an infectious individual in patch
+ 
+\begin_inset Formula $2$
+\end_inset
+
+ whose shed virus is transported to patch 
+\begin_inset Formula $1$
+\end_inset
+
+ in the water, with the term 
+\begin_inset Formula $\frac{\xi_{2,\text{in}}\lambda_{2}}{\xi_{1,\text{in}}\lambda_{1}}$
+\end_inset
+
+ accounting for differences in the flow of water and infectious periods
+ in each patch.
+\end_layout
+
+\begin_layout Standard
+Note that when migration and water transport are turned off in one direction,
+ then the corresponding type reproduction number is zero.
+ For example, if there is no movement of individuals or water say movement
+ from patch 
+\begin_inset Formula $1$
+\end_inset
+
+ to patch 
+\begin_inset Formula $2$
+\end_inset
+
+ (i.e.
+ 
+\begin_inset Formula $\sigma_{1}=\omega_{1}=0$
+\end_inset
+
+), then 
+\begin_inset Formula $k_{12}=0$
+\end_inset
+
+.
+ Thus we rename the entries of 
+\begin_inset Formula $K_{i}$
+\end_inset
+
+ to 
+\begin_inset Formula $\mathcal{R}_{ij}=k_{ij}$
+\end_inset
+
+.
+ With this notation, we can easily write down the basic reproduction number
+ of the full system in terms of these patch-reproduction numbers:
+\begin_inset Formula 
+\begin{align*}
+\mathcal{R}_{0} & =\frac{1}{2}\left(\mathcal{R}_{11}+\mathcal{R}_{22}\right)+\frac{1}{2}\sqrt{\left(\mathcal{R}_{11}-\mathcal{R}_{22}\right)^{2}+4\mathcal{R}_{12}\mathcal{R}_{21}}
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Some initial observations about the basic reproduction number
+\end_layout
+
+\begin_layout Itemize
+If there is no movement whatsoever of people or water (
+\begin_inset Formula $\sigma_{i}=\omega_{i}=0$
+\end_inset
+
+), then 
+\begin_inset Formula $\mathcal{R}_{0}=\max\left\{ \mathcal{R}_{11},\mathcal{R}_{22}\right\} $
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+In general, 
+\begin_inset Formula $\max\left\{ \mathcal{R}_{11},\mathcal{R}_{22}\right\} \le\mathcal{R}_{0}\le\max\left\{ \mathcal{R}_{11},\mathcal{R}_{22}\right\} +\sqrt{\mathcal{R}_{12}\mathcal{R}_{21}}$
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Water flowing in a single direction
+\end_layout
+
+\begin_layout Standard
+This scenario has water only flowing out of patch 
+\begin_inset Formula $1$
+\end_inset
+
+, into patch 
+\begin_inset Formula $2$
+\end_inset
+
+, then out of patch 
+\begin_inset Formula $2$
+\end_inset
+
+ but 
+\series bold
+not 
+\series default
+back in to patch 
+\begin_inset Formula $1$
+\end_inset
+
+, we would need to rename our variables.
+ This changes the structure of the matrix 
+\begin_inset Formula $V$
+\end_inset
+
+.
+ Unfortunately we cannot check this easily (say, by setting some parameters
+ to zero) because the original model is structurally different from the
+ one represented in this scenario i.e.
+ we cannot set 
+\begin_inset Quotes eld
+\end_inset
+
+one
+\begin_inset Quotes erd
+\end_inset
+
+ of the 
+\begin_inset Formula $\rho_{2}$
+\end_inset
+
+s to zero with the other positive.
+\end_layout
+
+\begin_layout Standard
+But, just as an example, suppose 
+\begin_inset Formula $\rho_{2}=0$
+\end_inset
+
+.
+ Then 
+\begin_inset Formula $\omega_{2}=0$
+\end_inset
+
+ and 
+\begin_inset Formula $\tau=1$
+\end_inset
+
+ and we get
+\begin_inset Formula 
+\begin{align*}
+\mathcal{R}_{11} & =\nu\mathcal{R}_{I1}+\eta_{1}\nu\mathcal{R}_{W1}\\
+\mathcal{R}_{21} & =\nu\sigma_{2}\mathcal{R}_{I1}+\eta_{1}\nu\sigma_{2}\mathcal{R}_{W1}\\
+\mathcal{R}_{12} & =\nu\sigma_{1}\mathcal{R}_{I2}+\eta_{2}\nu\left[\left(\sigma_{1}\right)+\frac{\xi_{1,\text{in}}\lambda_{1}}{\xi_{2,\text{in}}\lambda_{2}}\left(\omega_{1}\right)\right]\mathcal{R}_{W2}\\
+\mathcal{R}_{22} & =\nu\mathcal{R}_{I2}+\eta_{2}\nu\left[1+\frac{\xi_{1,\text{in}}\lambda_{1}}{\xi_{2,\text{in}}\lambda_{2}}\left(\omega_{1}\right)\left(\sigma_{2}\right)\right]\mathcal{R}_{W2}
 \end{align*}
 
 \end_inset
