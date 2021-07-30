@@ -1,8 +1,10 @@
 # model equations
-chol <- function(times, y, params, v1_interp, v2_interp){
+# v1_interp, v2_interp for time-varying vaccination
+# if v1_interp and v2_interp NA, assume constant vaccination rates v1 and v2
+chol <- function(times, y, params, v1_interp = NA, v2_interp = NA){
   with(as.list(c(y, params)),{
-    v1 = v1_interp(times)
-    v2 = v2_interp(times)
+    if(!is.na(v1_interp)){v1 = v1_interp(times)}
+    if(!is.na(v2_interp)){v1 = v2_interp(times)}
     dS1 <- mu1*(S1 + I1 + R1) - beta_I1*S1*I1 - beta_W1*S1*W1 - (mu1 + v1)*S1 - m1*S1 + m2*S2
     dS2 <- mu2*(S2 + I2 + R2) - beta_I2*S2*I2 - beta_W2*S2*W2 - (mu2 + v2)*S2 + m1*S1 - m2*S2
     dI1 <- beta_I1*S1*I1 + beta_W1*S1*W1 - (gamma1 + mu1 + delta1)*I1 - n1*I1 + n2*I2
