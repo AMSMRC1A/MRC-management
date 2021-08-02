@@ -11,11 +11,11 @@ clc
 
 % parameters
 parameter_settings
-M1 = 0.01; % max vaccination rate for patch 1
-M2 = 0.01; % max vaccination rate for patch 2
+M1 = 0.005; % max vaccination rate for patch 1
+M2 = 0.005; % max vaccination rate for patch 2
 
 % time interval
-T = 500; % final time
+T = 750; % final time
 dt = 0.1; % time step
 tvec = 0:dt:T; % time interval of T/dt evenly spaced points
 M = length(tvec); % length of time interval 
@@ -55,6 +55,7 @@ while(test < 0 && count < 50)
     E1 = x(:,2);
     I1 = x(:,3);S2 = x(:,7);
     E2 = x(:,8);
+    I2 = x(:,9);
     lambda1 = lambda(:,1);
     lambda6 = lambda(:,6);
     lambda7 = lambda(:,7);
@@ -118,29 +119,29 @@ subplot(4,2,7);xlabel('Time')
 subplot(4,2,7);ylabel('v1')
 subplot(4,2,7);axis([0 T -0.02 M1+0.02])
 
-figure(2) % patch 2
-subplot(4,2,1);plot(tvec,x(:,7))
-subplot(4,2,1);xlabel('Time')
-subplot(4,2,1);ylabel('S2')
-subplot(4,2,2);plot(tvec,x(:,8))
-subplot(4,2,2);xlabel('Time')
-subplot(4,2,2);ylabel('E2')
-subplot(4,2,3);plot(tvec,x(:,9))
-subplot(4,2,3);xlabel('Time')
-subplot(4,2,3);ylabel('I2')
-subplot(4,2,4);plot(tvec,x(:,10))
-subplot(4,2,4);xlabel('Time')
-subplot(4,2,4);ylabel('H2')
-subplot(4,2,5);plot(tvec,x(:,11))
-subplot(4,2,5);xlabel('Time')
-subplot(4,2,5);ylabel('D2')
-subplot(4,2,6);plot(tvec,x(:,12))
-subplot(4,2,6);xlabel('Time')
-subplot(4,2,6);ylabel('R2')
-subplot(4,2,7);plot(tvec,v2)
-subplot(4,2,7);xlabel('Time')
-subplot(4,2,7);ylabel('v2')
-subplot(4,2,7);axis([0 T -0.02 M2+0.02])
+% figure(2) % patch 2
+% subplot(4,2,1);plot(tvec,x(:,7))
+% subplot(4,2,1);xlabel('Time')
+% subplot(4,2,1);ylabel('S2')
+% subplot(4,2,2);plot(tvec,x(:,8))
+% subplot(4,2,2);xlabel('Time')
+% subplot(4,2,2);ylabel('E2')
+% subplot(4,2,3);plot(tvec,x(:,9))
+% subplot(4,2,3);xlabel('Time')
+% subplot(4,2,3);ylabel('I2')
+% subplot(4,2,4);plot(tvec,x(:,10))
+% subplot(4,2,4);xlabel('Time')
+% subplot(4,2,4);ylabel('H2')
+% subplot(4,2,5);plot(tvec,x(:,11))
+% subplot(4,2,5);xlabel('Time')
+% subplot(4,2,5);ylabel('D2')
+% subplot(4,2,6);plot(tvec,x(:,12))
+% subplot(4,2,6);xlabel('Time')
+% subplot(4,2,6);ylabel('R2')
+% subplot(4,2,7);plot(tvec,v2)
+% subplot(4,2,7);xlabel('Time')
+% subplot(4,2,7);ylabel('v2')
+% subplot(4,2,7);axis([0 T -0.02 M2+0.02])
 
 % figure(3) % adjoints for patch 1
 % subplot(4,2,1);plot(tvec,lambda(:,1))
@@ -182,23 +183,23 @@ subplot(4,2,7);axis([0 T -0.02 M2+0.02])
 % subplot(4,2,6);xlabel('Time')
 % subplot(4,2,6);ylabel('R2')
 
-figure(5)
-subplot(2,2,1);plot(tvec,x(:,3),tvec,x(:,9),'linewidth',2)
-subplot(2,2,1);xlabel('Time')
-subplot(2,2,1);ylabel('Infectious')
-legend('patch 1','patch2')
-axis([0,150,0,300])
-set(gca, 'FontSize', 24)
-subplot(2,2,2);plot(tvec,x(:,5),tvec,x(:,11),'linewidth',2)
-subplot(2,2,2);xlabel('Time')
-subplot(2,2,2);ylabel('Dead Bodies')
-legend('patch 1','patch2')
-axis([0,150,0,20])
-set(gca, 'FontSize', 24)
-subplot(2,1,2);plot(tvec,v1,tvec,v2,'linewidth',2)
-subplot(2,1,2);xlabel('Time')
-subplot(2,1,2);ylabel('Vaccination Strategy')
-legend('patch 1','patch2')
-subplot(2,1,2);axis([0 150 -0.02 M1+0.02])
-set(gca, 'FontSize', 24)
+% figure(5)
+% subplot(2,2,1);plot(tvec,x(:,3),tvec,x(:,9),'linewidth',2)
+% subplot(2,2,1);xlabel('Time')
+% subplot(2,2,1);ylabel('Infectious')
+% legend('patch 1','patch2')
+% axis([0,150,0,300])
+% set(gca, 'FontSize', 24)
+% subplot(2,2,2);plot(tvec,x(:,5),tvec,x(:,11),'linewidth',2)
+% subplot(2,2,2);xlabel('Time')
+% subplot(2,2,2);ylabel('Dead Bodies')
+% legend('patch 1','patch2')
+% axis([0,150,0,20])
+% set(gca, 'FontSize', 24)
+% subplot(2,1,2);plot(tvec,v1,tvec,v2,'linewidth',2)
+% subplot(2,1,2);xlabel('Time')
+% subplot(2,1,2);ylabel('Vaccination Strategy')
+% legend('patch 1','patch2')
+% subplot(2,1,2);axis([0 150 -0.02 M1+0.02])
+% set(gca, 'FontSize', 24)
           
