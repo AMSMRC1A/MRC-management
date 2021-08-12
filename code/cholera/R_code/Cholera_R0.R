@@ -60,4 +60,4 @@ ggplot(data = test_params, aes(x = as.factor(beta_W1), y = as.factor(beta_W2), f
   scale_y_discrete(expand = c(0,0))+
   theme_classic()+
   theme(legend.position = "none")
-
+ggsave("figures/parameter_sweeps/sampleR0.pdf", width = 5, height = 5, units = "in")
