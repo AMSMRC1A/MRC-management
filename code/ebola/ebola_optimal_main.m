@@ -32,10 +32,14 @@ v2     = zeros(M,1);  % control for patch 2
 %% Find optimal vaccination strategy
 
 test  = -1;
-count = 1;
+count = 0;
 
-while(test < 0 && count < 50)
-    
+while(test < 0 && count < 100)
+%     figure(1)
+%     subplot(1,2,1)
+%     plot(tvec,v1)
+%     subplot(1,2,2)
+%     plot(tvec,v2)
     % update states, adjoints, and controls
     oldx = x;
     oldlambda = lambda;
@@ -53,7 +57,8 @@ while(test < 0 && count < 50)
     % pull out states and adjoints needed in v*
     S1 = x(:,1);
     E1 = x(:,2);
-    I1 = x(:,3);S2 = x(:,7);
+    I1 = x(:,3);
+    S2 = x(:,7);
     E2 = x(:,8);
     I2 = x(:,9);
     lambda1 = lambda(:,1);
@@ -67,15 +72,23 @@ while(test < 0 && count < 50)
     v11 = min(M1,max(0,temp1));
     v21 = min(M2,max(0,temp2));
     
+%     figure(2)
+%     subplot(1,2,1)
+%     plot(tvec,temp1)
+%     subplot(1,2,2)
+%     plot(tvec,temp2)
     % update control
     v1 = 0.5*(v11 + oldv1);
     v2 = 0.5*(v21 + oldv2);
     
     % tolerance: |oldu - u|/|u| < delta
-    test = min([delta*norm(v1,1)-norm(oldv1-v1,1) delta*norm(v2,1)-norm(oldv2-v2,1) delta*norm(x,1)-norm(oldx-x,1) delta*norm(lambda,1)-norm(oldlambda-lambda,1)])
-    
+    delta*sum(abs(v1))-sum(abs(oldv1-v1))
+    [delta*sum(abs(v1))-sum(abs(oldv1-v1)) delta*sum(abs(v2))-sum(abs(oldv2-v2)) delta*sum(abs(x))-sum(abs(oldx-x)) delta*sum(abs(lambda))-sum(abs(oldlambda-lambda))]
+    %test = min([delta*sum(abs(v1))-sum(abs(oldv1-v1)) delta*sum(abs(v2))-sum(abs(oldv2-v2)) delta*sum(abs(x))-sum(abs(oldx-x)) delta*sum(abs(lambda))-sum(abs(oldlambda-lambda))])
+    test = min([delta*sum(abs(v1))-sum(abs(oldv1-v1)) delta*sum(abs(v2))-sum(abs(oldv2-v2)) ])
     % update count
     count = count + 1
+    
 end
 
 %% Calculate J
@@ -117,31 +130,29 @@ subplot(4,2,6);ylabel('R1')
 subplot(4,2,7);plot(tvec,v1)
 subplot(4,2,7);xlabel('Time')
 subplot(4,2,7);ylabel('v1')
-subplot(4,2,7);axis([0 T -0.02 M1+0.02])
 
-% figure(2) % patch 2
-% subplot(4,2,1);plot(tvec,x(:,7))
-% subplot(4,2,1);xlabel('Time')
-% subplot(4,2,1);ylabel('S2')
-% subplot(4,2,2);plot(tvec,x(:,8))
-% subplot(4,2,2);xlabel('Time')
-% subplot(4,2,2);ylabel('E2')
-% subplot(4,2,3);plot(tvec,x(:,9))
-% subplot(4,2,3);xlabel('Time')
-% subplot(4,2,3);ylabel('I2')
-% subplot(4,2,4);plot(tvec,x(:,10))
-% subplot(4,2,4);xlabel('Time')
-% subplot(4,2,4);ylabel('H2')
-% subplot(4,2,5);plot(tvec,x(:,11))
-% subplot(4,2,5);xlabel('Time')
-% subplot(4,2,5);ylabel('D2')
-% subplot(4,2,6);plot(tvec,x(:,12))
-% subplot(4,2,6);xlabel('Time')
-% subplot(4,2,6);ylabel('R2')
-% subplot(4,2,7);plot(tvec,v2)
-% subplot(4,2,7);xlabel('Time')
-% subplot(4,2,7);ylabel('v2')
-% subplot(4,2,7);axis([0 T -0.02 M2+0.02])
+figure(2) % patch 2
+subplot(4,2,1);plot(tvec,x(:,7))
+subplot(4,2,1);xlabel('Time')
+subplot(4,2,1);ylabel('S2')
+subplot(4,2,2);plot(tvec,x(:,8))
+subplot(4,2,2);xlabel('Time')
+subplot(4,2,2);ylabel('E2')
+subplot(4,2,3);plot(tvec,x(:,9))
+subplot(4,2,3);xlabel('Time')
+subplot(4,2,3);ylabel('I2')
+subplot(4,2,4);plot(tvec,x(:,10))
+subplot(4,2,4);xlabel('Time')
+subplot(4,2,4);ylabel('H2')
+subplot(4,2,5);plot(tvec,x(:,11))
+subplot(4,2,5);xlabel('Time')
+subplot(4,2,5);ylabel('D2')
+subplot(4,2,6);plot(tvec,x(:,12))
+subplot(4,2,6);xlabel('Time')
+subplot(4,2,6);ylabel('R2')
+subplot(4,2,7);plot(tvec,v2)
+subplot(4,2,7);xlabel('Time')
+subplot(4,2,7);ylabel('v2')
 
 % figure(3) % adjoints for patch 1
 % subplot(4,2,1);plot(tvec,lambda(:,1))
@@ -202,4 +213,3 @@ subplot(4,2,7);axis([0 T -0.02 M1+0.02])
 % legend('patch 1','patch2')
 % subplot(2,1,2);axis([0 150 -0.02 M1+0.02])
 % set(gca, 'FontSize', 24)
-          

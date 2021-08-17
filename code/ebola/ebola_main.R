@@ -3,6 +3,7 @@ require(tidyverse)
 require(reshape2)
 source("ebola_functions_mrc.R")
 source("ebola_params_mrc.R")
+(R0<-with(parm,1e6*alpha1/(alpha1 + mu1)*1/(gammaI1 + phi1 + deltaI1 + mu1)*(betaI1 + betaD1*deltaI1/xi1)))
 ##------------------------------------------
 times<-seq(0,1200,by=2)
 
@@ -34,8 +35,8 @@ lambda = matrix(0, nrow = length(times), ncol = 13)
 lambda_init = rep(0,12)
 names(lambda_init) = paste0("lambda",1:12)
 # bounds
-M1 = .0005
-M2 = .0005
+M1 = 0.005
+M2 = 0.005
 
 # setup OC
 
@@ -51,7 +52,7 @@ solx<-ode(y=Y,
           func=ebola.ode,
           parms=parm,
           method = "ode45")
-while(test < -1e-4 & counter < 100){
+while(test < 0 & counter < 100){
   counter <- counter + 1
   # set previous control, state, and adjoint 
   oldv1 <- v1
@@ -77,8 +78,8 @@ while(test < -1e-4 & counter < 100){
   lambda <- lambda[nrow(lambda):1,]
   
   # calculate v1* and v2*
-  temp_v1 <- with(parm,(-C1*(solx[,"S1"]+solx[,"I1"])+lambda[,"lambda1"]*solx[,"S1"])/(2*epsilon1))
-  temp_v2 <- with(parm,(-C2*(solx[,"S2"]+solx[,"I2"])+lambda[,"lambda7"]*solx[,"S2"])/(2*epsilon2))
+  temp_v1 <- with(parm,(-C1*(solx[,"S1"]+solx[,"I1"])+lambda[,"lambda1"]*solx[,"S1"]-lambda[,"lambda6"]*solx[,"S1"])/(2*epsilon1))
+  temp_v2 <- with(parm,(-C2*(solx[,"S2"]+solx[,"I2"])+lambda[,"lambda7"]*solx[,"S2"]-lambda[,"lambda12"]*solx[,"S2"])/(2*epsilon2))
   
   v1 <- pmin(M1, pmax(0, temp_v1))
   v1 <- 0.5*(v1 + oldv1)
