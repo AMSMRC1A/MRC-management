@@ -13,17 +13,19 @@
 #   test optimal control
 
 # replicate oc analysis across multiple parameters
-apply_oc = function(change_params,guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
+apply_oc = function(change_params,guess_v1, guess_v2, init_x, bounds,
+                    ode_fn, adj_fn,
                     times, params, delta) {
-  if("counter" %in% names(change_params)){print(as.numeric(change_params["counter"]))}
+  #if("counter" %in% names(change_params)){print(as.numeric(change_params["counter"]))}
   # update parameters
   new_params <- params 
   p_loc <- match(names(change_params), names(new_params))
   new_params[p_loc[!is.na(p_loc)]] = change_params[!is.na(p_loc)]
+  # run optimal control
   oc <- run_oc(guess_v1, guess_v2, init_x, bounds, ode_fn, adj_fn,
                times, new_params, delta)
   # for now, return v1, v2 time series and j
-  ret <- data.frame(t(change_params), freq = length(oc$v1)) %>% 
+  ret <- data.frame(change_params, freq = length(oc$v1)) %>% 
     uncount(freq) %>% 
     bind_cols(time = times, v1 = oc$v1, v2 = oc$v2, j = oc$j)
   return(ret)
@@ -79,10 +81,10 @@ oc_optim = function(v1, v2, x, lambda, # initial guesses
                     v1_interp = v1_interp, v2_interp = v2_interp, x_interp = x_interp, x = x)
       lambda <- lambda[nrow(lambda):1,]
       # calculate v1* and v2*
-      temp_v1 <- ((lambda[,"lambda1"] - params["C1"] - lambda[,"lambda3"])*x[,"S1"])/
-        (2*params["epsilon1"])
-      temp_v2 <- ((lambda[,"lambda5"] - params["C2"] - lambda[,"lambda7"])*x[,"S2"])/
-        (2*params["epsilon2"])
+      temp_v1 <- ((lambda[,"lambda1"] - params$C1 - lambda[,"lambda3"])*x[,"S1"])/
+        (2*params$epsilon1)
+      temp_v2 <- ((lambda[,"lambda5"] - params$C2 - lambda[,"lambda7"])*x[,"S2"])/
+        (2*params$epsilon2)
       # include bounds
       v1 = pmin(M1, pmax(0, temp_v1))
       v2 = pmin(M2, pmax(0, temp_v2))

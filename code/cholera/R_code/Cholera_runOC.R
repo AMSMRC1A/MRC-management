@@ -4,6 +4,11 @@ library(reshape2)
 library(tidyverse)
 library(cowplot)
 
+# to paralellize
+library(doParallel)
+library(foreach)
+registerDoParallel(4) # update this 4 if you want to use more cores
+
 # load files
 source("CholeraSIRW_ODE.R")
 source("Cholera_params.R")
@@ -98,7 +103,7 @@ print(paste("No control:", round(j_no_control,1),
 
 #### test multiple oc parameter values ####
 
-## create data.frameof parameters to test
+## create data.frame of parameters to test
 # assume costs are equal in both patches
 equal <- expand.grid(b1 = c(1,10), 
                      C1 = c(0.125, 0.625, 1.25), 
@@ -129,11 +134,13 @@ test_params$counter <- 1:nrow(test_params)
 
 # calculate OC
 start_time <- Sys.time()
-mult_oc_params <- apply(test_params, 1, apply_oc, 
-                        guess_v1 = guess_v1, guess_v2 = guess_v2, 
-                        init_x = IC, bounds = bounds,
-                        ode_fn = chol, adj_fn = adj,
-                        times = times, params = c(params, oc_params), delta = delta)
+mult_oc_params <- foreach (i=1:nrow(test_params)) %dopar% { 
+  apply_oc(change_params = test_params[i,],
+           guess_v1 = guess_v1, guess_v2 = guess_v2, 
+           init_x = IC, bounds = bounds,
+           ode_fn = chol, adj_fn = adj,
+           times = times, params = c(params, oc_params), delta = delta)
+}
 mult_oc_params <- do.call(rbind, mult_oc_params)
 end_time <- Sys.time()
 end_time - start_time
