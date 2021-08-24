@@ -74,8 +74,8 @@ test_params$sim = 1:nrow(test_params)
 new_times <- seq(0,100,0.1) # shorten time vector for memory
 
 start <- Sys.time()
-out <- foreach (i=1:nrow(test_params)) %dopar% { # can update so we don't have to include all params in test_params df
-  ode(y = IC, times = new_times, func = chol, parms = test_params[i,])
+out <- foreach (i=1:nrow(test_params), .packages = c("deSolve")) %dopar% { # can update so we don't have to include all params in test_params df
+  ode(y = IC, times = new_times, func = chol, parms = test_params[i,]) 
 }
 end <- Sys.time()
 end-start

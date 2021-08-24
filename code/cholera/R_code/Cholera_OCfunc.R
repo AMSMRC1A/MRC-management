@@ -118,7 +118,9 @@ j_integrand <- function(params, optim_states){
 calc_j <- function(params, optim_states, integrand_fn, 
                    lower_lim, upper_lim, step_size){
   # use trapezoid rule to integrate j
-  steps <- seq(lower_lim, upper_lim, step_size)
+  ## temp fix to ensure that length(steps) = dim(optim_states)[1]
+  steps <- seq(lower_lim, upper_lim, length.out=dim(optim_states)[1])
+  #steps <- seq(lower_lim, upper_lim, step_size)
   area = 0
   for(i in 1:(length(steps)-1)){
     a = steps[i]

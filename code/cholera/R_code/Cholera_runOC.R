@@ -36,7 +36,7 @@ oc_params <- c(b1 = 1, b2 = 100,
 
 # run optimization
 oc = run_oc(guess_v1, guess_v2, IC, bounds, chol, adj,
-              times, c(params, oc_params), delta)
+              times, as.list(c(params, oc_params)), delta)
 
 
 # collect trajectories and controls
@@ -78,7 +78,7 @@ control_plot
 
 # find j values
 j <- calc_j(params = c(params, oc_params), 
-            optim_states = cbind(oc$x, v1 = oc$v1, v2 = oc$v2), 
+            optim_states = cbind(oc$x, v1 = oc$v1, v2 = oc$v2), #< length of this (=4001) must match seq(lower_lim, upper_lim, step_size) = 20001
             integrand_fn = j_integrand, 
             lower_lim = min(times), upper_lim = max(times), step_size = 0.01)
 j_no_control <- calc_j(params = c(params, oc_params), 
@@ -134,7 +134,7 @@ test_params$counter <- 1:nrow(test_params)
 
 # calculate OC
 start_time <- Sys.time()
-mult_oc_params <- foreach (i=1:nrow(test_params)) %dopar% { 
+mult_oc_params <- foreach (i=1:nrow(test_params), .packages = c("deSolve","tidyverse")) %dopar% { 
   apply_oc(change_params = test_params[i,],
            guess_v1 = guess_v1, guess_v2 = guess_v2, 
            init_x = IC, bounds = bounds,
