@@ -13,32 +13,67 @@
 #   test optimal control
 
 # replicate oc analysis across multiple parameters
+# control_type: character to indicate the type of control to be implemented,
+#                   "unique": optimize control uniquely in each patch
+#                   "equiv": optimize s.t. control is equal in both patches
+#                   "max": keep control at maximum value for entire period
+#                   "none": no control for entire period
 apply_oc = function(change_params,guess_v1, guess_v2, init_x, bounds,
-                    ode_fn, adj_fn,
+                    ode_fn, adj_fn, control_type,
                     times, params, delta) {
-  #if("counter" %in% names(change_params)){print(as.numeric(change_params["counter"]))}
   # update parameters
+  browser()
   new_params <- params 
   p_loc <- match(names(change_params), names(new_params))
   new_params[p_loc[!is.na(p_loc)]] = change_params[!is.na(p_loc)]
-  # run optimal control
-  oc <- run_oc(guess_v1, guess_v2, init_x, bounds, ode_fn, adj_fn,
-               times, new_params, delta)
+  if(control_type %in% c("unique", "equiv")){
+    out <- run_oc(guess_v1, guess_v2, init_x, bounds, ode_fn, adj_fn,
+                  times, new_params, delta, control_type)
+  }
+  else if(control_type %in% c("max", "none")){
+    out <- run_no_optim(bounds, init_x, times, ode_fn, new_params, control_type)
+  }
   # for now, return v1, v2 time series and j
-  ret <- data.frame(change_params, freq = length(oc$v1)) %>% 
+  ret <- data.frame(change_params, freq = length(out$v1)) %>% 
     uncount(freq) %>% 
-    bind_cols(time = times, v1 = oc$v1, v2 = oc$v2, j = oc$j)
+    bind_cols(time = times, v1 = out$v1, v2 = out$v2, j = out$j)
   return(ret)
+}
+
+
+# function to run ode and calculate j without optimizing
+run_no_optim = function(bounds, init_x, times, ode_fn, params, control_type){
+  if(control_type == "none"){
+    params$v1 = 0
+    params$v2 = 0
+  }
+  else if(control_type == "max"){
+    params$v1 = bounds[1]
+    params$v2 = bounds[2]
+  }
+  out <- ode(y = init_x, times = times, func = ode_fn, parms = params)
+  out = as.data.frame(out)
+  out$v1 = params$v1
+  out$v2 = params$v2
+  # out$j <- calc_j(params, out, integrand_fn = j_integrand, 
+  #                 lower_lim = min(times), upper_lim = max(times), 
+  #                 step_size = (range(times)[2] - range(times)[1])/(length(times)-1))
+  out$j <- calc_j(times,out, integrand_fn, params)
+  out = as.data.frame(out)
+  return(out)
 }
 
 # function to implement optimal control analysis
 run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
-                  times, params, delta){
+                  times, params, delta, control_type){
   # setup variables 
   x = matrix(0, nrow = length(times), ncol = 9)
   lambda = matrix(0, nrow = length(times), ncol = 9)
   v1 = guess_v1
   v2 = guess_v2
+  if(control_type == "equiv"){
+    v2 = v1
+  }
   # final time adjoints
   lambda_init = rep(0,8);
   names(lambda_init) = paste0("lambda",1:8)
@@ -46,11 +81,12 @@ run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
   oc = oc_optim(v1, v2, x, lambda, 
                 IC, lambda_init, 
                 bounds, delta, ode_fn, adj_fn, 
-                times, params)
-  oc$j <- calc_j(params = params, 
-              optim_states = cbind(oc$x, v1 = oc$v1, v2 = oc$v2), 
-              integrand_fn = j_integrand, 
-              lower_lim = min(times), upper_lim = max(times), step_size = (range(times)[2] - range(times)[1])/(length(times)-1))
+                times, params, control_type)
+  oc$j <- calc_j(times,cbind(oc$x, v1 = oc$v1, v2 = oc$v2), integrand_fn, params)
+  # oc$j <- calc_j(params = params, 
+  #             optim_states = cbind(oc$x, v1 = oc$v1, v2 = oc$v2), 
+  #             integrand_fn = j_integrand, 
+  #             lower_lim = min(times), upper_lim = max(times), step_size = (range(times)[2] - range(times)[1])/(length(times)-1))
   return(oc)
 }
 
@@ -58,7 +94,7 @@ run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
 oc_optim = function(v1, v2, x, lambda, # initial guesses
                     IC, lambda_init, # state ICs & final time adjoints
                     bounds, delta, ode_fn, adj_fn,
-                    times, params){
+                    times, params, control_type){
   with(as.list(bounds),{
     counter = 1
     test = -1
@@ -88,6 +124,9 @@ oc_optim = function(v1, v2, x, lambda, # initial guesses
       # include bounds
       v1 = pmin(M1, pmax(0, temp_v1))
       v2 = pmin(M2, pmax(0, temp_v2))
+      if(control_type == "equiv"){
+        v2 = v1
+      }
       # update control
       v1 = 0.5*(v1 + oldv1)
       v2 = 0.5*(v2 + oldv2)
@@ -95,8 +134,9 @@ oc_optim = function(v1, v2, x, lambda, # initial guesses
       test <- min(delta*norm_oc(c(v1,v2))-norm_oc(c(oldv1,oldv2)-c(v1,v2)),
                   delta*norm_oc(x[,-1])-norm_oc(oldx[,-1]-x[,-1]),
                   delta*norm_oc(lambda[,-1])-norm_oc(oldlambda[,-1]-lambda[,-1]))
-      #print(counter)
-      #print(test)
+      print(counter)
+      print(test)
+      print(calc_j(times,cbind(as.data.frame(x), v1 = v1, v2 = v2), j_integrand, params))
       counter <- counter + 1
     }
     return(list(x = x, lambda = lambda, v1 = v1, v2 = v2))
@@ -115,20 +155,28 @@ j_integrand <- function(params, optim_states){
   })
 }
 
-calc_j <- function(params, optim_states, integrand_fn, 
-                   lower_lim, upper_lim, step_size){
-  # use trapezoid rule to integrate j
-  ## temp fix to ensure that length(steps) = dim(optim_states)[1]
-  steps <- seq(lower_lim, upper_lim, length.out=dim(optim_states)[1])
-  #steps <- seq(lower_lim, upper_lim, step_size)
-  area = 0
-  for(i in 1:(length(steps)-1)){
-    a = steps[i]
-    b = steps[i+1]
-    j_a = integrand_fn(params, optim_states[i,])
-    j_b = integrand_fn(params, optim_states[i+1,])
-    area = area + (b-a)*(1/2)*(j_a+j_b)
-  }
-  return(area)
+# calc_j <- function(params, optim_states, integrand_fn,
+#                    lower_lim, upper_lim, step_size){
+#   # use trapezoid rule to integrate j
+#   ## temp fix to ensure that length(steps) = dim(optim_states)[1]
+#   steps <- seq(lower_lim, upper_lim, length.out=dim(optim_states)[1])
+#   #steps <- seq(lower_lim, upper_lim, step_size)
+#   area = 0
+#   for(i in 1:(length(steps)-1)){
+#     a = steps[i]
+#     b = steps[i+1]
+#     j_a = integrand_fn(params, optim_states[i,])
+#     j_b = integrand_fn(params, optim_states[i+1,])
+#     area = area + (b-a)*(1/2)*(j_a+j_b)
+#   }
+#   return(area)
+# }
+
+
+calc_j <- function(times,optim_states, integrand_fn, params){
+  #browser()
+  x <- times
+  y <- apply(optim_states, 1, j_integrand, params = params)
+  return(trapz(x,y))
 }
 
