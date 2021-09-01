@@ -22,7 +22,6 @@ apply_oc = function(change_params,guess_v1, guess_v2, init_x, bounds,
                     ode_fn, adj_fn, control_type,
                     times, params, delta) {
   # update parameters
-  browser()
   new_params <- params 
   p_loc <- match(names(change_params), names(new_params))
   new_params[p_loc[!is.na(p_loc)]] = change_params[!is.na(p_loc)]
@@ -148,33 +147,15 @@ norm_oc <- function(x){sum(abs(x))}
 
 # define cost function (j values)
 j_integrand <- function(params, optim_states){
-  with(as.list(c(params, optim_states)),{
+  with(as.list(c(optim_states, params)),{
     dj = b1 * (beta_I1*S1*I1 + beta_W1*S1*W1) + C1*v1*S1 + epsilon1*(v1^2) +
       b2 * (beta_I2*S2*I2 + beta_W2*S2*W2) + C2*v2*S2 + epsilon2*(v2^2)
     return(dj)
   })
 }
 
-# calc_j <- function(params, optim_states, integrand_fn,
-#                    lower_lim, upper_lim, step_size){
-#   # use trapezoid rule to integrate j
-#   ## temp fix to ensure that length(steps) = dim(optim_states)[1]
-#   steps <- seq(lower_lim, upper_lim, length.out=dim(optim_states)[1])
-#   #steps <- seq(lower_lim, upper_lim, step_size)
-#   area = 0
-#   for(i in 1:(length(steps)-1)){
-#     a = steps[i]
-#     b = steps[i+1]
-#     j_a = integrand_fn(params, optim_states[i,])
-#     j_b = integrand_fn(params, optim_states[i+1,])
-#     area = area + (b-a)*(1/2)*(j_a+j_b)
-#   }
-#   return(area)
-# }
-
 
 calc_j <- function(times,optim_states, integrand_fn, params){
-  #browser()
   x <- times
   y <- apply(optim_states, 1, j_integrand, params = params)
   return(trapz(x,y))
