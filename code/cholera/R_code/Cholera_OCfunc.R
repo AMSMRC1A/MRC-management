@@ -32,10 +32,8 @@ apply_oc = function(change_params,guess_v1, guess_v2, init_x, bounds,
   else if(control_type %in% c("max", "none")){
     out <- run_no_optim(bounds, init_x, times, ode_fn, new_params, control_type)
   }
-  # for now, return v1, v2 time series and j
-  ret <- data.frame(change_params, freq = length(out$v1)) %>% 
-    uncount(freq) %>% 
-    bind_cols(time = times, v1 = out$v1, v2 = out$v2, j = out$j)
+  # for now, return v1, v2 time series and j (in list form)
+  ret <- list(list(ts = cbind(time = times, v1 = out$v1, v2 = out$v2), j = out$j))
   return(ret)
 }
 
@@ -52,14 +50,8 @@ run_no_optim = function(bounds, init_x, times, ode_fn, params, control_type){
   }
   out <- ode(y = init_x, times = times, func = ode_fn, parms = params)
   out = as.data.frame(out)
-  out$v1 = params$v1
-  out$v2 = params$v2
-  # out$j <- calc_j(params, out, integrand_fn = j_integrand, 
-  #                 lower_lim = min(times), upper_lim = max(times), 
-  #                 step_size = (range(times)[2] - range(times)[1])/(length(times)-1))
-  out$j <- calc_j(times,out, integrand_fn, params)
-  out = as.data.frame(out)
-  return(out)
+  j <- calc_j(times,out, integrand_fn, params)
+  return(list(x = out, v1 = params$v1, v2 = params$v2, j = j))
 }
 
 # function to implement optimal control analysis
