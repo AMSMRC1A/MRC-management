@@ -69,10 +69,20 @@ p1 = ggplot(data = mult_oc_params %>% filter(control_type %in% c("unique", "equi
   theme_bw()+
   theme(legend.position = "bottom")
 
-p2 = ggplot(data = j_vals) + 
-  geom_point(aes(x = as.factor(control_type), y = j, shape = paste0("m1: ", m1,", m2: ", m2)), size = 3) + 
-  geom_path(aes(x = as.factor(control_type), y = j, group = paste0("m1: ", m1,", m2: ", m2)), size = 1) +
-  labs(x = "control strategy", y = "cost") +
+# compute relative changes in cost
+j_vals <- j_vals %>%
+  # add column representing cost relative to "no control"
+  mutate(rel_j = j/j[control_type=="none"])
+
+  # separately compute the change in cost due to having separate controls
+percent_change_unique_to_equiv <- j_vals %>%
+  filter(control_type %in% c("unique","equiv")) %>%
+  mutate(j_change = 100*(j-j[control_type=="equiv"])/j[control_type=="equiv"])
+
+p2 = ggplot(data = filter(j_vals,control_type != "none")) + 
+  geom_bar(aes(x = paste0("m1: ", m1,", m2: ", m2), y = 1-rel_j, fill=as.factor(control_type)), size = 3, position = "dodge", stat='identity') + 
+  #geom_path(aes(x = as.factor(control_type), y = j, group = paste0("m1: ", m1,", m2: ", m2)), size = 1) +
+  labs(x = "control strategy", y = "cost relative to no control") +
   theme_bw()+
   theme(legend.position = "bottom",
         legend.title = element_blank())
