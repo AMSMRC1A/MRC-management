@@ -108,16 +108,10 @@ oc_optim = function(v1, v2, x, lambda, # initial guesses
                     v1_interp = v1_interp, v2_interp = v2_interp, x_interp = x_interp, x = x)
       lambda <- lambda[nrow(lambda):1,]
       # calculate v1* and v2*
-      temp_v1 <- ((lambda[,"lambda1"] - params$C1 - lambda[,"lambda3"])*x[,"S1"])/
-        (2*params$epsilon1)
-      temp_v2 <- ((lambda[,"lambda5"] - params$C2 - lambda[,"lambda7"])*x[,"S2"])/
-        (2*params$epsilon2)
+      temp <- calc_opt_v(params, lambda, x, control_type)
       # include bounds
-      v1 = pmin(M1, pmax(0, temp_v1))
-      v2 = pmin(M2, pmax(0, temp_v2))
-      if(control_type == "equiv"){
-        v2 = v1
-      }
+      v1 = pmin(M1, pmax(0, temp$temp_v1))
+      v2 = pmin(M2, pmax(0, temp$temp_v2))
       # update control
       v1 = 0.5*(v1 + oldv1)
       v2 = 0.5*(v2 + oldv2)
@@ -132,6 +126,22 @@ oc_optim = function(v1, v2, x, lambda, # initial guesses
     }
     return(list(x = x, lambda = lambda, v1 = v1, v2 = v2))
   })
+}
+
+calc_opt_v <- function(params, lambda, x, control_type){
+  if(control_type == "equiv"){
+    temp_v1 <- (((lambda[,"lambda1"] - params$C1 - lambda[,"lambda3"])*x[,"S1"]) + 
+      ((lambda[,"lambda5"] - params$C2 - lambda[,"lambda7"])*x[,"S2"]))/
+      (2*params$epsilon1 + 2*params$epsilon2)
+    temp_v2 = temp_v1
+  }
+  if(control_type == "unique"){
+    temp_v1 <- ((lambda[,"lambda1"] - params$C1 - lambda[,"lambda3"])*x[,"S1"])/
+      (2*params$epsilon1)
+    temp_v2 <- ((lambda[,"lambda5"] - params$C2 - lambda[,"lambda7"])*x[,"S2"])/
+      (2*params$epsilon2)
+  }
+  return(list(temp_v1 = temp_v1, temp_v2 = temp_v2))
 }
 
 # define norm(X,1) command from matlab
