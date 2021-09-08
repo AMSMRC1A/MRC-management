@@ -157,9 +157,42 @@ j_integrand <- function(params, optim_states){
 }
 
 
+j_integrand_case1 <- function(params, optim_states){
+  with(as.list(c(optim_states, params)),{
+    return(b1 * (beta_I1*S1*I1 + beta_W1*S1*W1))
+  })
+}
+
+j_integrand_vacc1 <- function(params, optim_states){
+  with(as.list(c(optim_states, params)),{
+    return(C1*v1*S1 + epsilon1*(v1^2))
+  })
+}
+
+j_integrand_case2 <- function(params, optim_states){
+  with(as.list(c(optim_states, params)),{
+    return(b2 * (beta_I2*S2*I2 + beta_W2*S2*W2))
+  })
+}
+
+j_integrand_vacc2 <- function(params, optim_states){
+  with(as.list(c(optim_states, params)),{
+    return(C2*v2*S2 + epsilon2*(v2^2))
+  })
+}
+
+
+
+
 calc_j <- function(times,optim_states, integrand_fn, params){
   x <- times
-  y <- apply(optim_states, 1, j_integrand, params = params)
-  return(trapz(x,y))
+  y_case1 <- apply(optim_states, 1, j_integrand_case1, params = params)
+  y_case2 <- apply(optim_states, 1, j_integrand_case2, params = params)
+  y_vacc1 <- apply(optim_states, 1, j_integrand_vacc1, params = params)
+  y_vacc2 <- apply(optim_states, 1, j_integrand_vacc2, params = params)
+  return(data.frame(j_case1 = trapz(x,y_case1),
+                    j_case2 = trapz(x,y_case2),
+                    j_vacc1 = trapz(x,y_vacc1),
+                    j_vacc2 = trapz(x,y_vacc2)))
 }
 

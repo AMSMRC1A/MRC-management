@@ -47,9 +47,10 @@ end_time <- Sys.time()
 end_time - start_time
 
 # reformat output
-j_vals <- lapply(1:length(vary_params), function(i){return(data.frame(test_case = i, j = vary_params[[i]][["j"]]))})
+j_vals <- lapply(1:length(vary_params), function(i){return(data.frame(test_case = i, vary_params[[i]][["j"]]))})
 j_vals <- as.data.frame(do.call(rbind, j_vals))
 j_vals <- left_join(test_params,j_vals)
+j_vals$j = apply(j_vals[,5:8],1,sum)
 mult_oc_params <- lapply(1:length(vary_params), function(i){return(data.frame(test_case = i, vary_params[[i]][["ts"]]))})
 mult_oc_params <- as.data.frame(do.call(rbind, mult_oc_params))
 mult_oc_params <- left_join(test_params,mult_oc_params)
@@ -86,5 +87,16 @@ p2 = ggplot(data = filter(j_vals,control_type != "none")) +
   theme_bw()+
   theme(legend.position = "bottom",
         legend.title = element_blank())
+
+j_vals_long = melt(j_vals %>% select(-j, -rel_j), c("m1", "m2", "control_type","test_case"))
+
+p3 = ggplot(data = j_vals_long, )+
+  geom_bar(aes(x = , y = 1-rel_j, fill=as.factor(control_type)), size = 3, position = "dodge", stat='identity') + 
+  facet_grid(cols = vars(paste0("m1: ", m1,", m2: ", m2)))
+  labs(x = "control strategy", y = "absolute cost") +
+  theme_bw()+
+  theme(legend.position = "bottom",
+        legend.title = element_blank())
+
 plot_grid(p1, p2)
 ggsave("figures/vary_control_strategies.pdf", width = 14, height = 6)
