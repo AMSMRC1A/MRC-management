@@ -50,7 +50,7 @@ run_no_optim = function(bounds, init_x, times, ode_fn, params, control_type){
   }
   out <- ode(y = init_x, times = times, func = ode_fn, parms = params)
   out = as.data.frame(out)
-  j <- calc_j(times,out, integrand_fn, params)
+  j <- calc_j(times,out, params)
   return(list(x = out, v1 = params$v1, v2 = params$v2, j = j))
 }
 
@@ -73,7 +73,7 @@ run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
                 IC, lambda_init, 
                 bounds, delta, ode_fn, adj_fn, 
                 times, params, control_type)
-  oc$j <- calc_j(times,cbind(oc$x, v1 = oc$v1, v2 = oc$v2), integrand_fn, params)
+  oc$j <- calc_j(times,cbind(oc$x, v1 = oc$v1, v2 = oc$v2), params)
   # oc$j <- calc_j(params = params, 
   #             optim_states = cbind(oc$x, v1 = oc$v1, v2 = oc$v2), 
   #             integrand_fn = j_integrand, 
@@ -121,7 +121,8 @@ oc_optim = function(v1, v2, x, lambda, # initial guesses
                   delta*norm_oc(lambda[,-1])-norm_oc(oldlambda[,-1]-lambda[,-1]))
       print(counter)
       print(test)
-      print(calc_j(times,cbind(as.data.frame(x), v1 = v1, v2 = v2), j_integrand, params))
+      browser()
+      calc_j(times,cbind(as.data.frame(x), v1 = v1, v2 = v2), params)
       counter <- counter + 1
     }
     return(list(x = x, lambda = lambda, v1 = v1, v2 = v2))
@@ -148,51 +149,24 @@ calc_opt_v <- function(params, lambda, x, control_type){
 norm_oc <- function(x){sum(abs(x))}
 
 # define cost function (j values)
-j_integrand <- function(params, optim_states){
+eval_j_integrand <- function(params, optim_states, integrand){
   with(as.list(c(optim_states, params)),{
-    dj = b1 * (beta_I1*S1*I1 + beta_W1*S1*W1) + C1*v1*S1 + epsilon1*(v1^2) +
-      b2 * (beta_I2*S2*I2 + beta_W2*S2*W2) + C2*v2*S2 + epsilon2*(v2^2)
-    return(dj)
+    eval(parse(text = integrand))
   })
 }
 
 
-j_integrand_case1 <- function(params, optim_states){
-  with(as.list(c(optim_states, params)),{
-    return(b1 * (beta_I1*S1*I1 + beta_W1*S1*W1))
-  })
-}
-
-j_integrand_vacc1 <- function(params, optim_states){
-  with(as.list(c(optim_states, params)),{
-    return(C1*v1*S1 + epsilon1*(v1^2))
-  })
-}
-
-j_integrand_case2 <- function(params, optim_states){
-  with(as.list(c(optim_states, params)),{
-    return(b2 * (beta_I2*S2*I2 + beta_W2*S2*W2))
-  })
-}
-
-j_integrand_vacc2 <- function(params, optim_states){
-  with(as.list(c(optim_states, params)),{
-    return(C2*v2*S2 + epsilon2*(v2^2))
-  })
-}
-
-
-
-
-calc_j <- function(times,optim_states, integrand_fn, params){
+calc_j <- function(times,optim_states,params){
   x <- times
-  y_case1 <- apply(optim_states, 1, j_integrand_case1, params = params)
-  y_case2 <- apply(optim_states, 1, j_integrand_case2, params = params)
-  y_vacc1 <- apply(optim_states, 1, j_integrand_vacc1, params = params)
-  y_vacc2 <- apply(optim_states, 1, j_integrand_vacc2, params = params)
-  return(data.frame(j_case1 = trapz(x,y_case1),
-                    j_case2 = trapz(x,y_case2),
-                    j_vacc1 = trapz(x,y_vacc1),
-                    j_vacc2 = trapz(x,y_vacc2)))
+  j_ints <- list(case1 = expression(b1 * (beta_I1*S1*I1 + beta_W1*S1*W1)),
+                 case2 = expression(b2 * (beta_I2*S2*I2 + beta_W2*S2*W2)),
+                 vacc1 = expression(C1*v1*S1 + epsilon1*(v1^2)),
+                 vacc2 = expression(C2*v2*S2 + epsilon2*(v2^2)))
+  j_vals <- lapply(j_ints, function(x){apply(optim_states, 1, eval_j_integrand, params = params, integrand = x)})
+  return(data.frame(j_case1 = trapz(x,j_vals[[1]]),
+                    j_case2 = trapz(x,j_vals[[2]]),
+                    j_vacc1 = trapz(x,j_vals[[3]]),
+                    j_vacc2 = trapz(x,j_vals[[4]])))
 }
+
 
