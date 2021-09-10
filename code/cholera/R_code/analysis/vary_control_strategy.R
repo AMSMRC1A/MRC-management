@@ -4,6 +4,7 @@ library(reshape2)
 library(tidyverse)
 library(cowplot)
 library(pracma)
+library(RColorBrewer)
 
 # to paralellize
 library(doParallel)
@@ -63,12 +64,13 @@ mult_oc_params$scenario = with(mult_oc_params,ifelse(control_type == "unique", p
 
 p1 = ggplot(data = mult_oc_params %>% filter(control_type %in% c("unique", "equiv"))) + 
   geom_line(aes(x = time, y = value, linetype = control_type, color = scenario), size = 1) +
-  guides(linetype = FALSE) +
+  guides(linetype = "none") +
   facet_grid(rows = vars(m2), cols = vars(m1), labeller = label_both)+
   labs(y = "optimal vaccination rate") +
   scale_color_manual(values = c("black", "red", "blue")) +
   theme_bw()+
   theme(legend.position = "bottom")
+
 
 # compute relative changes in cost
 j_vals <- j_vals %>%
@@ -91,12 +93,13 @@ p2 = ggplot(data = filter(j_vals,control_type != "none")) +
 j_vals_long = melt(j_vals %>% select(-j, -rel_j), c("m1", "m2", "control_type","test_case"))
 
 p3 = ggplot(data = j_vals_long, )+
-  geom_bar(aes(x = , y = 1-rel_j, fill=as.factor(control_type)), size = 3, position = "dodge", stat='identity') + 
-  facet_grid(cols = vars(paste0("m1: ", m1,", m2: ", m2)))
+  geom_bar(aes(x = as.factor(control_type), y = value, fill=variable), size = 3, position = "stack", stat='identity') + 
+  facet_grid(rows = vars(m2), cols = vars(m1), labeller = label_both)+
   labs(x = "control strategy", y = "absolute cost") +
+  scale_fill_brewer(palette = "Set2") +
   theme_bw()+
   theme(legend.position = "bottom",
         legend.title = element_blank())
 
-plot_grid(p1, p2)
+plot_grid(p1, p3, p2, nrow = 1)
 ggsave("figures/vary_control_strategies.pdf", width = 14, height = 6)
