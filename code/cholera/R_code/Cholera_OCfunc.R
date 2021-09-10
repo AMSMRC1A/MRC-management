@@ -121,7 +121,6 @@ oc_optim = function(v1, v2, x, lambda, # initial guesses
                   delta*norm_oc(lambda[,-1])-norm_oc(oldlambda[,-1]-lambda[,-1]))
       print(counter)
       print(test)
-      browser()
       calc_j(times,cbind(as.data.frame(x), v1 = v1, v2 = v2), params)
       counter <- counter + 1
     }

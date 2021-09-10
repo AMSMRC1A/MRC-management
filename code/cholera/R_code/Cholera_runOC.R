@@ -39,9 +39,6 @@ oc_params <- c(b1 = 1, b2 = 1,
 oc = run_oc(guess_v1, guess_v2, IC, bounds, chol, adj,
               times, as.list(c(params, oc_params)), delta, "unique")
 
-oc = run_oc(rep(bounds[1], length(times)), rep(bounds[2], length(times)), IC, bounds, chol, adj,
-            times, as.list(c(params, oc_params)), delta, "unique")
-
 # collect trajectories and controls
 control_trajectories <- as.data.frame(oc$x)
 control_trajectories$v1 = oc$v1
