@@ -1,5 +1,7 @@
 N1<-6e6
 N2<-6e6
+#Initial conditions
+Y=c(S1=N1-1000,E1=700,I1=300,H1=0,D1=0,R1=0,S2=N2,E2=0,I2=0,H2=0,D2=0,R2=0)
 
 ##Set-up parameters
 parm<-list(mu1=1e-4,
@@ -10,7 +12,8 @@ parm<-list(mu1=1e-4,
         deltaI1=.024,
         deltaH1=.01,
         xi1=0.222,
-        m1=0.005, #movement
+        m1=0,
+        #m1=0.005, #movement
         n1=0,
         #Patch 2
         mu2=1e-4,
@@ -21,14 +24,15 @@ parm<-list(mu1=1e-4,
         deltaI2=.024,
         deltaH2=.01,
         xi2=0.222,
-        m2=0.005,  #movement
+        m2=0,
+        #m2=0.005,  #movement
         n2=0,
-        b1=5000,
-        b2=5000,
-        C1=20,
-        C2=20,
-        epsilon1=.1,
-        epsilon2=.1
+        b1=1,
+        b2=1,
+        C1=.95,
+        C2=.95,
+        epsilon1=500,
+        epsilon2=500
 )
 
 #Calculate betas based on R0
@@ -48,8 +52,9 @@ betaI2 <- .006/N1 #Burton
 betaD2 <- 3.3/N1 #Burton
 #betaD2 <- p*betaI2
 
+
+
 parm<-c(parm,betaI1=betaI1,betaI2=betaI2,betaD1=betaD1,betaD2=betaD2)
 
-#Initial conditions
-Y=c(S1=N1-1000,E1=700,I1=300,H1=0,D1=0,R1=0,S2=N2,E2=0,I2=0,H2=0,D2=0,R2=0)
+
 rm(betaI1,betaI2,betaD1,betaD2,N1,N2,R0,p)

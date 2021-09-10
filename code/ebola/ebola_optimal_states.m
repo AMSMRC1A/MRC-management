@@ -53,7 +53,7 @@ N2 = S2 + E2 + I2 + H2 + R2;
 % define ODEs
 v1=pchip(tvec,v1,t);
 v2=pchip(tvec,v2,t);
-dx=zeros(12,1);
+
 
 % patch 1
 dS1 = mu1*N1 - betaI1*S1*I1 - betaD1*S1*D1 - mu1*S1 - v1*S1 - m1*S1 + m2*S2 ;
