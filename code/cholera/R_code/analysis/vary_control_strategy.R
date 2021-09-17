@@ -31,7 +31,7 @@ oc_params <- c(b1 = 1, b2 = 1,
 # define parameters to sweep across
 test_params <- expand.grid(m1 = c(0,0.05), 
                            m2 = c(0,0.05),
-                           control_type = c("unique", "equiv", "max", "none"))
+                           control_type = c("unique", "uniform", "max", "none"))
 test_params$test_case <- 1:nrow(test_params)
 
 # calculate OC
@@ -62,7 +62,7 @@ mult_oc_params <- melt(mult_oc_params %>% select(-test_case),
                        id = c("m1", "m2", "control_type","time"))
 mult_oc_params$scenario = with(mult_oc_params,ifelse(control_type == "unique", paste0(control_type,": ", variable), as.character(control_type)))
 
-p1 = ggplot(data = mult_oc_params %>% filter(control_type %in% c("unique", "equiv"))) + 
+p1 = ggplot(data = mult_oc_params %>% filter(control_type %in% c("unique", "uniform"))) + 
   geom_line(aes(x = time, y = value, linetype = control_type, color = scenario), size = 1) +
   guides(linetype = "none") +
   facet_grid(rows = vars(m2), cols = vars(m1), labeller = label_both)+
@@ -78,9 +78,9 @@ j_vals <- j_vals %>%
   mutate(rel_j = j/j[control_type=="none"])
 
   # separately compute the change in cost due to having separate controls
-percent_change_unique_to_equiv <- j_vals %>%
-  filter(control_type %in% c("unique","equiv")) %>%
-  mutate(j_change = 100*(j-j[control_type=="equiv"])/j[control_type=="equiv"])
+percent_change_unique_to_uniform <- j_vals %>%
+  filter(control_type %in% c("unique","uniform")) %>%
+  mutate(j_change = 100*(j-j[control_type=="uniform"])/j[control_type=="uniform"])
 
 p2 = ggplot(data = filter(j_vals,control_type != "none")) + 
   geom_bar(aes(x = paste0("m1: ", m1,", m2: ", m2), y = 1-rel_j, fill=as.factor(control_type)), size = 3, position = "dodge", stat='identity') + 
