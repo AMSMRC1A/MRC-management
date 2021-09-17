@@ -18,9 +18,13 @@
 #                   "uniform": optimize s.t. control is equal in both patches
 #                   "max": keep control at maximum value for entire period
 #                   "none": no control for entire period
+# return_type: vector to indicate what to return,
+#                   "v": return time series of each vaccination
+#                   "j": return J values broken down by cases/vacc in each patch
+#                   "X": return states
 apply_oc = function(change_params,guess_v1, guess_v2, init_x, bounds,
                     ode_fn, adj_fn, control_type,
-                    times, params, delta) {
+                    times, params, delta, return_type) {
   # update parameters
   new_params <- params 
   p_loc <- match(names(change_params), names(new_params))
@@ -33,8 +37,17 @@ apply_oc = function(change_params,guess_v1, guess_v2, init_x, bounds,
     out <- run_no_optim(bounds, init_x, times, ode_fn, new_params, control_type)
   }
   # for now, return v1, v2 time series and j (in list form)
-  ret <- list(list(ts = cbind(time = times, v1 = out$v1, v2 = out$v2), j = out$j))
-  return(ret)
+  ret <- list()
+  if("v" %in% return_type){
+    ret[["ts"]] = cbind(time = times, v1 = out$v1, v2 = out$v2)
+  }
+  if("j" %in% return_type){
+    ret[["j"]] = out$j
+  }
+  if("X" %in% return_type){
+    ret[["X"]] = out$x
+  }
+  return(list(ret))
 }
 
 
@@ -74,10 +87,6 @@ run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
                 bounds, delta, ode_fn, adj_fn, 
                 times, params, control_type)
   oc$j <- calc_j(times,cbind(oc$x, v1 = oc$v1, v2 = oc$v2), params)
-  # oc$j <- calc_j(params = params, 
-  #             optim_states = cbind(oc$x, v1 = oc$v1, v2 = oc$v2), 
-  #             integrand_fn = j_integrand, 
-  #             lower_lim = min(times), upper_lim = max(times), step_size = (range(times)[2] - range(times)[1])/(length(times)-1))
   return(oc)
 }
 

@@ -41,7 +41,7 @@ vary_params <- foreach (i=1:nrow(test_params), .packages = c("deSolve","tidyvers
            guess_v1 = guess_v1, guess_v2 = guess_v2, 
            init_x = IC, bounds = bounds,
            ode_fn = chol, adj_fn = adj,
-           times = times, params = c(params, oc_params), delta = delta, control_type = test_params[i,"control_type"])
+           times = times, params = c(params, oc_params), delta = delta, control_type = test_params[i,"control_type"], return_type = c("v", "j", "X"))
 }
 vary_params <- do.call(rbind, vary_params)
 end_time <- Sys.time()
@@ -55,7 +55,9 @@ j_vals$j = apply(j_vals[,5:8],1,sum)
 mult_oc_params <- lapply(1:length(vary_params), function(i){return(data.frame(test_case = i, vary_params[[i]][["ts"]]))})
 mult_oc_params <- as.data.frame(do.call(rbind, mult_oc_params))
 mult_oc_params <- left_join(test_params,mult_oc_params)
-
+states <- lapply(1:length(vary_params), function(i){return(data.frame(test_case = i, vary_params[[i]][["X"]]))})
+states <- as.data.frame(do.call(rbind, states))
+states <- left_join(test_params,states)
 
 # change to long for plotting
 mult_oc_params <- melt(mult_oc_params %>% select(-test_case), 
@@ -103,3 +105,20 @@ p3 = ggplot(data = j_vals_long, )+
 
 plot_grid(p1, p3, p2, nrow = 1)
 ggsave("figures/vary_control_strategies.pdf", width = 14, height = 6)
+
+
+states_long <- melt(states %>% select(-test_case), c("m1", "m2", "control_type", "time"))
+states_long$state <- substr(states_long$variable, 1,1)
+states_long$patch <- substr(states_long$variable, 2,2)
+ggplot(data = states_long %>% filter(state == "I", 
+                                     control_type %in% c("none", "unique"),
+                                     m1 == 0.05,
+                                     m2 == 0), 
+       aes(x = time, y = value, color = patch, linetype = control_type)) +
+  geom_line() + 
+  labs(y = "infections") + 
+  scale_color_manual(values =c("red", "blue")) +
+  theme_bw() + 
+  theme(legend.position = "bottom")
+  
+
