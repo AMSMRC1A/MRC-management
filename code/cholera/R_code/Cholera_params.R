@@ -23,10 +23,16 @@ times <- seq(0,200,0.05)
 
 
 # define ICs
-IC <- c(S1 = 10000-100, S2 = 10000-10, # consider doubling population of Patch 1
-        I1 = 100,    I2 = 10, 
-        R1 = 0,      R2 = 0,
-        W1 = 100,    W2 = 100)#,
-# c1 = 0,      c2 = 0, # added c to count new cases
+# IC <- c(S1 = 10000-100, S2 = 10000-10, # consider doubling population of Patch 1
+#         I1 = 100,    I2 = 10, 
+#         R1 = 0,      R2 = 0,
+#         W1 = 100,    W2 = 100)#,
+# # c1 = 0,      c2 = 0, # added c to count new cases
 #  V1 = 0,      V2 = 0) # added V to count vaccinations
 
+# use initially uncontrolled outbreak as initial conditions 
+response_time <- 50 # define time of outbreak response in days
+uncontrolled_epidemic <- read.csv("analysis/initialOutbreak_noControl_forIC.csv")
+IC <- as.double(uncontrolled_epidemic[uncontrolled_epidemic$time == response_time, -1])
+names(IC) <- names(uncontrolled_epidemic[,-1])
+  

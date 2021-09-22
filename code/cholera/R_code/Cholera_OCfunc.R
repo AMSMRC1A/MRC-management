@@ -86,7 +86,6 @@ run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
                 IC, lambda_init, 
                 bounds, delta, ode_fn, adj_fn, 
                 times, params, control_type)
-  oc$j <- calc_j(times,cbind(oc$x, v1 = oc$v1, v2 = oc$v2), params)
   return(oc)
 }
 
@@ -128,12 +127,10 @@ oc_optim = function(v1, v2, x, lambda, # initial guesses
       test <- min(delta*norm_oc(c(v1,v2))-norm_oc(c(oldv1,oldv2)-c(v1,v2)),
                   delta*norm_oc(x[,-1])-norm_oc(oldx[,-1]-x[,-1]),
                   delta*norm_oc(lambda[,-1])-norm_oc(oldlambda[,-1]-lambda[,-1]))
-      print(counter)
-      print(test)
-      calc_j(times,cbind(as.data.frame(x), v1 = v1, v2 = v2), params)
       counter <- counter + 1
     }
-    return(list(x = x, lambda = lambda, v1 = v1, v2 = v2))
+    return(list(x = x, lambda = lambda, v1 = v1, v2 = v2, 
+                j = calc_j(times,cbind(as.data.frame(x), v1 = v1, v2 = v2), params)))
   })
 }
 
