@@ -31,7 +31,7 @@ oc_params <- c(b1 = 1, b2 = 1,
 # define parameters to sweep across
 test_params <- expand.grid(m1 = c(0,0.05), 
                            m2 = c(0,0.05),
-                           control_type = c("unique", "equiv", "max", "none"))
+                           control_type = c("unique", "uniform", "max", "none"))
 test_params$test_case <- 1:nrow(test_params)
 
 # calculate OC
@@ -41,7 +41,7 @@ vary_params <- foreach (i=1:nrow(test_params), .packages = c("deSolve","tidyvers
            guess_v1 = guess_v1, guess_v2 = guess_v2, 
            init_x = IC, bounds = bounds,
            ode_fn = chol, adj_fn = adj,
-           times = times, params = c(params, oc_params), delta = delta, control_type = test_params[i,"control_type"])
+           times = times, params = c(params, oc_params), delta = delta, control_type = test_params[i,"control_type"], return_type = c("v", "j", "X"))
 }
 vary_params <- do.call(rbind, vary_params)
 end_time <- Sys.time()
@@ -55,14 +55,16 @@ j_vals$j = apply(j_vals[,5:8],1,sum)
 mult_oc_params <- lapply(1:length(vary_params), function(i){return(data.frame(test_case = i, vary_params[[i]][["ts"]]))})
 mult_oc_params <- as.data.frame(do.call(rbind, mult_oc_params))
 mult_oc_params <- left_join(test_params,mult_oc_params)
-
+states <- lapply(1:length(vary_params), function(i){return(data.frame(test_case = i, vary_params[[i]][["X"]]))})
+states <- as.data.frame(do.call(rbind, states))
+states <- left_join(test_params,states)
 
 # change to long for plotting
 mult_oc_params <- melt(mult_oc_params %>% select(-test_case), 
                        id = c("m1", "m2", "control_type","time"))
 mult_oc_params$scenario = with(mult_oc_params,ifelse(control_type == "unique", paste0(control_type,": ", variable), as.character(control_type)))
 
-p1 = ggplot(data = mult_oc_params %>% filter(control_type %in% c("unique", "equiv"))) + 
+p1 = ggplot(data = mult_oc_params %>% filter(control_type %in% c("unique", "uniform"))) + 
   geom_line(aes(x = time, y = value, linetype = control_type, color = scenario), size = 1) +
   guides(linetype = "none") +
   facet_grid(rows = vars(m2), cols = vars(m1), labeller = label_both)+
@@ -78,9 +80,9 @@ j_vals <- j_vals %>%
   mutate(rel_j = j/j[control_type=="none"])
 
   # separately compute the change in cost due to having separate controls
-percent_change_unique_to_equiv <- j_vals %>%
-  filter(control_type %in% c("unique","equiv")) %>%
-  mutate(j_change = 100*(j-j[control_type=="equiv"])/j[control_type=="equiv"])
+percent_change_unique_to_uniform <- j_vals %>%
+  filter(control_type %in% c("unique","uniform")) %>%
+  mutate(j_change = 100*(j-j[control_type=="uniform"])/j[control_type=="uniform"])
 
 p2 = ggplot(data = filter(j_vals,control_type != "none")) + 
   geom_bar(aes(x = paste0("m1: ", m1,", m2: ", m2), y = 1-rel_j, fill=as.factor(control_type)), size = 3, position = "dodge", stat='identity') + 
@@ -103,3 +105,20 @@ p3 = ggplot(data = j_vals_long, )+
 
 plot_grid(p1, p3, p2, nrow = 1)
 ggsave("figures/vary_control_strategies.pdf", width = 14, height = 6)
+
+
+states_long <- melt(states %>% select(-test_case), c("m1", "m2", "control_type", "time"))
+states_long$state <- substr(states_long$variable, 1,1)
+states_long$patch <- substr(states_long$variable, 2,2)
+ggplot(data = states_long %>% filter(state == "I", 
+                                     control_type %in% c("none", "unique"),
+                                     m1 == 0.05,
+                                     m2 == 0), 
+       aes(x = time, y = value, color = patch, linetype = control_type)) +
+  geom_line() + 
+  labs(y = "infections") + 
+  scale_color_manual(values =c("red", "blue")) +
+  theme_bw() + 
+  theme(legend.position = "bottom")
+  
+

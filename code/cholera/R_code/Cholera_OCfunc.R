@@ -15,17 +15,21 @@
 # replicate oc analysis across multiple parameters
 # control_type: character to indicate the type of control to be implemented,
 #                   "unique": optimize control uniquely in each patch
-#                   "equiv": optimize s.t. control is equal in both patches
+#                   "uniform": optimize s.t. control is equal in both patches
 #                   "max": keep control at maximum value for entire period
 #                   "none": no control for entire period
+# return_type: vector to indicate what to return,
+#                   "v": return time series of each vaccination
+#                   "j": return J values broken down by cases/vacc in each patch
+#                   "X": return states
 apply_oc = function(change_params,guess_v1, guess_v2, init_x, bounds,
                     ode_fn, adj_fn, control_type,
-                    times, params, delta) {
+                    times, params, delta, return_type) {
   # update parameters
   new_params <- params 
   p_loc <- match(names(change_params), names(new_params))
   new_params[p_loc[!is.na(p_loc)]] = change_params[!is.na(p_loc)]
-  if(control_type %in% c("unique", "equiv")){
+  if(control_type %in% c("unique", "uniform")){
     out <- run_oc(guess_v1, guess_v2, init_x, bounds, ode_fn, adj_fn,
                   times, new_params, delta, control_type)
   }
@@ -33,8 +37,17 @@ apply_oc = function(change_params,guess_v1, guess_v2, init_x, bounds,
     out <- run_no_optim(bounds, init_x, times, ode_fn, new_params, control_type)
   }
   # for now, return v1, v2 time series and j (in list form)
-  ret <- list(list(ts = cbind(time = times, v1 = out$v1, v2 = out$v2), j = out$j))
-  return(ret)
+  ret <- list()
+  if("v" %in% return_type){
+    ret[["ts"]] = cbind(time = times, v1 = out$v1, v2 = out$v2)
+  }
+  if("j" %in% return_type){
+    ret[["j"]] = out$j
+  }
+  if("X" %in% return_type){
+    ret[["X"]] = out$x
+  }
+  return(list(ret))
 }
 
 
@@ -62,7 +75,7 @@ run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
   lambda = matrix(0, nrow = length(times), ncol = 9)
   v1 = guess_v1
   v2 = guess_v2
-  if(control_type == "equiv"){
+  if(control_type == "uniform"){
     v2 = v1
   }
   # final time adjoints
@@ -73,11 +86,6 @@ run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
                 IC, lambda_init, 
                 bounds, delta, ode_fn, adj_fn, 
                 times, params, control_type)
-  oc$j <- calc_j(times,cbind(oc$x, v1 = oc$v1, v2 = oc$v2), params)
-  # oc$j <- calc_j(params = params, 
-  #             optim_states = cbind(oc$x, v1 = oc$v1, v2 = oc$v2), 
-  #             integrand_fn = j_integrand, 
-  #             lower_lim = min(times), upper_lim = max(times), step_size = (range(times)[2] - range(times)[1])/(length(times)-1))
   return(oc)
 }
 
@@ -119,17 +127,15 @@ oc_optim = function(v1, v2, x, lambda, # initial guesses
       test <- min(delta*norm_oc(c(v1,v2))-norm_oc(c(oldv1,oldv2)-c(v1,v2)),
                   delta*norm_oc(x[,-1])-norm_oc(oldx[,-1]-x[,-1]),
                   delta*norm_oc(lambda[,-1])-norm_oc(oldlambda[,-1]-lambda[,-1]))
-      print(counter)
-      print(test)
-      calc_j(times,cbind(as.data.frame(x), v1 = v1, v2 = v2), params)
       counter <- counter + 1
     }
-    return(list(x = x, lambda = lambda, v1 = v1, v2 = v2))
+    return(list(x = x, lambda = lambda, v1 = v1, v2 = v2, 
+                j = calc_j(times,cbind(as.data.frame(x), v1 = v1, v2 = v2), params)))
   })
 }
 
 calc_opt_v <- function(params, lambda, x, control_type){
-  if(control_type == "equiv"){
+  if(control_type == "uniform"){
     temp_v1 <- (((lambda[,"lambda1"] - params$C1 - lambda[,"lambda3"])*x[,"S1"]) + 
       ((lambda[,"lambda5"] - params$C2 - lambda[,"lambda7"])*x[,"S2"]))/
       (2*params$epsilon1 + 2*params$epsilon2)

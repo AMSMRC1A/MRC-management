@@ -3,6 +3,7 @@ library(deSolve)
 library(reshape2)
 library(tidyverse)
 library(cowplot)
+library(readr)
 
 source("CholeraSIRW_ODE.R")
 source("Cholera_params.R")
@@ -15,8 +16,15 @@ v1_interp <- approxfun(v1, rule = 2)
 v2 = data.frame(times = times, v2 = rep(0,length(times)))
 v2_interp <- approxfun(v2, rule = 2)
 
+IC <- c(S1 = 10000-1, S2 = 10000, # consider doubling population of Patch 1
+        I1 = 1,       I2 = 0, 
+        R1 = 0,       R2 = 0,
+        W1 = 0,       W2 = 0)#,
+
 # solve ODE
 out <- ode(y = IC, times = times, func = chol, parms = params, v1_interp = v1_interp, v2_interp = v2_interp)
+
+write_csv(as.data.frame(out), "analysis/initialOutbreak_noControl_forIC.csv")
 
 # reformat output for plotting
 out <- as.data.frame(out)
@@ -26,7 +34,7 @@ out$compartment = factor(out$compartment, levels = c("S", "I", "R", "W", "c", "V
 out$patch = substr(out$variable, 2,2)
 
 # plot output
-ggplot(data = out, aes(x = time, y = value, color = patch))+
+p = ggplot(data = out, aes(x = time, y = value, color = patch))+
   geom_line(lwd=2)+
   facet_wrap(vars(compartment), scales = "free")+
   theme_half_open(12) +
@@ -35,6 +43,10 @@ ggplot(data = out, aes(x = time, y = value, color = patch))+
   theme(axis.text=element_text(size=16),
         axis.title=element_text(size=14,face="bold"),
         plot.title = element_text(size=18))
+p
+
+ggsave(p, "figures/initial_outbreak_no_control.pdf", width = 10, height = 8, units = "in")
+
 
 
 #### MULTIPLE PARAMETER SETS (NO OPTIMAL CONTROL) ####
