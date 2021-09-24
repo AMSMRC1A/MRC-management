@@ -6,3 +6,4 @@
 *.lyx#
 scratch/Cholera_R0_single-patch_notes.lyx
 *.lyx
+code/cholera/R_code/figures/make-George-plots.R
