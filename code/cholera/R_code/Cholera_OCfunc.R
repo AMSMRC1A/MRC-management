@@ -38,13 +38,17 @@ apply_oc = function(change_params,guess_v1, guess_v2, init_x, bounds,
   }
   # for now, return v1, v2 time series and j (in list form)
   ret <- list()
+  # KD: could these "ifs" be vectorized?
   if("v" %in% return_type){
+    # return time series of each vaccination strategy
     ret[["ts"]] = cbind(time = times, v1 = out$v1, v2 = out$v2)
   }
   if("j" %in% return_type){
+    # return j values broken down by cases/vacc in each patch
     ret[["j"]] = out$j
   }
   if("X" %in% return_type){
+    # return states
     ret[["X"]] = out$x
   }
   return(list(ret))
