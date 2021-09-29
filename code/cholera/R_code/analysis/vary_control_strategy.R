@@ -23,7 +23,7 @@ guess_v1 = rep(0,length(times))
 guess_v2 = rep(0, length(times))
 
 # setup optimal control parameters----------------------------------------------
-delta = 0.01 # KD: what is delta again?
+control_tolerance = 0.01 # KD: what is control_tolerance again?
 oc_params <- c(b1 = 1, b2 = 1, # cost of cases
                C1 = 0.125, C2 = 0.125,  # cost of vaccinations
                epsilon1  = 10000, epsilon2 = 10000) # non-linearity
@@ -32,7 +32,7 @@ oc_params <- c(b1 = 1, b2 = 1, # cost of cases
 test_params <- expand.grid(m1 = c(0,0.05), # max movement rate 5% / day
                            m2 = c(0,0.05), # max movement rate 5% / day
                            control_type = c("unique", "uniform", "max", "none"))
-# Assign row numbers as a column "test_case"
+# Assign row numbers as a column called "test_case"
 test_params$test_case <- 1:nrow(test_params)
 
 # calculate OC------------------------------------------------------------------
@@ -40,19 +40,22 @@ test_params$test_case <- 1:nrow(test_params)
 # to keep track of run-time, guide decisions about code optimization
 start_time <- Sys.time()
 
-# Run optimal control calculations across test_params dataframe
-vary_params <- foreach (i=1:nrow(test_params),
-                        .packages = c("deSolve","tidyverse", "pracma")) %dopar% { 
+# Run optimal control calculations across test_params dataframe (parallelized)
+vary_params <- foreach (i=1:nrow(test_params), .combine = rbind,
+                        .packages = c("deSolve","tidyverse", "pracma")) %dopar% {
                           apply_oc(change_params = test_params[i,],
-                                   guess_v1 = guess_v1, guess_v2 = guess_v2, 
+                                   guess_v1 = guess_v1, guess_v2 = guess_v2,
                                    init_x = IC, bounds = bounds,
                                    ode_fn = chol, adj_fn = adj,
-                                   times = times, params = c(params, oc_params), 
-                                   delta = delta, 
-                                   control_type = test_params[i,"control_type"], 
+                                   times = times, params = c(params, oc_params),
+                                   control_tolerance = control_tolerance,
+                                   control_type = test_params[i,"control_type"],
                                    return_type = c("v", "j", "X"))
                         }
-vary_params <- do.call(rbind, vary_params)
+# KD: going to try to figure out a way to reformat this to avoid the additional 
+# lines below
+
+#vary_params <- do.call(rbind, vary_params)
 
 # calculate run-time and print it
 end_time <- Sys.time()
@@ -60,18 +63,24 @@ end_time - start_time
 
 # reformat output---------------------------------------------------------------
 # reformat cost calculations
-j_vals <- lapply(1:length(vary_params), function(i){return(data.frame(test_case = i, vary_params[[i]][["j"]]))})
+j_vals <- lapply(1:length(vary_params), 
+                 function(i){return(data.frame(test_case = i,
+                                               vary_params[[i]][["j"]]))})
 j_vals <- as.data.frame(do.call(rbind, j_vals))
 j_vals <- left_join(test_params,j_vals)
 j_vals$j = apply(j_vals[,5:8],1,sum)
 
 # reformat optimal control strategy time series
-mult_oc_params <- lapply(1:length(vary_params), function(i){return(data.frame(test_case = i, vary_params[[i]][["ts"]]))})
+mult_oc_params <- lapply(1:length(vary_params),
+                         function(i){return(data.frame(test_case = i,
+                                                       vary_params[[i]][["ts"]]))})
 mult_oc_params <- as.data.frame(do.call(rbind, mult_oc_params))
 mult_oc_params <- left_join(test_params,mult_oc_params)
 
 # reformat state vector time series
-states <- lapply(1:length(vary_params), function(i){return(data.frame(test_case = i, vary_params[[i]][["X"]]))})
+states <- lapply(1:length(vary_params),
+                 function(i){return(data.frame(test_case = i,
+                                               vary_params[[i]][["X"]]))})
 states <- as.data.frame(do.call(rbind, states))
 states <- left_join(test_params,states)
 
