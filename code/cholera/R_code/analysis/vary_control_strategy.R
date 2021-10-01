@@ -23,7 +23,7 @@ guess_v1 = rep(0,length(times))
 guess_v2 = rep(0, length(times))
 
 # setup optimal control parameters----------------------------------------------
-delta = 0.01 # KD: what is delta again?
+tol = 0.01 # tolerance parameter for optimization
 oc_params <- c(b1 = 1, b2 = 1, # cost of cases
                C1 = 0.125, C2 = 0.125,  # cost of vaccinations
                epsilon1  = 10000, epsilon2 = 10000) # non-linearity

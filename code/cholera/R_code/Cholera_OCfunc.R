@@ -24,14 +24,14 @@
 #                   "X": return states
 apply_oc = function(change_params,guess_v1, guess_v2, init_x, bounds,
                     ode_fn, adj_fn, control_type,
-                    times, params, delta, return_type) {
+                    times, params, tol, return_type) {
   # update parameters
   new_params <- params 
   p_loc <- match(names(change_params), names(new_params))
   new_params[p_loc[!is.na(p_loc)]] = change_params[!is.na(p_loc)]
   if(control_type %in% c("unique", "uniform")){
     out <- run_oc(guess_v1, guess_v2, init_x, bounds, ode_fn, adj_fn,
-                  times, new_params, delta, control_type)
+                  times, new_params, tol, control_type)
   }
   else if(control_type %in% c("max", "none")){
     out <- run_no_optim(bounds, init_x, times, ode_fn, new_params, control_type)
@@ -73,7 +73,7 @@ run_no_optim = function(bounds, init_x, times, ode_fn, params, control_type){
 
 # function to implement optimal control analysis
 run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
-                  times, params, delta, control_type){
+                  times, params, tol, control_type){
   # setup variables 
   x = matrix(0, nrow = length(times), ncol = 9)
   lambda = matrix(0, nrow = length(times), ncol = 9)
@@ -88,7 +88,7 @@ run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
   # implement optimization
   oc = oc_optim(v1, v2, x, lambda, 
                 IC, lambda_init, 
-                bounds, delta, ode_fn, adj_fn, 
+                bounds, tol, ode_fn, adj_fn, 
                 times, params, control_type)
   return(oc)
 }
@@ -96,7 +96,7 @@ run_oc = function(guess_v1, guess_v2, init_x, bounds,ode_fn, adj_fn,
 # implement loop for optimization
 oc_optim = function(v1, v2, x, lambda, # initial guesses
                     IC, lambda_init, # state ICs & final time adjoints
-                    bounds, delta, ode_fn, adj_fn,
+                    bounds, tol, ode_fn, adj_fn,
                     times, params, control_type){
   with(as.list(bounds),{
     counter = 1
@@ -128,9 +128,9 @@ oc_optim = function(v1, v2, x, lambda, # initial guesses
       v1 = 0.5*(v1 + oldv1)
       v2 = 0.5*(v2 + oldv2)
       # recalculate test
-      test <- min(delta*norm_oc(c(v1,v2))-norm_oc(c(oldv1,oldv2)-c(v1,v2)),
-                  delta*norm_oc(x[,-1])-norm_oc(oldx[,-1]-x[,-1]),
-                  delta*norm_oc(lambda[,-1])-norm_oc(oldlambda[,-1]-lambda[,-1]))
+      test <- min(tol*norm_oc(c(v1,v2))-norm_oc(c(oldv1,oldv2)-c(v1,v2)),
+                  tol*norm_oc(x[,-1])-norm_oc(oldx[,-1]-x[,-1]),
+                  tol*norm_oc(lambda[,-1])-norm_oc(oldlambda[,-1]-lambda[,-1]))
       counter <- counter + 1
     }
     return(list(x = x, lambda = lambda, v1 = v1, v2 = v2, 
