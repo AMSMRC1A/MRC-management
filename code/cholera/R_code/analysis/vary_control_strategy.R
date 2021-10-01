@@ -27,12 +27,12 @@ guess_v2 = rep(0, length(times))
 tol = 0.01 # tolerance parameter for optimization
 oc_params <- c(b1 = 1, b2 = 1, # cost of cases
                C1 = 0.125, C2 = 0.125,  # cost of vaccinations
-               epsilon1  = 10000, epsilon2 = 10000) # non-linearity
+               epsilon1  = 200000, epsilon2 = 10000) # non-linearity
 
 # Experiment 1: vary movement and control type----------------------------------
 # define parameters to sweep across
-test_params <- expand.grid(m1 = c(0,0.05), # max movement rate 5% / day
-                           m2 = c(0,0.05), # max movement rate 5% / day
+test_params <- expand.grid(m1 = c(0,0.025), # max movement rate 5% / day
+                           m2 = c(0,0.025), # max movement rate 5% / day
                            control_type = c("unique", "uniform", "max", "none"))
 
 # calculate OC
@@ -59,7 +59,7 @@ exper <- reformat_mult_params_output(output = exper, test_params = test_params)
 #### PLOT RESULTS: EH to put into functions ####
 
 # change to long for plotting---------------------------------------------------
-mult_oc_params <- melt(mult_oc_params %>% select(-test_case), 
+mult_oc_params <- melt(exper$v %>% select(-test_case), 
                        id = c("m1", "m2", "control_type","time"))
 mult_oc_params$scenario = with(mult_oc_params,
                                ifelse(control_type == "unique",
@@ -78,6 +78,7 @@ p1 = ggplot(data = mult_oc_params %>% filter(control_type %in% c("unique", "unif
 
 
 # compute relative changes in cost
+j_vals <- exper$j
 j_vals <- j_vals %>%
   # add column representing cost relative to "no control"
   mutate(rel_j = j/j[control_type=="none"])
@@ -116,7 +117,7 @@ plot_grid(p1, p3, p2, nrow = 1)
 ggsave("figures/vary_control_strategies.pdf", width = 14, height = 6)
 
 # plot X: infections time series, unique controls and none----------------------
-states_long <- melt(states %>% select(-test_case), c("m1", "m2", "control_type", "time"))
+states_long <- melt(exper$X %>% select(-test_case), c("m1", "m2", "control_type", "time"))
 states_long$state <- substr(states_long$variable, 1,1)
 states_long$patch <- substr(states_long$variable, 2,2)
 ggplot(data = states_long %>% filter(state == "I", 
