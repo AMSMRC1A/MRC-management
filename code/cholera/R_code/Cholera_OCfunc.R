@@ -41,7 +41,7 @@ apply_oc = function(change_params,guess_v1, guess_v2, init_x, bounds,
   # KD: could these "ifs" be vectorized?
   if("v" %in% return_type){
     # return time series of each vaccination strategy
-    ret[["ts"]] = cbind(time = times, v1 = out$v1, v2 = out$v2)
+    ret[["v"]] = cbind(time = times, v1 = out$v1, v2 = out$v2)
   }
   if("j" %in% return_type){
     # return j values broken down by cases/vacc in each patch
