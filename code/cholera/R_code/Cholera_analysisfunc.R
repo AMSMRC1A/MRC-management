@@ -11,7 +11,9 @@ test_mult_params <- function(test_params, return_type, base_params,
                              guess_v1, guess_v2, IC, bounds, times, tol){
   # Run optimal control calculations across test_params dataframe
   vary_params <- foreach (i=1:nrow(test_params),
-                          .packages = c("deSolve","tidyverse", "pracma")) %dopar% { 
+                          .packages = c("deSolve","tidyverse", "pracma"),
+                          .export=ls(.GlobalEnv), # <- this is bad practice since it's sending the entire global environment to all clusters
+                          .combine = rbind) %dopar% { 
                             apply_oc(change_params = test_params[i,],
                                      guess_v1 = guess_v1, guess_v2 = guess_v2, 
                                      init_x = IC, bounds = bounds,
@@ -21,7 +23,7 @@ test_mult_params <- function(test_params, return_type, base_params,
                                      control_type = test_params[i,"control_type"], 
                                      return_type = return_type)
                           }
-  vary_params <- do.call(rbind, vary_params)
+  #vary_params <- do.call(rbind, vary_params)
   return(vary_params)
 } 
 
