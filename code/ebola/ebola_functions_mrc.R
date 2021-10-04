@@ -64,7 +64,7 @@ adjoints.ode<-function(t,Y,p,original_inits){
 ##(J11 (Disease in patch 1), J12 (Disease in patch 2), J21 (vaccination in patch 1)
 ##, and J22 (vaccination in patch 2)),
 
-ebola.optim<-function(inits,params,M,times=seq(0,730,by=1)){
+ebola.optim<-function(inits,params,M,times=seq(0,730,by=1),maxIter=200,strictConv=T){
   # initial guesses - controls
   v1 <- data.frame(times = times, v1 = rep(0,length(times)))
   v1_interp <- approxfun(v1, rule = 2)
@@ -93,7 +93,7 @@ ebola.optim<-function(inits,params,M,times=seq(0,730,by=1)){
             method = "ode45")
   x_interp <- lapply(2:ncol(solx), function(x){approxfun(solx[,c(1,x)], rule = 2)})
   params<-c(params,x_interp=x_interp)
-  while(test < 0 & counter < 200){
+  while(test < 0 & counter < maxIter){
     counter <- counter + 1
     # set previous control, state, and adjoint 
     oldv1 <- v1
@@ -107,7 +107,7 @@ ebola.optim<-function(inits,params,M,times=seq(0,730,by=1)){
     
     
     # solve states
-      solx <- ode(y = inits, times = times, func = ebola.ode, parms = params)
+    solx <- ode(y = inits, times = times, func = ebola.ode, parms = params)
     
     
     # interpolate x (state)
@@ -131,22 +131,34 @@ ebola.optim<-function(inits,params,M,times=seq(0,730,by=1)){
     
     # recalculate test
     if(length(x) != length(oldx)){browser()}
-    
-    test <- min(delta*norm_oc(data.frame(v1,v2))-norm_oc(data.frame(oldv1,oldv2)-data.frame(v1,v2)),
-                delta*norm_oc(solx[,-1])-norm_oc(oldx[,-1]-solx[,-1]),
-                delta*norm_oc(lambda[,-1])-norm_oc(oldlambda[,-1]-lambda[,-1]))
+    if(strictConv==T){
+      test <- min(delta*norm_oc(data.frame(v1,v2))-norm_oc(data.frame(oldv1,oldv2)-data.frame(v1,v2)),
+                  delta*norm_oc(solx[,-1])-norm_oc(oldx[,-1]-solx[,-1]),
+                  delta*norm_oc(lambda[,-1])-norm_oc(oldlambda[,-1]-lambda[,-1])) 
+    }else{
+      test <- min(delta*norm_oc(data.frame(v1,v2))-norm_oc(data.frame(oldv1,oldv2)-data.frame(v1,v2)))
+    }
+    x
     print(counter)
     print(test)
+    solx_final<-solx
     
   }
-  dt<-.1
+  dt<-times[2]-times[1]
   J11=with(c(params,data.frame(solx)),sum((b1*(betaI1*S1 + betaD1*S1*D1) )*dt))
   J12=with(c(params,data.frame(solx)),sum((b2*(betaI2*S2*I2 + betaD2*S2*D2))*dt))
   J21=with(c(params,data.frame(solx)),sum(C1*v1*(S1)+epsilon1*v1^2)*dt)
   J22=with(c(params,data.frame(solx)),sum(C2*v2*S2+epsilon2*v2^2)*dt)
-  solx<-data.frame(solx,v1,v2)
-  returned<-list(solx,J11,J12,J21,J22)
-  names(returned)<-c("SolX","J11","J12","J21","J22")
+  vaxProp1=with(c(params,data.frame(solx)),sum(v1*(S1))*dt)
+  vaxProp2=with(c(params,data.frame(solx)),sum(v2*(S2))*dt)
+  solx<-data.frame(solx_final,v1,v2)
+  returned<-list(solx,J11,J12,J21,J22,vaxProp1,vaxProp2)
+  names(returned)<-c("SolX","J11","J12","J21","J22","vaxProp1","vaxProp2")
+  
+  if(counter==maxIter){
+    returned<-list(solx=NA,J11=NA,J12=NA,J21=NA,J22=NA,vaxProp1=NA,vaxProp2=NA)
+    names(returned)<-c("SolX","J11","J12","J21","J22","vaxProp1","vaxProp2")
+  }
   return(returned)
 }
 
@@ -257,7 +269,7 @@ ebola.optim.timing<-function(params,M,day=0){
     
   }
   dt<-.1
-  J11=with(c(params,data.frame(solx.forCosts)),sum((b1*(betaI1*S1 + betaD1*S1*D1) )*dt))
+  J11=with(c(params,data.frame(solx.forCosts)),sum((b1*(betaI1*S1*I1 + betaD1*S1*D1) )*dt))
   J12=with(c(params,data.frame(solx.forCosts)),sum((b2*(betaI2*S2*I2 + betaD2*S2*D2))*dt))
   J21=with(c(params,data.frame(solx.forCosts)),sum(C1*v1*(S1)+epsilon1*v1^2)*dt)
   J22=with(c(params,data.frame(solx.forCosts)),sum(C2*v2*S2+epsilon2*v2^2)*dt)
