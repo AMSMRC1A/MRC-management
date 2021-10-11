@@ -60,6 +60,6 @@ reformat_output_j <- function(output, test_params){
   j_vals <- lapply(1:length(output), function(i){return(data.frame(test_case = i, output[[i]][["j"]]))})
   j_vals <- as.data.frame(do.call(rbind, j_vals))
   j_vals <- left_join(test_params,j_vals)
-  j_vals$j = apply(j_vals[,5:8],1,sum)
+  j_vals$j = apply(j_vals[,c("j_case1", "j_case2", "j_vacc1", "j_vacc2")],1,sum)
   return(j_vals)
 }
