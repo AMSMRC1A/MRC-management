@@ -24,12 +24,10 @@ guess_v1 <- rep(0, length(times))
 guess_v2 <- rep(0, length(times))
 
 # setup baseline optimal control parameters-------------------------------------
-tol <- 0.01 # tolerance parameter for optimization
-oc_params <- c(
-  b1 = 1, b2 = 1, # cost of cases
-  C1 = 0.125, C2 = 0.125, # cost of vaccinations
-  epsilon1 = 200000, epsilon2 = 10000
-) # non-linearity
+tol = 0.01 # tolerance parameter for optimization
+oc_params <- c(b1 = 1, b2 = 1, # cost of cases
+               C1 = 0.125, C2 = 0.125,  # cost of vaccinations
+               epsilon1  = 10000, epsilon2 = 10000) # non-linearity
 
 # Experiment 1: vary movement and control type----------------------------------
 # define parameters to sweep across
@@ -61,6 +59,170 @@ end_time - start_time
 exper <- reformat_mult_params_output(output = exper, test_params = test_params)
 
 
+# Experiment 2: vary only disease dynamics parameters----------------------------------
+# assume gamma (recovery) and delta (mortality) are characterstics of pathogen 
+# and therefore fixed
+# define parameters to sweep across (+/- 10% from baseline parameter)
+test_params <- expand.grid(beta_I1 = params["beta_I1"]*c(0.9,1,1.1), 
+                           beta_I2 = params["beta_I2"]*c(0.9,1,1.1),
+                           beta_W1 = params["beta_W1"]*c(0.9,1,1.1), 
+                           beta_W2 = params["beta_W2"]*c(0.9,1,1.1),
+                           control_type = c("unique", "uniform"))
+
+# calculate OC
+# begin system clock
+# to keep track of run-time, guide decisions about code optimization
+start_time <- Sys.time()
+# run OC across multiple parameters
+exper <- test_mult_params(test_params = test_params,
+                          return_type = c("j"),
+                          base_params = c(params, oc_params),
+                          guess_v1 = guess_v1, guess_v2 = guess_v2,
+                          IC = IC, bounds = bounds, times = times, tol = tol)
+# calculate run-time and print it
+end_time <- Sys.time()
+end_time - start_time
+
+## reformat output
+exper <- reformat_mult_params_output(output = exper, test_params = test_params)
+exper <- exper[["j"]]
+
+
+
+ggplot(data = exper) + 
+  geom_line(data = data.frame(x = with(exper, c(min(c(j_case1, j_case2)),max(c(j_case1,j_case2))))),
+            aes(x = x, y = x)) +
+  geom_point(aes(x = j_case1, y = j_case2, color = as.factor(paste(beta_I1, beta_I2, beta_W1, beta_W2)))) + 
+  geom_point(aes(x = j_vacc1, y = j_vacc2, color = as.factor(paste(beta_I1, beta_I2, beta_W1, beta_W2))), shape = 2) + 
+  facet_wrap(vars(control_type)) +
+  theme_bw() + 
+  theme(legend.position =  "none")
+
+
+# Experiment 3: vary parameters by type----------------------------------
+# assume recovery and mortality are characteristics of pathogen (therefore fixed)
+# define movement parameters to sweep across
+test_params <- expand.grid(m1 = seq(0,0.01, 0.005), 
+                           m2 = c(0,0.01,0.005),
+                           beta_W1 = params["beta_W1"], 
+                           beta_W2 = params["beta_W2"],
+                           rho1 = params["rho1"],
+                           rho2 = params["rho2"],
+                           b2 = oc_params["b2"],
+                           C1 = oc_params["C1"],
+                           C2 = oc_params["C2"],
+                           epsilon1 = oc_params["epsilon1"],
+                           epsilon2 = oc_params["epsilon2"],
+                           control_type = c("unique", "uniform"))
+test_params$param_type = "movement"
+# define disease parameters to sweep across (+/- 10% from baseline parameter)
+test_params2 <- expand.grid(m1 = params["m1"],
+                            m2 = params["m2"],
+                            beta_W1 = params["beta_W1"]*c(0.9,1,1.1), 
+                            beta_W2 = params["beta_W2"]*c(0.9,1,1.1),
+                            rho1 = params["rho1"],
+                            rho2 = params["rho2"],
+                            b2 = oc_params["b2"],
+                            C1 = oc_params["C1"],
+                            C2 = oc_params["C2"],
+                            epsilon1 = oc_params["epsilon1"],
+                            epsilon2 = oc_params["epsilon2"],
+                            control_type = c("unique", "uniform"))
+test_params2$param_type = "disease"
+test_params <- rbind(test_params, test_params2) 
+# define environmental parameters to sweep across (+/- 10% from baseline parameter)
+test_params2 <- expand.grid(m1 = params["m1"],
+                            m2 = params["m2"],
+                            beta_W1 = params["beta_W1"],
+                            beta_W2 = params["beta_W2"],
+                            rho1 = params["rho1"]*c(0.9,1,1.1), 
+                            rho2 = params["rho2"]*c(0.9,1,1.1),
+                            b2 = oc_params["b2"],
+                            C1 = oc_params["C1"],
+                            C2 = oc_params["C2"],
+                            epsilon1 = oc_params["epsilon1"],
+                            epsilon2 = oc_params["epsilon2"],
+                            control_type = c("unique", "uniform"))
+test_params2$param_type = "environmental"
+test_params <- rbind(test_params, test_params2) 
+# define cost parameters to sweep across (+/- 10% from baseline parameter)
+test_params2 <- expand.grid(m1 = params["m1"],
+                            m2 = params["m2"],
+                            beta_W1 = params["beta_W1"],
+                            beta_W2 = params["beta_W2"],
+                            rho1 = params["rho1"],
+                            rho2 = params["rho2"],
+                            b2 = oc_params["b2"]*c(0.9,1,1.1),
+                            C1 = oc_params["C1"]*c(0.9,1,1.1),
+                            C2 = oc_params["C2"]*c(0.9,1,1.1),
+                            epsilon1 = oc_params["epsilon1"]*c(0.9,1,1.1),
+                            epsilon2 = oc_params["epsilon2"]*c(0.9,1,1.1),
+                            control_type = c("unique", "uniform"))
+test_params2$param_type = "cost"
+test_params <- rbind(test_params, test_params2)
+est_params2 <- expand.grid(m1 = params["m1"],
+                           m2 = params["m2"],
+                           beta_W1 = params["beta_W1"],
+                           beta_W2 = params["beta_W2"],
+                           rho1 = params["rho1"],
+                           rho2 = params["rho2"],
+                           b2 = oc_params["b2"]*c(0.9,1,1.1),
+                           C1 = oc_params["C1"]*c(0.9,1,1.1),
+                           C2 = oc_params["C2"]*c(0.9,1,1.1),
+                           epsilon1 = oc_params["epsilon1"]*c(0.9,1,1.1),
+                           epsilon2 = oc_params["epsilon2"]*c(0.9,1,1.1),
+                           control_type = c("unique", "uniform"))
+test_params2$param_type = "cost"
+test_params <- rbind(test_params, test_params2)
+
+# calculate OC
+# begin system clock
+# to keep track of run-time, guide decisions about code optimization
+start_time <- Sys.time()
+# run OC across multiple parameters
+exper <- test_mult_params(test_params = test_params,
+                          return_type = c("j"),
+                          base_params = c(params, oc_params),
+                          guess_v1 = guess_v1, guess_v2 = guess_v2,
+                          IC = IC, bounds = bounds, times = times, tol = tol)
+# calculate run-time and print it
+end_time <- Sys.time()
+end_time - start_time
+
+## reformat output
+exper <- reformat_mult_params_output(output = exper, test_params = test_params)
+exper <- exper[["j"]]
+  
+# plot cost outcomes (unique/uniform) based on the type of parameter change
+max_j_unif = max(exper %>% filter(control_type == "uniform") %>% pull(j))
+max_j_uni = max(exper %>% filter(control_type == "unique") %>% pull(j))
+exper %>% 
+  select(-test_case) 
+  reshape2::melt(c("m1", "m2","beta_W1","beta_W2","rho1","rho2", 
+                   "b2", "C1", "C2", "epsilon1", "epsilon2",
+                   "control_type","param_type")) %>%
+  reshape2::dcast(m1+m2+beta_W1+beta_W2+rho1+rho2+
+                    b2+C1+C2+epsilon1+epsilon2 +
+                    variable+param_type~control_type, value.var = "value") %>% 
+  mutate(test_case = 1:n()) %>%
+  ggplot() + 
+  geom_abline() +
+  geom_abline(slope = 1.1, color = "grey") +
+  geom_abline(slope = 0.9, color = "grey")+
+  geom_abline(slope = 1.05, color = "grey")+
+  geom_abline(slope = 0.95, color = "grey")+
+  geom_point(aes(x = unique, y = uniform, color = as.factor(param_type)), size = 2, alpha = 0.5) +
+  geom_label(data = data.frame(y = c(max_j_unif, max_j_unif, max_j_uni*0.9, max_j_uni*0.95), 
+                               x = c(max_j_unif*0.9, max_j_unif*.95, max_j_uni, max_j_uni),
+                               text = c("+10%", "+5%", "-10%", "-5%"),
+                               variable = c("j","j")), 
+             aes(x =x , y =y, label = text), color = "grey", label.size = NA) +
+  facet_wrap(vars(variable), scales = "free") + 
+  scale_size_continuous(range = c(0.5,1.5)) +
+  theme_bw()+
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        panel.grid = element_blank())
 
 #### PLOT RESULTS: EH to put into functions ####
 
