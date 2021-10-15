@@ -13,7 +13,14 @@ test_mult_params <- function(test_params, return_type, base_params,
   vary_params <- foreach(
     i = 1:nrow(test_params),
     .packages = c("deSolve", "tidyverse", "pracma"),
-    .export = ls(.GlobalEnv), # <- this is bad practice since it's sending the entire global environment to all clusters
+    # explicitly give 'foreach' the functions and data it needs
+    .export = c(
+      "apply_oc", "guess_v1", "guess_v2", "IC",
+      "bounds", "chol", "adj", "times",
+      "params", "oc_params", "run_oc", "tol",
+      "oc_optim", "calc_opt_v", "norm_oc", "calc_j",
+      "eval_j_integrand"
+    ),
     .combine = rbind
   ) %dopar% {
     apply_oc(
@@ -73,7 +80,7 @@ reformat_output_j <- function(output, test_params) {
     return(data.frame(test_case = i, output[[i]][["j"]]))
   })
   j_vals <- as.data.frame(do.call(rbind, j_vals))
-  j_vals <- left_join(test_params,j_vals)
-  j_vals$j = apply(j_vals[,c("j_case1", "j_case2", "j_vacc1", "j_vacc2")],1,sum)
+  j_vals <- left_join(test_params, j_vals)
+  j_vals$j <- apply(j_vals[, c("j_case1", "j_case2", "j_vacc1", "j_vacc2")], 1, sum)
   return(j_vals)
 }
