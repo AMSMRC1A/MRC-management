@@ -2,6 +2,8 @@
 
 # Load necessary packages-------------------------------------------------------
 library(nloptr)
+library(foreach)
+library(pracma)
 
 # load files--------------------------------------------------------------------
 source("CholeraSIRW_ODE.R")
@@ -89,18 +91,22 @@ get.rel.cost <- function(x) {
 # betaW's
 
 # Optimal control parameters
+# initial guesses - controls
+guess_v1 <- rep(0, length(times))
+guess_v2 <- rep(0, length(times))
+
 # Cost of cases
-
-# Cost of vaccination (relative to cases)
-
-# Non-linear term (epsilon)
+tol = 0.01 # tolerance parameter for optimization
+oc_params <- c(b1 = 1, b2 = 1, # cost of cases
+               C1 = 0.125, C2 = 0.125,  # cost of vaccinations
+               epsilon1  = 10000, epsilon2 = 10000) # non-linearity
 
 # Helper function to put variables togeth
 variable.parameters <- data.frame(
   var_name = c("m1", "m2"),
   value = c(0.025, 0.025),
   lower_bounds = c(0, 0),
-  upper_bounds = c(0.05, 0.05)
+  upper_bounds = c(1, 1)
 )
 
 # Optimization problem----------------------------------------------------------
@@ -109,10 +115,12 @@ optim_func <- function(variable.parameters) {
 }
 
 out <- optim(
-  par = c(0.025, 0.025),
+  par = variable.parameters$value,
   fn = get.rel.cost,
   method = "L-BFGS-B",
   lower = variable.parameters$lower_bounds,
-  upper = variable.parameters$upper_bounds,
-  control = list(fnscale = -1)
-) # turn into a maximization problem
+  upper = variable.parameters$upper_bounds
+) 
+
+## NOTES
+# Only varying m1 and m2, the largest rel. cost diff. is 1%, when m1=1 and m2=0
