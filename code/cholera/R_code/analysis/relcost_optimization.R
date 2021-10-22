@@ -1,9 +1,11 @@
 # Cholera optimal control "difference optimization" function
 
 # Load necessary packages-------------------------------------------------------
-library(nloptr)
+# library(nloptr)
 library(foreach)
 library(pracma)
+library(optimization)
+library(tidyverse)
 
 # load files--------------------------------------------------------------------
 source("CholeraSIRW_ODE.R")
@@ -69,17 +71,17 @@ temp_params <- left_join(as_tibble(as.list(params)),
 temp_params$m1 <- 0.025
 temp_params$m2 <- 0.025
 
-variable.parameters <- data.frame(
+variable.parameters <- tibble(
   var_name = names(temp_params),
   # initial values are determined from our original parameterization
   value = as.double(temp_params[1,]),
   # bounds are stuff I made up
-  lower_bounds = c(0, 0, temp_params$beta_I1*1E-2, temp_params$beta_I2*1E-2,
-                   temp_params$beta_W1*1E-2, temp_params$beta_W2*1E-2, 0, 0,
-                   0.1, temp_params$C2*1E-2),
+  lower_bounds = c(0, 0, temp_params$beta_I1*1E-1, temp_params$beta_I2*1E-1,
+                   temp_params$beta_W1*1E-1, temp_params$beta_W2*1E-1, 0, 0,
+                   0.1, temp_params$C2*1E-1),
   upper_bounds = c(1, 1, temp_params$beta_I1*1E1, temp_params$beta_I2*1E1,
                    temp_params$beta_W1*1E1, temp_params$beta_W2*1E1, 0.05, 0.05,
-                   10,temp_params$C2*1E2)
+                   10,temp_params$C2*1E1)
 )
 
 # Turn the variable.parameters data frame into something that can be put into the "apply_oc" function
@@ -129,7 +131,7 @@ get.rel.cost <- function(test_params, values) {
   reformat_df <- reformat_mult_params_output(vary_params, test_params)
   # compute relative cost
   rel.cost <- reformat_df$j %>%
-    mutate(j_change = (j - j[control_type == "uniform"]) / j[control_type == "uniform"]) %>%
+    mutate(j_change = 100 * (j - j[control_type == "uniform"]) / j[control_type == "uniform"]) %>%
     filter(control_type == "unique") %>%
     select(j_change)
   return(rel.cost$j_change)
@@ -160,15 +162,15 @@ res_optim_SANN <- optim( # simulated annealing. doesn't work with constraints
 # Didn't really work.
 
 # Using 'nloptr' package
-opts <- list("algorithm"="NLOPT_GN_DIRECT_NOSCAL",
-             "xtol_rel"=1.0e-8)
-res_nloptr <- nloptr(
-  x0 = variable.parameters$value,
-  eval_f = optim_func,
-  lb = variable.parameters$lower_bounds,
-  ub = variable.parameters$upper_bounds,
-  opts = opts
-)
+# opts <- list("algorithm"="NLOPT_GN_DIRECT_NOSCAL",
+#              "xtol_rel"=1.0e-8)
+# res_nloptr <- nloptr(
+#   x0 = variable.parameters$value,
+#   eval_f = optim_func,
+#   lb = variable.parameters$lower_bounds,
+#   ub = variable.parameters$upper_bounds,
+#   opts = opts
+# )
 #
 
 # Using 'optimization' package
@@ -178,7 +180,7 @@ res_optim_sa <- optim_sa(fun = optim_func,
                          lower = variable.parameters$lower_bounds,
                          upper = variable.parameters$upper_bounds,
                          control = list(t0 = 500, nlimit = 50, r = 0.85,
-                                        rf = 3, ac_acc = 0.1, dyn_rf = TRUE))
+                                        rf = c(1,1,1,1,1,1,1,1,1,1), ac_acc = 0.1, dyn_rf = TRUE))
 
 ## NOTES
 # Only varying m1 and m2, the largest rel. cost diff. is 1%, which occurs when m1=1 and m2=0
