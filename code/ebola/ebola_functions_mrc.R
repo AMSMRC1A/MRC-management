@@ -62,9 +62,10 @@ adjoints.ode<-function(t,Y,p,original_inits){
 ##It returns the results in a named list with the simulated result using the 
 ##optimal control,including vaccination rates, (SolX) and the final costs 
 ##(J11 (Disease in patch 1), J12 (Disease in patch 2), J21 (vaccination in patch 1)
-##, and J22 (vaccination in patch 2)),
+##, and J22 (vaccination in patch 2)).  Now capable of doing both unique and
+##single control!
 
-ebola.optim<-function(inits,params,M,times=seq(0,730,by=1),maxIter=200,strictConv=T){
+ebola.optim<-function(inits,params,M,times=seq(0,730,by=1),maxIter=200,strictConv=T,sameRate=F){
   # initial guesses - controls
   v1 <- data.frame(times = times, v1 = rep(0,length(times)))
   v1_interp <- approxfun(v1, rule = 2)
@@ -121,13 +122,22 @@ ebola.optim<-function(inits,params,M,times=seq(0,730,by=1),maxIter=200,strictCon
     lambda <- lambda[nrow(lambda):1,]
     
     # calculate v1* and v2*
-    temp_v1 <- with(params,(-C1*(solx[,"S1"]+solx[,"I1"])+lambda[,"lambda1"]*solx[,"S1"]-lambda[,"lambda6"]*solx[,"S1"])/(2*epsilon1))
-    temp_v2 <- with(params,(-C2*(solx[,"S2"]+solx[,"I2"])+lambda[,"lambda7"]*solx[,"S2"]-lambda[,"lambda12"]*solx[,"S2"])/(2*epsilon2))
+    if(sameRate==F){
+      temp_v1 <- with(params,(-C1*(solx[,"S1"]+solx[,"I1"])+lambda[,"lambda1"]*solx[,"S1"]-lambda[,"lambda6"]*solx[,"S1"])/(2*epsilon1))
+      temp_v2 <- with(params,(-C2*(solx[,"S2"]+solx[,"I2"])+lambda[,"lambda7"]*solx[,"S2"]-lambda[,"lambda12"]*solx[,"S2"])/(2*epsilon2))
+      
+      v1 <- pmin(M[1], pmax(0, temp_v1))
+      v1 <- 0.5*(v1 + oldv1)
+      v2 <- pmin(M[2], pmax(0, temp_v2))
+      v2 <- 0.5*(v2 + oldv2)
+    }else{
+      temp_v1 <- with(params,(-C1*(solx[,"S1"]+solx[,"I1"])+lambda[,"lambda1"]*solx[,"S1"]-lambda[,"lambda6"]*solx[,"S1"]-
+                                C2*(solx[,"S2"]+solx[,"I2"])+lambda[,"lambda7"]*solx[,"S2"]-lambda[,"lambda12"]*solx[,"S2"])/(2*epsilon1))
+      v1 <- pmin(M[1], pmax(0, temp_v1))
+      v1 <- 0.5*(v1 + oldv1)
+      v2 <- v1
+    }
     
-    v1 <- pmin(M[1], pmax(0, temp_v1))
-    v1 <- 0.5*(v1 + oldv1)
-    v2 <- pmin(M[2], pmax(0, temp_v2))
-    v2 <- 0.5*(v2 + oldv2)
     
     # recalculate test
     if(length(x) != length(oldx)){browser()}
