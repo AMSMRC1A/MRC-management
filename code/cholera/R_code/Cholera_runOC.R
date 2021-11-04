@@ -1,11 +1,11 @@
-# libraries
+# Load libraries, data, and functions-------------------------------------------
 library(deSolve)
 library(reshape2)
 library(tidyverse)
 library(cowplot)
 library(pracma)
 
-# to paralellize
+# libraries for parallelization
 library(doParallel)
 library(foreach)
 registerDoParallel(4) # update this 4 if you want to use more cores
@@ -16,31 +16,25 @@ source("Cholera_params.R")
 source("Cholera_OCfunc.R")
 source("Cholera_adjoints.R")
 
+# Initialization----------------------------------------------------------------
+
 # initial guesses - controls
 guess_v1 <- rep(0, length(times))
 guess_v2 <- rep(0, length(times))
 
-# adjoints
-# x = matrix(0, nrow = length(times), ncol = 9)
-# lambda = matrix(0, nrow = length(times), ncol = 9)
-# lambda_init = rep(0,8)
-# names(lambda_init) = paste0("lambda",1:8)
-# bounds
-
-
-
-# setup optimal control parameters
-delta <- 0.01
-oc_params <- c(
+# setup optimal control (oc) parameters
+tolerance <- 0.01
+oc_params <- list(
   b1 = 1, b2 = 1,
   C1 = 0.125, C2 = 0.125,
   epsilon1 = 10000, epsilon2 = 10000
 )
+all_params <- c(params, oc_params)
 
-# run optimization
+# Run optimization--------------------------------------------------------------
 oc <- run_oc(
   guess_v1, guess_v2, IC, bounds, chol, adj,
-  times, as.list(c(params, oc_params)), delta, "unique"
+  times, all_params, tolerance, "unique"
 )
 
 # collect trajectories and controls

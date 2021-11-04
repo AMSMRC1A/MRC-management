@@ -1,4 +1,4 @@
-# libraries
+# Load libraries, data, and functions-------------------------------------------
 library(deSolve)
 library(reshape2)
 library(tidyverse)
@@ -8,9 +8,9 @@ library(readr)
 source("CholeraSIRW_ODE.R")
 source("Cholera_params.R")
 
-#### SINGLE PARAMETER SETS (NO OPTIMAL CONTROL) ####
+#### SINGLE PARAMETER SETS (NO OPTIMAL CONTROL) ####----------------------------
 
-# time varying vaccination
+# time varying vaccination rates
 v1 <- data.frame(times = times, v1 = rep(0, length(times)))
 v1_interp <- approxfun(v1, rule = 2)
 v2 <- data.frame(times = times, v2 = rep(0, length(times)))
@@ -21,18 +21,28 @@ IC <- c(
   I1 = 1, I2 = 0,
   R1 = 0, R2 = 0,
   W1 = 0, W2 = 0
-) # ,
+)
 
 # solve ODE
-out <- ode(y = IC, times = times, func = chol, parms = params, v1_interp = v1_interp, v2_interp = v2_interp)
+out <- ode(
+  y = IC,
+  times = times,
+  func = chol,
+  parms = params,
+  v1_interp = v1_interp,
+  v2_interp = v2_interp
+) %>% 
+  as_tibble()
 
-write_csv(as.data.frame(out), "analysis/initialOutbreak_noControl_forIC.csv")
+# Save time series to use as initial condition to optimal control scenarios
+write_csv(out, "analysis/initialOutbreak_noControl_forIC.csv")
 
 # reformat output for plotting
-out <- as.data.frame(out)
 out <- melt(out, id = c("time"))
 out$compartment <- substr(out$variable, 1, 1)
-out$compartment <- factor(out$compartment, levels = c("S", "I", "R", "W", "c", "V"))
+out$compartment <- factor(out$compartment,
+  levels = c("S", "I", "R", "W", "c", "V")
+)
 out$patch <- substr(out$variable, 2, 2)
 
 # plot output
@@ -47,15 +57,21 @@ p <- ggplot(data = out, aes(x = time, y = value, color = patch)) +
     axis.title = element_text(size = 14, face = "bold"),
     plot.title = element_text(size = 18)
   )
-p
+# p
+# Figure showing the course of the Cholera epidemic without control
+ggsave("figures/initial_outbreak_no_control.pdf",
+  p,
+  width = 10,
+  height = 8,
+  units = "in",
+  device = "pdf"
+)
 
-ggsave(p, "figures/initial_outbreak_no_control.pdf", width = 10, height = 8, units = "in")
 
 
+#### MULTIPLE PARAMETER SETS (NO OPTIMAL CONTROL) ####--------------------------
 
-#### MULTIPLE PARAMETER SETS (NO OPTIMAL CONTROL) ####
-
-# to paralellize
+# libraries necessary for parallelization
 library(doParallel)
 library(foreach)
 registerDoParallel(4)
@@ -86,13 +102,14 @@ test_params <- expand.grid(
   v2 = 0
 )
 test_params$mu2 <- test_params$mu1 # assume birth rates are equal right now
-test_params$sim <- 1:nrow(test_params)
+test_params$sim <- 1:nrow(test_params) # assign a simulation number
 
 
 new_times <- seq(0, 100, 0.1) # shorten time vector for memory
 
 start <- Sys.time()
-out <- foreach(i = 1:nrow(test_params), .packages = c("deSolve")) %dopar% { # can update so we don't have to include all params in test_params df
+# can update so we don't have to include all params in test_params df
+out <- foreach(i = 1:nrow(test_params), .packages = c("deSolve")) %dopar% {
   ode(y = IC, times = new_times, func = chol, parms = test_params[i, ])
 }
 end <- Sys.time()
@@ -111,15 +128,29 @@ plot_df <- left_join(
   as.data.frame(plot_df)
 )
 # transform to long for plotting
-plot_df <- melt(plot_df, c("mu1", "m1", "n1", "rho1", "m2", "n2", "rho2", "sim", "time"), value.name = "count", variable.name = "class")
+plot_df <- melt(plot_df,
+  c("mu1", "m1", "n1", "rho1", "m2", "n2", "rho2", "sim", "time"),
+  value.name = "count",
+  variable.name = "class"
+)
 
 plts <- list()
 for (i in unique(plot_df$rho2)) {
   for (j in unique(plot_df$rho2)) {
-    plts[[paste0(i, j)]] <- ggplot(data = plot_df %>% filter(rho1 == i, rho2 == j), aes(x = time, linetype = as.factor(mu1))) +
+    plts[[paste0(i, j)]] <- ggplot(
+      data = plot_df %>% filter(rho1 == i, rho2 == j),
+      aes(x = time, linetype = as.factor(mu1))
+    ) +
       geom_line(aes(y = count, color = class)) +
-      ggtitle(paste0("rho1 =", i, ", rho2 = ", j), subtitle = "Assumptions: beta_I1 = beta_I2 = 0; beta_W1 = beta_W2 = 0.000121; mu1 = mu2") +
-      facet_grid(cols = vars(m1, n1), rows = vars(m2, n2), labeller = "label_both") +
+      ggtitle(
+        paste0("rho1 =", i, ", rho2 = ", j),
+        subtitle = "Assumptions: beta_I1 = beta_I2 = 0; beta_W1 = beta_W2 = 0.000121; mu1 = mu2"
+      ) +
+      facet_grid(
+        cols = vars(m1, n1),
+        rows = vars(m2, n2),
+        labeller = "label_both"
+      ) +
       scale_y_continuous(limits = range(plot_df$count)) +
       theme_classic() +
       theme(legend.position = "bottom")
