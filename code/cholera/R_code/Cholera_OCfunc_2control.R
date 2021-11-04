@@ -156,8 +156,8 @@ oc_optim <- function(v1, v2, u1, u2, x, lambda, # initial guesses
       # include bounds
       v1 <- pmin(M1, pmax(0, temp_v$temp_v1))
       v2 <- pmin(M2, pmax(0, temp_v$temp_v2))
-      u1 <- pmin(U1, pmax(0, tempu$temp_u1))
-      u2 <- pmin(U2, pmax(0, tempu$temp_u2))
+      u1 <- pmin(U1, pmax(0, temp_u$temp_u1))
+      u2 <- pmin(U2, pmax(0, temp_u$temp_u2))
       # update control
       v1 <- 0.5 * (v1 + oldv1)
       v2 <- 0.5 * (v2 + oldv2)
@@ -229,19 +229,20 @@ calc_j <- function(times, optim_states, params) {
     case1 = expression(b1 * (beta_I1 * S1 * I1 + (1-u1) * beta_W1 * S1 * W1)),
     case2 = expression(b2 * (beta_I2 * S2 * I2 + (1-u2) * beta_W2 * S2 * W2)),
     vacc1 = expression(C1 * v1 * S1 + epsilon1 * (v1^2)),
-    vacc2 = expression(C2 * v2 * S2 + epsilon2 * (v2^2),
+    vacc2 = expression(C2 * v2 * S2 + epsilon2 * (v2^2)),
     sani1 = expression(D1 * u1 + eta1 * u1^2), 
-    sani2 = expression(D2 * u2 + eta2 * u2^2))
+    sani2 = expression(D2 * u2 + eta2 * u2^2)
   )
   j_vals <- lapply(j_ints, function(x) {
     apply(optim_states, 1, eval_j_integrand, params = params, integrand = x)
   })
   return(data.frame(
-    j_case1 = trapz(x, j_vals[["case1"]]),
-    j_case2 = trapz(x, j_vals[["case2"]]),
-    j_vacc1 = trapz(x, j_vals[["vacc1"]]),
-    j_vacc2 = trapz(x, j_vals[["vacc2"]]),
-    j_sani1 = trapz(x, j_vals[["sani1"]]),
-    j_sani2 = trapz(x, j_vals[["sani2"]])
+    j_case1 = trapz(x, j_vals[[1]]),
+    j_case2 = trapz(x, j_vals[[2]]),
+    j_vacc1 = trapz(x, j_vals[[3]]),
+    j_vacc2 = trapz(x, j_vals[[4]]),
+    j_sani1 = trapz(x, j_vals[[5]]),
+    j_sani2 = trapz(x, j_vals[[6]])
   ))
 }
+
