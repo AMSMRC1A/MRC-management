@@ -70,11 +70,12 @@ run_no_optim <- function(bounds, init_x, times, ode_fn, params, control_type) {
     params$v2 <- 0
     params$u1 <- 0
     params$u2 <- 0
-  } else if (control_type == "max") {
-    params$v1 <- bounds["M1"]
-    params$v2 <- bounds["M2"]
-    params$u1 <- bounds["U1"]
-    params$u2 <- bounds["U2"]
+  } 
+  else if (control_type == "max") {
+    params$v1 <- bounds["M1_max"]
+    params$v2 <- bounds["M2_max"]
+    params$u1 <- bounds["U1_max"]
+    params$u2 <- bounds["U2_max"]
   }
   out <- ode(y = init_x, times = times, func = ode_fn, parms = params)
   out <- as.data.frame(out)
@@ -154,14 +155,14 @@ oc_optim <- function(v1, v2, u1, u2, x, lambda, # initial guesses
       temp_v <- calc_opt_v(params, lambda, x, control_type)
       temp_u <- calc_opt_u(params, lambda, x, control_type)
       # include bounds
-      v1 <- pmin(M1, pmax(0, temp_v$temp_v1))
-      v2 <- pmin(M2, pmax(0, temp_v$temp_v2))
-      u1 <- pmin(U1, pmax(0, temp_u$temp_u1))
-      u2 <- pmin(U2, pmax(0, temp_u$temp_u2))
+      v1 <- pmin(M1_max, pmax(M1_min, temp_v$temp_v1))
+      v2 <- pmin(M2_max, pmax(M2_min, temp_v$temp_v2))
+      u1 <- pmin(U1_max, pmax(U1_min, temp_u$temp_u1))
+      u2 <- pmin(U2_max, pmax(U2_min, temp_u$temp_u2))
       # update control
       v1 <- 0.5 * (v1 + oldv1)
       v2 <- 0.5 * (v2 + oldv2)
-      u1 <- 0.5 * (v1 + oldu1)
+      u1 <- 0.5 * (u1 + oldu1)
       u2 <- 0.5 * (u2 + oldu2)
       # recalculate test
       test <- min(

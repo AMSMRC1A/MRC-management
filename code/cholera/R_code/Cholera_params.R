@@ -15,10 +15,13 @@ params <- c(
 ) # pathogen movement rate in water (consider decreasing by half)
 
 # parameters at maximum of control
-bounds <- c(M1 = 0.015, M2 = 0.015, U1 = 0.4, U2 = 0.4)
+bounds <- c(M1_min = 0, M1_max = 0.015, 
+            M2_min = 0, M2_max = 0.015, 
+            U1_min = 0, U1_max = 0.4, 
+            U2_min = 0, U2_max = 0.4)
 max_params <- params
-max_params["v1"] <- bounds[[1]]
-max_params["v2"] <- bounds[[2]]
+max_params["v1"] <- bounds[["M1_max"]]
+max_params["v2"] <- bounds[["M2_max"]]
 
 # define time (days)
 times <- seq(0, 200, 0.05)
