@@ -25,7 +25,8 @@
 
 
 # Apply optimal control---------------------------------------------------------
-apply_oc <- function(change_params, guess_v1, guess_v2, init_x, 
+apply_oc <- function(change_params, guess_v1, guess_v2, 
+                     guess_u1, guess_u2, init_x, 
                      ode_fn, bounds, adj_fn, control_type,
                      times, params, tol, return_type) {
   # update parameters
@@ -34,7 +35,7 @@ apply_oc <- function(change_params, guess_v1, guess_v2, init_x,
   new_params[p_loc[!is.na(p_loc)]] <- change_params[!is.na(p_loc)]
   if (control_type %in% c("unique", "uniform")) {
     out <- run_oc(
-      guess_v1, guess_v2, init_x, bounds, ode_fn, adj_fn,
+      guess_v1, guess_v2, guess_u1, guess_u2, init_x, bounds, ode_fn, adj_fn,
       times, new_params, tol, control_type
     )
   } else if (control_type %in% c("max", "none")) {
@@ -174,7 +175,7 @@ oc_optim <- function(v1, v2, u1, u2, x, lambda, # initial guesses
       counter <- counter + 1
     }
     return(list(
-      x = x, lambda = lambda, v1 = v1, v2 = v2,u1 = u1, u2 = u2,
+      x = x, lambda = lambda, v1 = v1, v2 = v2, u1 = u1, u2 = u2,
       j = calc_j(times, cbind(as.data.frame(x), v1 = v1, v2 = v2, u1 = u1, u2 = u2), params)
     ))
   })
@@ -198,9 +199,10 @@ calc_opt_v <- function(params, lambda, x, control_type) {
 
 calc_opt_u <- function(params, lambda, x, control_type){
   if (control_type == "uniform"){
-    ((lambda[,"lambda2"] + params$b1 - lambda[,"lambda1"]) * params$beta_W1 * x[,"S1"] * x[,"W1"] - params$D1 + 
+    temp_u1 <- ((lambda[,"lambda2"] + params$b1 - lambda[,"lambda1"]) * params$beta_W1 * x[,"S1"] * x[,"W1"] - params$D1 + 
       (lambda[,"lambda6"] + params$b2 - lambda[,"lambda5"]) * params$beta_W2 * x[,"S2"] * x[,"W2"] - params$D2)/
       2*(params$eta1 + params$eta2)
+    temp_u2 <- temp_u1
   }
   if (control_type == "unique"){
     temp_u1 <- ((params$beta_W1 * x[, "S1"] * x[,"W1"])*(params$b1 - lambda[, "lambda1"] + lambda[, "lambda2"]) - params$D1)/
