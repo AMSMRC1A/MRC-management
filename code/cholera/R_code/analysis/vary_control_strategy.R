@@ -22,12 +22,60 @@ source("Cholera_analysisfunc.R")
 # initial guesses - controls----------------------------------------------------
 guess_v1 <- rep(0, length(times))
 guess_v2 <- rep(0, length(times))
+guess_u1 <- rep(0, length(times))
+guess_u2 <- rep(0, length(times))
 
 # setup baseline optimal control parameters-------------------------------------
 tol = 0.01 # tolerance parameter for optimization
 oc_params <- c(b1 = 1, b2 = 1, # cost of cases
                C1 = 0.125, C2 = 0.125,  # cost of vaccinations
-               epsilon1  = 10000, epsilon2 = 10000) # non-linearity
+               epsilon1  = 10000, epsilon2 = 10000, # non-linearity for vacc
+               D1 = 0.125, D2 = 0.125, # cost of sanitation 
+               eta1 = 100, eta2 = 100 ) # non-linearity for sanitation
+
+# Experiment 0: vary control type only------------------------------------------
+# define parameters to sweep across
+test_params <- expand.grid(
+  m1 = 0, 
+  m2 = 0,
+  control_type = c("unique", "uniform")
+)
+
+# calculate OC
+# begin system clock
+# to keep track of run-time, guide decisions about code optimization
+start_time <- Sys.time()
+
+# run OC across multiple parameters
+exper <- test_mult_params(
+  test_params = test_params,
+  return_type = c("X", "j", "v", "u"),
+  base_params = c(params, oc_params),
+  guess_v1 = guess_v1, guess_v2 = guess_v2,
+  guess_u1 = guess_u1, guess_u2 = guess_u2,
+  IC = IC, bounds = bounds, times = times, tol = tol
+)
+
+# calculate run-time and print it
+end_time <- Sys.time()
+end_time - start_time
+
+## reformat output
+exper <- reformat_mult_params_output(output = exper, test_params = test_params)
+
+exper$v %>% 
+  left_join(exper$u) %>% 
+  melt(c("m1", "m2", "control_type", "test_case", "time")) %>%
+  mutate(patch = substr(variable, 2,2), 
+         variable = substr(variable, 1,1)) %>%
+  filter(control_type %in% c("uniform", "unique")) %>%
+  mutate(plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform")) %>%
+  ggplot(aes(x = time, y = value, color = plot_var)) + 
+  geom_line(size = 1)+
+  facet_grid(cols = vars(variable), scales = "free") +
+  scale_color_manual(values = c("red", "blue", "black")) +
+  theme_bw()
+
 
 # Experiment 1: vary movement and control type----------------------------------
 # define parameters to sweep across
@@ -45,9 +93,10 @@ start_time <- Sys.time()
 # run OC across multiple parameters
 exper <- test_mult_params(
   test_params = test_params,
-  return_type = c("X", "j", "v"),
+  return_type = c("X", "j", "v", "u"),
   base_params = c(params, oc_params),
   guess_v1 = guess_v1, guess_v2 = guess_v2,
+  guess_u1 = guess_u1, guess_u2 = guess_u2,
   IC = IC, bounds = bounds, times = times, tol = tol
 )
 
@@ -78,6 +127,7 @@ exper <- test_mult_params(test_params = test_params,
                           return_type = c("j"),
                           base_params = c(params, oc_params),
                           guess_v1 = guess_v1, guess_v2 = guess_v2,
+                          guess_u1 = guess_u1, guess_u2 = guess_u2,
                           IC = IC, bounds = bounds, times = times, tol = tol)
 # calculate run-time and print it
 end_time <- Sys.time()
