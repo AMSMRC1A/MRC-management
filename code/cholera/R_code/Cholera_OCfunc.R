@@ -81,7 +81,7 @@ run_no_optim <- function(bounds, init_x, times, ode_fn, params, control_type) {
   out <- ode(y = init_x, times = times, func = ode_fn, parms = params)
   out <- as.data.frame(out)
   j <- calc_j(times, out, params)
-  return(list(x = out, v1 = params$v1, v2 = params$v2, j = j))
+  return(list(x = out, v1 = params$v1, v2 = params$v2, u1 = params$u1, u2 = params$u2, j = j))
 }
 
 # function to implement optimal control analysis
