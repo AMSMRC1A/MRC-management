@@ -28,7 +28,8 @@
 # Apply optimal control---------------------------------------------------------
 
 # Helper function 'param_changer':
-# Update "params" using only the variable names in "change_params"
+# Update the "params" data frame with the parameter values listed in the
+# "change_params" data frame
 param_changer <- function(change_params, params) {
   new_params <- params
   p_loc <- match(names(change_params), names(new_params))
@@ -48,7 +49,7 @@ apply_oc <- function(change_params, guess_v1, guess_v2, init_x, bounds,
   # update parameters
   new_params <- param_changer(change_params, params)
 
-  # update settings to match the control type
+  # update settings to match the control type input
   if (control_type %in% c("unique", "uniform")) {
     out <- run_oc(
       guess_v1, guess_v2, init_x, bounds, ode_fn, adj_fn,
@@ -119,6 +120,11 @@ run_oc <- function(guess_v1, guess_v2, init_x, bounds, ode_fn, adj_fn,
     bounds, tol, ode_fn, adj_fn,
     times, params, control_type
   )
+  # "oc" is a list with entries:
+  #     x = ODE trajectories
+  #     lambda = adjoint values
+  #     v1, v2 = control values
+  #     j = costs
   return(oc)
 }
 
@@ -147,6 +153,7 @@ oc_optim <- function(v1, v2, x, lambda, # initial guesses
         y = IC, times = times, func = ode_fn, parms = params,
         v1_interp = v1_interp, v2_interp = v2_interp
       )
+      
       # define interpolating functions for x (states)
       x_interp <- lapply(2:ncol(x), function(i) {
         approxfun(x[, c(1, i)], rule = 2)
@@ -156,6 +163,7 @@ oc_optim <- function(v1, v2, x, lambda, # initial guesses
         y = lambda_init, times = rev(times), func = adj_fn, parms = params,
         v1_interp = v1_interp, v2_interp = v2_interp, x_interp = x_interp, x = x
       )
+      
       lambda <- lambda[nrow(lambda):1, ]
       # calculate v1* and v2*
       temp <- calc_opt_v(params, lambda, x, control_type)
@@ -173,8 +181,12 @@ oc_optim <- function(v1, v2, x, lambda, # initial guesses
       )
       counter <- counter + 1
     }
+    trajectories <- as.data.frame(x)
+    trajectories$v1 <- v1
+    trajectories$v2 <- v2
+    trajectories <- left_join(trajectories,as.data.frame(lambda))
     return(list(
-      x = x, lambda = lambda, v1 = v1, v2 = v2,
+      trajectories = trajectories,
       j = calc_j(times, cbind(as.data.frame(x), v1 = v1, v2 = v2), params)
     ))
   })

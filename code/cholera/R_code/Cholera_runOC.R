@@ -38,9 +38,11 @@ oc <- run_oc(
 )
 
 # collect trajectories and controls
-control_trajectories <- as.data.frame(oc$x)
-control_trajectories$v1 <- oc$v1
-control_trajectories$v2 <- oc$v2
+control_trajectories <- select(
+  oc$trajectories,
+  time, S1, S2, I1, I2, R1, R2, W1, W2, v1, v2
+)
+# reconfigure table to use for plotting
 control_trajectories <- melt(control_trajectories, id = c("time"))
 control_trajectories$compartment <- substr(control_trajectories$variable, 1, 1)
 control_trajectories$compartment <- factor(control_trajectories$compartment, levels = c("S", "I", "R", "W", "v"))
@@ -63,7 +65,7 @@ max_control_ode <- ode(
 out_ode <- as.data.frame(out_ode)
 out <- melt(out_ode, id = c("time"))
 out$compartment <- substr(out$variable, 1, 1)
-out$compartment <- factor(out$compartment, levels = c("S", "I", "R", "W", "c", "V"))
+out$compartment <- factor(out$compartment, levels = c("S", "I", "R", "W", "v"))
 out$patch <- substr(out$variable, 2, 2)
 
 # plot trajectories and controls
@@ -82,24 +84,24 @@ control_plot
 
 # find j values
 j <- calc_j(
-  params = c(params, oc_params), times = times,
-  optim_states = cbind(oc$x, v1 = oc$v1, v2 = oc$v2), #< length of this (=4001) must match seq(lower_lim, upper_lim, step_size) = 20001
-  integrand_fn = j_integrand
+  times = times,
+  optim_states = oc$trajectories, #< length of this (=4001) must match seq(lower_lim, upper_lim, step_size) = 20001, 
+  params= all_params
 ) # ,
 # lower_lim = min(times), upper_lim = max(times), step_size = 0.01)
 j_no_control <- calc_j(
-  params = c(params, oc_params), times = times,
+  times = times,
   optim_states = cbind(out_ode, v1 = rep(0, nrow(out_ode)), v2 = rep(0, nrow(out_ode))),
-  integrand_fn = j_integrand
+  params= all_params
 ) # ,
 # lower_lim = min(times), upper_lim = max(times), step_size = 0.01)
 j_max_control <- calc_j(
-  params = c(max_params, oc_params), times = times,
+  times = times,
   optim_states = cbind(max_control_ode,
     v1 = rep(bounds[[1]], nrow(max_control_ode)),
     v2 = rep(bounds[[2]], nrow(max_control_ode))
   ),
-  integrand_fn = j_integrand
+  params= all_params
 ) # ,
 # lower_lim = min(times), upper_lim = max(times), step_size = 0.01)
 
