@@ -3,8 +3,7 @@
 # run OC over multiple parameter sets-------------------------------------------
 # test_params: data.frame containing the parameters and values to vary
 #              including control_type, each row represents one case to be tested
-# return_type: vector containing "v", "j", "X" (see apply_oc() in OCfunc.R for
-#              full definitions)
+#
 # base_params: vector containing baseline params to be used if not varying
 #              includes both biological and OC params
 test_mult_params <- function(test_params, return_type, base_params,

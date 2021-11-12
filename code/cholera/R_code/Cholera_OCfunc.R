@@ -39,12 +39,13 @@ param_changer <- function(change_params, params) {
 
 # Function 'apply_oc':
 # Change parameters (according to "change_params") then apply optimal control
-# KD: update this to remove the 'param_changer' call. That can be done prior
-#     to calling this function. Reduces the num. of parameters in this function.
-#     Consider renaming this function to make it harder to confuse with "run_oc"
+# KD to do: update this to remove the 'param_changer' call. That can be done
+#           prior to calling this function. Reduces the num. of parameters in
+#           this function. Consider renaming this function to make it harder to
+#           confuse with "run_oc"
 apply_oc <- function(change_params, guess_v1, guess_v2, init_x, bounds,
                      ode_fn, adj_fn, control_type,
-                     times, params, tol, return_type) {
+                     times, params, tol) {
 
   # update parameters
   new_params <- param_changer(change_params, params)
@@ -58,28 +59,11 @@ apply_oc <- function(change_params, guess_v1, guess_v2, init_x, bounds,
   } else if (control_type %in% c("max", "none")) {
     out <- run_no_optim(bounds, init_x, times, ode_fn, new_params, control_type)
   }
+  ret <- out
+  # got rid of return_types:
+  # "v" data is now included in x, calculating j values not computationally expensive
 
-  # Return according to the chosen return_type
-  ret <- list()
-  # KD: could these "ifs" be vectorized?
-  # return_type "all": return all of the below
-  if (return_type == "all") {
-    return_type <- c("v", "j", "X")
-  } # cheap shortcut
-  # return_type "v": return time series of each vaccination strategy
-  if ("v" %in% return_type) {
-    ret[["v"]] <- cbind(time = times, v1 = out$v1, v2 = out$v2)
-  }
-  # return_type "j": return j values broken down by cases/vacc in each patch
-  if ("j" %in% return_type) {
-    ret[["j"]] <- out$j
-  }
-  # return_type "X": return time series of each compartment
-  if ("X" %in% return_type) {
-    ret[["X"]] <- out$x
-  }
-
-  return(list(ret))
+  return(out)
 }
 
 # Function 'run_no_optim':
@@ -89,8 +73,8 @@ run_no_optim <- function(bounds, init_x, times, ode_fn, params, control_type) {
     params$v1 <- 0
     params$v2 <- 0
   } else if (control_type == "max") {
-    params$v1 <- bounds$M1
-    params$v2 <- bounds$M2
+    params$v1 <- bounds$MaxV1
+    params$v2 <- bounds$MaxV2
   }
   out <- ode(y = init_x, times = times, func = ode_fn, parms = params)
   out <- as.data.frame(out)
@@ -121,9 +105,8 @@ run_oc <- function(guess_v1, guess_v2, init_x, bounds, ode_fn, adj_fn,
     times, params, control_type
   )
   # "oc" is a list with entries:
-  #     x = ODE trajectories
-  #     lambda = adjoint values
-  #     v1, v2 = control values
+  #     trajectories = all time-varying values (state variables, controls,
+  #                    and adjoints)
   #     j = costs
   return(oc)
 }
@@ -153,7 +136,7 @@ oc_optim <- function(v1, v2, x, lambda, # initial guesses
         y = IC, times = times, func = ode_fn, parms = params,
         v1_interp = v1_interp, v2_interp = v2_interp
       )
-      
+      x_df <- as.data.frame(x)
       # define interpolating functions for x (states)
       x_interp <- lapply(2:ncol(x), function(i) {
         approxfun(x[, c(1, i)], rule = 2)
@@ -163,13 +146,14 @@ oc_optim <- function(v1, v2, x, lambda, # initial guesses
         y = lambda_init, times = rev(times), func = adj_fn, parms = params,
         v1_interp = v1_interp, v2_interp = v2_interp, x_interp = x_interp, x = x
       )
-      
+
       lambda <- lambda[nrow(lambda):1, ]
+      lambda_df <- as.data.frame(lambda)
       # calculate v1* and v2*
-      temp <- calc_opt_v(params, lambda, x, control_type)
+      temp_vs <- calc_opt_v(params, lambda_df, x_df, control_type)
       # include bounds
-      v1 <- pmin(M1, pmax(0, temp$temp_v1))
-      v2 <- pmin(M2, pmax(0, temp$temp_v2))
+      v1 <- pmin(MaxV1, pmax(0, temp_vs$temp_v1))
+      v2 <- pmin(MaxV2, pmax(0, temp_vs$temp_v2))
       # update control
       v1 <- 0.5 * (v1 + oldv1)
       v2 <- 0.5 * (v2 + oldv2)
@@ -181,13 +165,14 @@ oc_optim <- function(v1, v2, x, lambda, # initial guesses
       )
       counter <- counter + 1
     }
-    trajectories <- as.data.frame(x)
+    trajectories <- x_df
     trajectories$v1 <- v1
     trajectories$v2 <- v2
-    trajectories <- left_join(trajectories,as.data.frame(lambda))
+    trajectories <- left_join(trajectories, lambda_df)
+    j_vals <- calc_j(times, cbind(as.data.frame(x), v1 = v1, v2 = v2), params)
     return(list(
       trajectories = trajectories,
-      j = calc_j(times, cbind(as.data.frame(x), v1 = v1, v2 = v2), params)
+      j = j_vals
     ))
   })
 }
@@ -195,21 +180,20 @@ oc_optim <- function(v1, v2, x, lambda, # initial guesses
 # Sub-function 'calc_opt_v' (used in 'oc_optim'):
 # Calculate optimal vaccination strategy
 calc_opt_v <- function(params, lambda, x, control_type) {
-  params <- as_tibble(as.list(params))
-  # KD: !!! for consistency, change "lambda" to use same entry calls as params
-  if (control_type == "uniform") {
-    temp_v1 <- (((lambda[, "lambda1"] - params$C1 - lambda[, "lambda3"]) * x[, "S1"]) +
-      ((lambda[, "lambda5"] - params$C2 - lambda[, "lambda7"]) * x[, "S2"])) /
-      (2 * params$epsilon1 + 2 * params$epsilon2)
-    temp_v2 <- temp_v1
-  }
-  if (control_type == "unique") {
-    temp_v1 <- ((lambda[, "lambda1"] - params$C1 - lambda[, "lambda3"]) * x[, "S1"]) /
-      (2 * params$epsilon1)
-    temp_v2 <- ((lambda[, "lambda5"] - params$C2 - lambda[, "lambda7"]) * x[, "S2"]) /
-      (2 * params$epsilon2)
-  }
-  return(list(temp_v1 = temp_v1, temp_v2 = temp_v2))
+  with(as.list(c(params, lambda, x)), {
+    params <- as_tibble(as.list(params))
+    # KD: !!! for consistency, change "lambda" to use same entry calls as params
+    if (control_type == "uniform") {
+      temp_v1 <- (((lambda1 - C1 - lambda3) * S1) + ((lambda5 - C2 - lambda7) * S2)) /
+        (2 * epsilon1 + 2 * epsilon2)
+      temp_v2 <- temp_v1
+    }
+    if (control_type == "unique") {
+      temp_v1 <- ((lambda1 - C1 - lambda3) * S1) / (2 * epsilon1)
+      temp_v2 <- ((lambda5 - C2 - lambda7) * S2) / (2 * epsilon2)
+    }
+    return(list(temp_v1 = temp_v1, temp_v2 = temp_v2))
+  })
 }
 
 # Helper function 'norm_oc':

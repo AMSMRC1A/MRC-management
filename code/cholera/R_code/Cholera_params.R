@@ -1,5 +1,5 @@
 # define ODE parameters
-params <- list(
+params <- data.frame(
   mu1 = 0, mu2 = 0, # natural birth/death rate 1E-4
   beta_I1 = 2.64E-5, beta_I2 = 2.64E-5, # transmission rate from people (consider setting to 0)
   beta_W1 = 1.01E-4, beta_W2 = 1.01E-4, # transmission rate from water (consider increasing by an order of magnitude)
@@ -11,10 +11,10 @@ params <- list(
   xi1 = 7.56E-3, xi2 = 7.56E-3, # pathogen survival rate in water
   nu1 = 7.56E-3, nu2 = 7.56E-3, # pathogen clearance rate in water
   rho1 = 0.025, rho2 = 0.025 # pathogen movement rate in water (consider decreasing by half)
-) 
+)
 
 # bounds of optimal control (OC) parameters
-bounds <- list(M1 = 0.015, M2 = 0.015)
+bounds <- list(MaxV1 = 0.015, MaxV2 = 0.015)
 max_params <- params
 max_params$v1 <- bounds$M1
 max_params$v2 <- bounds$M2

@@ -1,5 +1,5 @@
 # libraries
-library(ggplot2)
+library(tidyverse)
 
 source("Cholera_params.R")
 
@@ -13,8 +13,8 @@ source("Cholera_params.R")
 #   4. tau = 1/(1-(sigma1*sigma2)) (called "nu" in Overleaf)
 #   5. eta_i = 1/(nu_i + rho_i)
 #   6. omega_i = rho_i/(nu_i + rho_i)
-chol_r0 <- function(params, N0_1, N0_2) {
-  with(as.list(c(params, IC)), {
+chol_R0 <- function(params, N0_1, N0_2) {
+  with(as.list(params), {
     # calculate intermediate parameters
     lambda1 <- 1 / (gamma1 + mu1 + delta1 + n1)
     lambda2 <- 1 / (gamma2 + mu2 + delta2 + n2)
@@ -35,7 +35,8 @@ chol_r0 <- function(params, N0_1, N0_2) {
     R12 <- sigma2 * tau * (RI1 + RW1)
     R21 <- sigma1 * tau * (RI2 + RW2) + tau * omega1 * ((xi1 * lambda1) / (xi2 * lambda2)) * RW2
     R22 <- tau * (RI2 + RW2) + tau * sigma2 * omega1 * ((xi1 * lambda1) / (xi2 * lambda2)) * RW2
-    return((R11 + R22 + sqrt((R11 - R22)^2 + 4 * R12 * R21)) / 2)
+    R0 <- (R11 + R22 + sqrt((R11 - R22)^2 + 4 * R12 * R21)) / 2
+    return(R0)
   })
 }
 
@@ -46,18 +47,12 @@ test_params <- expand.grid(
   beta_W2 = c(1.21E-5, 1.21E-4, 1.21E-3)
 )
 
-test_params$R0_vals <- apply(test_params, 1, function(i) {
-  testp <- params
-  testp["beta_I1"] <- i[1]
-  testp["beta_I2"] <- i[2]
-  testp["beta_W1"] <- i[3]
-  testp["beta_W2"] <- i[4]
-  return(chol_r0(testp, 10000, 10000))
-})
+test_params <- full_join(test_params, select(params, -names(test_params)), by = character()) %>%
+  mutate(R0 = chol_R0(., 10000, 10000))
 
-ggplot(data = test_params, aes(x = as.factor(beta_W1), y = as.factor(beta_W2), fill = R0_vals)) +
+ggplot(data = test_params, aes(x = as.factor(beta_W1), y = as.factor(beta_W2), fill = R0)) +
   geom_tile(alpha = 0.9) +
-  geom_text(aes(label = round(R0_vals, 2))) +
+  geom_text(aes(label = round(R0, 2))) +
   facet_grid(rows = vars(beta_I1), cols = vars(beta_I2), labeller = "label_both") +
   scale_x_discrete(expand = c(0, 0)) +
   scale_y_discrete(expand = c(0, 0)) +

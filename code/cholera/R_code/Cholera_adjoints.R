@@ -1,8 +1,6 @@
 # adjoints
 adj <- function(t, y, params, v1_interp, v2_interp, x_interp, x) {
   # calculate state at time t using interpolated function
-  # state = sapply(1:length(x_interp), function(i){x_interp[[i]](t)})
-  # names(state) = colnames(x)[-1]
   state <- c(
     S1 = x_interp[[1]](t), S2 = x_interp[[2]](t),
     I1 = x_interp[[3]](t), I2 = x_interp[[4]](t),
