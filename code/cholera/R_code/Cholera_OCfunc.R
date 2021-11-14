@@ -201,7 +201,7 @@ calc_opt_u <- function(params, lambda, x, control_type){
   if (control_type == "uniform"){
     temp_u1 <- ((lambda[,"lambda2"] + params$b1 - lambda[,"lambda1"]) * params$beta_W1 * x[,"S1"] * x[,"W1"] - params$D1 + 
       (lambda[,"lambda6"] + params$b2 - lambda[,"lambda5"]) * params$beta_W2 * x[,"S2"] * x[,"W2"] - params$D2)/
-      2*(params$eta1 + params$eta2)
+      (2*(params$eta1 + params$eta2))
     temp_u2 <- temp_u1
   }
   if (control_type == "unique"){
