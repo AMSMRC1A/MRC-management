@@ -21,7 +21,7 @@ test_mult_params <- function(test_params, return_type, base_params,
       "guess_u1", "guess_u2", "IC",
       "bounds", "chol", "adj", "times",
       "params", "oc_params", "run_oc", "tol",
-      "oc_optim", "calc_opt_v", "norm_oc", "calc_j",
+      "oc_optim", "calc_opt_v", "calc_opt_u", "norm_oc", "calc_j",
       "eval_j_integrand"
     ),
     .combine = rbind
