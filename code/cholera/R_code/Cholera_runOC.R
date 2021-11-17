@@ -13,12 +13,14 @@ registerDoParallel(4) # update this 4 if you want to use more cores
 # load files
 source("CholeraSIRW_ODE.R")
 source("Cholera_params.R")
-source("Cholera_OCfunc.R")
-source("Cholera_adjoints.R")
+source("Cholera_OCfunc_2control.R")
+source("Cholera_adjoints_2control.R")
 
 # initial guesses - controls
 guess_v1 <- rep(0, length(times))
 guess_v2 <- rep(0, length(times))
+guess_u1 <- rep(0, length(times))
+guess_u2 <- rep(0, length(times))
 
 # adjoints
 # x = matrix(0, nrow = length(times), ncol = 9)
@@ -34,12 +36,14 @@ delta <- 0.01
 oc_params <- c(
   b1 = 1, b2 = 1,
   C1 = 0.125, C2 = 0.125,
-  epsilon1 = 10000, epsilon2 = 10000
+  epsilon1 = 10000, epsilon2 = 10000,
+  D1 = 0.125, D2 = 0.125,
+  eta1 = 100, eta2 = 100 
 )
 
 # run optimization
 oc <- run_oc(
-  guess_v1, guess_v2, IC, bounds, chol, adj,
+  guess_v1, guess_v2, guess_u1, guess_u2, IC, bounds, chol, adj,
   times, as.list(c(params, oc_params)), delta, "unique"
 )
 
@@ -47,9 +51,11 @@ oc <- run_oc(
 control_trajectories <- as.data.frame(oc$x)
 control_trajectories$v1 <- oc$v1
 control_trajectories$v2 <- oc$v2
+control_trajectories$u1 <- oc$u1
+control_trajectories$u2 <- oc$u2
 control_trajectories <- melt(control_trajectories, id = c("time"))
 control_trajectories$compartment <- substr(control_trajectories$variable, 1, 1)
-control_trajectories$compartment <- factor(control_trajectories$compartment, levels = c("S", "I", "R", "W", "v"))
+control_trajectories$compartment <- factor(control_trajectories$compartment, levels = c("S", "I", "R", "W", "v", "u"))
 control_trajectories$patch <- substr(control_trajectories$variable, 2, 2)
 
 # find no control ODE
@@ -102,8 +108,8 @@ j_no_control <- calc_j(
 j_max_control <- calc_j(
   params = c(max_params, oc_params), times = times,
   optim_states = cbind(max_control_ode,
-    v1 = rep(bounds[[1]], nrow(max_control_ode)),
-    v2 = rep(bounds[[2]], nrow(max_control_ode))
+                       v1 = rep(bounds[[1]], nrow(max_control_ode)),
+                       v2 = rep(bounds[[2]], nrow(max_control_ode))
   ),
   integrand_fn = j_integrand
 ) # ,

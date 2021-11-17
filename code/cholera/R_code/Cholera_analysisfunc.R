@@ -8,14 +8,17 @@
 # base_params: vector containing baseline params to be used if not varying
 #              includes both biological and OC params
 test_mult_params <- function(test_params, return_type, base_params,
-                             guess_v1, guess_v2, IC, bounds, times, tol) {
+                             guess_v1, guess_v2, 
+                             guess_u1, guess_u2, 
+                             IC, bounds, times, tol) {
   # Run optimal control calculations across test_params dataframe
   vary_params <- foreach(
     i = 1:nrow(test_params),
     .packages = c("deSolve", "tidyverse", "pracma"),
     # explicitly give 'foreach' the functions and data it needs
     .export = c(
-      "apply_oc", "guess_v1", "guess_v2", "IC",
+      "apply_oc", "guess_v1", "guess_v2",
+      "guess_u1", "guess_u2", "IC",
       "bounds", "chol", "adj", "times",
       "params", "oc_params", "run_oc", "tol",
       "oc_optim", "calc_opt_v", "norm_oc", "calc_j",
@@ -26,6 +29,7 @@ test_mult_params <- function(test_params, return_type, base_params,
     apply_oc(
       change_params = test_params[i, ],
       guess_v1 = guess_v1, guess_v2 = guess_v2,
+      guess_u1 = guess_u1, guess_u2 = guess_u2,
       init_x = IC, bounds = bounds,
       ode_fn = chol, adj_fn = adj,
       times = times, params = c(params, oc_params),
@@ -72,6 +76,16 @@ reformat_output_v <- function(output, test_params) {
   v_timeseries <- as.data.frame(do.call(rbind, v_timeseries))
   v_timeseries <- left_join(test_params, v_timeseries)
   return(v_timeseries)
+}
+
+reformat_output_u <- function(output, test_params) {
+  # reformat optimal control strategy time series
+  u_timeseries <- lapply(1:length(output), function(i) {
+    return(data.frame(test_case = i, output[[i]][["u"]]))
+  })
+  u_timeseries <- as.data.frame(do.call(rbind, u_timeseries))
+  u_timeseries <- left_join(test_params, u_timeseries)
+  return(u_timeseries)
 }
 
 reformat_output_j <- function(output, test_params) {

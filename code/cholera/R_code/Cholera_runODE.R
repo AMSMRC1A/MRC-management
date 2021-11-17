@@ -15,6 +15,11 @@ v1 <- data.frame(times = times, v1 = rep(0, length(times)))
 v1_interp <- approxfun(v1, rule = 2)
 v2 <- data.frame(times = times, v2 = rep(0, length(times)))
 v2_interp <- approxfun(v2, rule = 2)
+# time varying sanitation
+u1 <- data.frame(times = times, u1 = rep(0, length(times)))
+u1_interp <- approxfun(u1, rule = 2)
+u2 <- data.frame(times = times, u2 = rep(0, length(times)))
+u2_interp <- approxfun(u2, rule = 2)
 
 IC <- c(
   S1 = 10000 - 1, S2 = 10000, # consider doubling population of Patch 1
@@ -24,7 +29,9 @@ IC <- c(
 ) # ,
 
 # solve ODE
-out <- ode(y = IC, times = times, func = chol, parms = params, v1_interp = v1_interp, v2_interp = v2_interp)
+out <- ode(y = IC, times = times, func = chol, parms = params, 
+           v1_interp = v1_interp, v2_interp = v2_interp, 
+           u1_interp = u1_interp, u2_interp = u2_interp)
 
 write_csv(as.data.frame(out), "analysis/initialOutbreak_noControl_forIC.csv")
 
