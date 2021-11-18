@@ -76,9 +76,11 @@ run_no_optim <- function(bounds, init_x, times, ode_fn, params, control_type) {
     params$v2 <- bounds$MaxV2
   }
   out <- ode(y = init_x, times = times, func = ode_fn, parms = params)
-  out <- as.data.frame(out)
+  trajectories <- as.data.frame(out)
+  trajectories$v1 <- params$v1
+  trajectories$v2 <- params$v2
   j <- calc_j(times, out, params)
-  return(list(x = out, v1 = params$v1, v2 = params$v2, j = j))
+  return(list(trajectories = trajectories, j = j))
 }
 
 # Function 'run_oc':
@@ -167,7 +169,6 @@ oc_optim <- function(v1, v2, x, lambda, # initial guesses
     trajectories <- x_df
     trajectories$v1 <- v1
     trajectories$v2 <- v2
-    trajectories <- left_join(trajectories, lambda_df)
     j_vals <- calc_j(times, cbind(as.data.frame(x), v1 = v1, v2 = v2), params)
     return(list(
       trajectories = trajectories,
