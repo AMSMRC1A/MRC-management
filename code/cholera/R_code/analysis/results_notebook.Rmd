@@ -43,7 +43,7 @@ tol = 0.01 # tolerance parameter for optimization
 oc_params <- c(b1 = 1, b2 = 1, # cost of cases
                C1 = 0.125, C2 = 0.125,  # cost of vaccinations
                epsilon1  = 10000, epsilon2 = 10000, # non-linearity for vacc
-               D1 = 0.125, D2 = 0.125, # cost of sanitation 
+               D1 = 0.0125, D2 = 0.0125, # cost of sanitation 
                eta1 = 100, eta2 = 100 ) # non-linearity for sanitation
 
 # setup control_type parameters to test-----------------------------------------
@@ -152,17 +152,20 @@ exper_v_only$v %>%
 exper_v_only$j %>%
   melt(c("m1", "control_type", "test_case")) %>%
   filter(variable != "j") %>%
-  mutate(variable = factor(variable, 
+  mutate(variable = factor(variable,
                            levels = c("j_case1", "j_vacc1", "j_sani1",
-                                      "j_case2", "j_vacc2", "j_sani2", 
+                                      "j_case2", "j_vacc2", "j_sani2",
                                       "j"))) %>%
   ggplot(aes(x = control_type)) + 
   geom_bar(aes(y = value, fill = variable), 
            stat = "identity", position = "stack")+
-  geom_text(aes(y = value, label = round(value)), 
+  geom_text(aes(y = value, label = round(value), group = variable), 
             position=position_stack(vjust=0.5))+
+  geom_text(data = exper_v_only$j ,
+            aes(y = j, label = paste0("Total cost: ", round(j))), 
+            vjust = 0)+
   guides(fill = guide_legend(nrow = 3))+
-  scale_fill_manual(values = cost_colors6, labels =cost_names) +
+  scale_fill_manual(values = cost_colors6, labels = cost_names) +
   labs(y = "cost")+
   scale_x_discrete(expand = c(0,0))+
   theme_bw()+
@@ -229,8 +232,11 @@ exper_u_only$j %>%
   ggplot(aes(x = control_type)) + 
   geom_bar(aes(y = value, fill = variable), 
            stat = "identity", position = "stack")+
-  geom_text(aes(y = value, label = round(value)), 
+  geom_text(aes(y = value, label = round(value), group = variable), 
             position=position_stack(vjust=0.5))+
+  geom_text(data = exper_u_only$j ,
+            aes(y = j, label = paste0("Total cost: ", round(j))), 
+            vjust = 0)+
   guides(fill = guide_legend(nrow = 3))+
   scale_fill_manual(values = cost_colors6, labels =cost_names) +
   labs(y = "cost")+
@@ -294,8 +300,11 @@ exper_both$j %>%
   ggplot(aes(x = control_type)) + 
   geom_bar(aes(y = value, fill = variable), 
            stat = "identity", position = "stack")+
-  geom_text(aes(y = value, label = round(value)), 
+  geom_text(aes(y = value, label = round(value), group = variable), 
             position=position_stack(vjust=0.5))+
+  geom_text(data = exper_both$j ,
+            aes(y = j, label = paste0("Total cost: ", round(j))), 
+            vjust = 0)+
   guides(fill = guide_legend(nrow = 3))+
   scale_fill_manual(values = cost_colors6, labels =cost_names) +
   labs(y = "cost")+
