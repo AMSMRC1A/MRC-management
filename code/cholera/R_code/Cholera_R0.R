@@ -40,16 +40,18 @@ chol_R0 <- function(params, N0_1, N0_2) {
   })
 }
 
+# Assign test parameters and create factorial table
 test_params <- expand.grid(
   beta_I1 = c(0, 2.64e-05),
   beta_I2 = c(0, 2.64e-05),
   beta_W1 = c(1.21E-5, 1.21E-4, 1.21E-3),
   beta_W2 = c(1.21E-5, 1.21E-4, 1.21E-3)
 )
-
+# Evaluate R0 for each combination of test parameters
 test_params <- full_join(test_params, select(params, -names(test_params)), by = character()) %>%
   mutate(R0 = chol_R0(., 10000, 10000))
 
+# Plot R0 value across all combinations
 ggplot(data = test_params, aes(x = as.factor(beta_W1), y = as.factor(beta_W2), fill = R0)) +
   geom_tile(alpha = 0.9) +
   geom_text(aes(label = round(R0, 2))) +

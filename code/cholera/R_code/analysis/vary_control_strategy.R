@@ -45,7 +45,6 @@ start_time <- Sys.time()
 # run OC across multiple parameters
 exper <- test_mult_params(
   test_params = test_params,
-  return_type = c("X", "j", "v"),
   base_params = c(params, oc_params),
   guess_v1 = guess_v1, guess_v2 = guess_v2,
   IC = IC, bounds = bounds, times = times, tol = tol

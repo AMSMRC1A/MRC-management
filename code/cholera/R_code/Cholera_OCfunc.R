@@ -34,7 +34,7 @@ param_changer <- function(change_params, params) {
   new_params <- params
   p_loc <- match(names(change_params), names(new_params))
   new_params[p_loc[!is.na(p_loc)]] <- change_params[!is.na(p_loc)]
-  ret(new_params)
+  return(new_params)
 }
 
 # Function 'apply_oc':
@@ -59,7 +59,6 @@ apply_oc <- function(change_params, guess_v1, guess_v2, init_x, bounds,
   } else if (control_type %in% c("max", "none")) {
     out <- run_no_optim(bounds, init_x, times, ode_fn, new_params, control_type)
   }
-  ret <- out
   # got rid of return_types:
   # "v" data is now included in x, calculating j values not computationally expensive
 

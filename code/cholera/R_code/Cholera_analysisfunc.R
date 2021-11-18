@@ -1,4 +1,4 @@
-#### FUNCTIONS TO IMPLEMENT OMPTIMAL CONTROL ANALYSES ####
+#### FUNCTIONS TO IMPLEMENT OPTIMAL CONTROL ANALYSES ####
 
 # run OC over multiple parameter sets-------------------------------------------
 # test_params: data.frame containing the parameters and values to vary
@@ -6,7 +6,7 @@
 #
 # base_params: vector containing baseline params to be used if not varying
 #              includes both biological and OC params
-test_mult_params <- function(test_params, return_type, base_params,
+test_mult_params <- function(test_params, base_params,
                              guess_v1, guess_v2, IC, bounds, times, tol) {
   # Run optimal control calculations across test_params dataframe
   vary_params <- foreach(
@@ -18,19 +18,17 @@ test_mult_params <- function(test_params, return_type, base_params,
       "bounds", "chol", "adj", "times",
       "params", "oc_params", "run_oc", "tol",
       "oc_optim", "calc_opt_v", "norm_oc", "calc_j",
-      "eval_j_integrand"
-    ),
-    .combine = rbind
+      "eval_j_integrand", "param_changer", "run_no_optim"
+    )
   ) %dopar% {
     apply_oc(
       change_params = test_params[i, ],
       guess_v1 = guess_v1, guess_v2 = guess_v2,
       init_x = IC, bounds = bounds,
       ode_fn = chol, adj_fn = adj,
-      times = times, params = c(params, oc_params),
-      tol = tol,
       control_type = test_params[i, "control_type"],
-      return_type = return_type
+      times = times, params = base_params,
+      tol = tol
     )
   }
   # vary_params <- do.call(rbind, vary_params)
@@ -43,6 +41,7 @@ reformat_mult_params_output <- function(output, test_params) {
   test_params$test_case <- 1:nrow(test_params)
   # Invoke individual reformatting functions for each output type
   # use first element in output list to determine types of output included
+  
   reformatted <- lapply(
     names(output[[1]]),
     function(i) {
