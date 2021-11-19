@@ -75,6 +75,13 @@ cost_colors6 = c(rev(brewer.pal(3, "Reds")), rev(brewer.pal(3, "Blues")))
 
 Here we keep the results of various numerical experiments of optimal control outcomes in the Cholera model. Specifically, we focus on the difference between the optimal strategy, when control is customized to each patch versus the "one size fits all strategy" where both patches are forced to be given the same control. 
 
+Our model uses the following parameters and initial conditions: 
+```{r params}
+knitr::kable(params, format="markdown")
+knitr::kable(oc_params, format = "markdown")
+knitr::kable(IC, format = "markdown")
+```
+
 ## No control
 
 ```{r}
@@ -92,6 +99,7 @@ uncontrolled_epi %>%
   # plot time series
   ggplot(aes(x = time, y = value, color = patch)) + 
   geom_line() +
+  geom_vline(aes(xintercept = 50)) +
   facet_wrap(vars(compartment), scales = "free") +
   scale_color_manual(values = patch_colors2) +
   theme_bw() + 
