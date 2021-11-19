@@ -19,6 +19,15 @@ source("Cholera_OCfunc.R")
 source("Cholera_adjoints.R")
 source("Cholera_analysisfunc.R")
 
+
+# Helper function to combine parameter sets we're testing-----------------------
+test_param_builder <- function(change_params, all_params) {
+  change_names <- names(select(change_params,-control_type,-experiment_type))
+  test_params <- full_join(select(as.data.frame(all_params),-change_names),
+                           as.data.frame(change_params),
+                           by = character())
+}
+
 # initial guesses - controls----------------------------------------------------
 guess_v1 <- rep(0, length(times))
 guess_v2 <- rep(0, length(times))
@@ -28,7 +37,7 @@ tol = 0.01 # tolerance parameter for optimization
 oc_params <- list(b1 = 1, b2 = 1, # cost of cases
                   C1 = 0.125, C2 = 0.125,  # cost of vaccinations
                   epsilon1  = 10000, epsilon2 = 10000) # non-linearity
-all_params <- c(params, oc_params)
+all_params <- as.data.frame(c(params, oc_params))
 # Experiment 1: vary movement and control type----------------------------------
 # define parameters to sweep across
 test_params <- expand.grid(
@@ -48,7 +57,7 @@ start_time <- Sys.time()
 # run OC across multiple parameters
 exper1 <- test_mult_params(
   test_params = test_params,
-  base_params = c(params, oc_params),
+  base_params = all_params,
   guess_v1 = guess_v1, guess_v2 = guess_v2,
   IC = IC, bounds = bounds, times = times, tol = tol
 )
@@ -61,21 +70,21 @@ end_time - start_time
 # assume gamma (recovery) and delta (mortality) are characteristics of pathogen 
 # and therefore fixed
 # define parameters to sweep across (+/- 10% from baseline parameter)
-test_params <- expand.grid(beta_I1 = params$beta_I1*c(0.9,1,1.1), 
-                           beta_I2 = params$beta_I2*c(0.9,1,1.1),
-                           beta_W1 = params$beta_W1*c(0.9,1,1.1), 
-                           beta_W2 = params$beta_W2*c(0.9,1,1.1),
-                           control_type = c("unique", "uniform"),
-                           experiment_type = "transmission")
-test_params <- right_join(select(as.data.frame(all_params),-m1,-m2), as.data.frame(test_params), by = character())
+transmission_params <- expand.grid(beta_I1 = params$beta_I1*c(0.9,1,1.1), 
+                                   beta_I2 = params$beta_I2*c(0.9,1,1.1),
+                                   beta_W1 = params$beta_W1*c(0.9,1,1.1), 
+                                   beta_W2 = params$beta_W2*c(0.9,1,1.1),
+                                   control_type = c("unique", "uniform"),
+                                   experiment_type = "transmission")
+test_params <- test_param_builder(transmission_params, all_params)
 
 # calculate OC
 # begin system clock
 # to keep track of run-time, guide decisions about code optimization
 start_time <- Sys.time()
+
 # run OC across multiple parameters
 exper2 <- test_mult_params(test_params = test_params,
-                           return_type = c("j"),
                            base_params = c(params, oc_params),
                            guess_v1 = guess_v1, guess_v2 = guess_v2,
                            IC = IC, bounds = bounds, times = times, tol = tol)
@@ -85,8 +94,8 @@ end_time - start_time
 
 
 
-ggplot(data = exper2) + 
-  geom_line(data = data.frame(x = with(exper2, c(min(c(j_case1, j_case2)),max(c(j_case1,j_case2))))),
+ggplot(data = exper2$j_vals) + 
+  geom_line(data = data.frame(x = with(exper2$j_vals, c(min(c(j_case1, j_case2)),max(c(j_case1,j_case2))))),
             aes(x = x, y = x)) +
   geom_point(aes(x = j_case1, y = j_case2, color = as.factor(paste(beta_I1, beta_I2, beta_W1, beta_W2)))) + 
   geom_point(aes(x = j_vacc1, y = j_vacc2, color = as.factor(paste(beta_I1, beta_I2, beta_W1, beta_W2))), shape = 2) + 
@@ -98,15 +107,6 @@ ggplot(data = exper2) +
 # Experiment 3: vary parameters by type----------------------------------
 # assume recovery and mortality are characteristics of pathogen (therefore fixed)
 # define movement parameters to sweep across
-
-# Helper function to combine parameter sets we're testing
-test_param_builder <- function(change_params, all_params) {
-  change_names <- names(select(change_params,-control_type,-experiment_type))
-  test_params <- full_join(select(as.data.frame(all_params),-change_names),
-                           as.data.frame(change_params),
-                           by = character())
-}
-
 movement_params <- expand.grid(m1 = c(0,0.01, 0.005), 
                                m2 = c(0,0.01,0.005),
                                control_type = c("unique", "uniform"),
@@ -157,7 +157,7 @@ j_vals <- exper$j_vals
 max_j_unif = max(j_vals %>% filter(control_type == "uniform") %>% pull(j))
 max_j_uni = max(j_vals %>% filter(control_type == "unique") %>% pull(j))
 j_vals %>% 
-  select(-test_case) 
+  select(-test_case) %>% 
 reshape2::melt(c("m1", "m2","beta_W1","beta_W2","rho1","rho2", 
                  "b2", "C1", "C2", "epsilon1", "epsilon2",
                  "control_type","experiment_type")) %>%
@@ -165,6 +165,7 @@ reshape2::melt(c("m1", "m2","beta_W1","beta_W2","rho1","rho2",
                     b2+C1+C2+epsilon1+epsilon2 +
                     variable+experiment_type~control_type, value.var = "value") %>% 
   mutate(test_case = 1:n()) %>%
+  filter(variable %in% c("j_case1", "j_case2", "j_vacc1", "j_vacc2", "j")) %>% 
   ggplot() + 
   geom_abline() +
   geom_abline(slope = 1.1, color = "grey") +

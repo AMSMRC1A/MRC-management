@@ -22,12 +22,9 @@ test_mult_params <- function(test_params, base_params,
     i = 1:nrow(test_params),
     .packages = c("deSolve", "tidyverse", "pracma"),
     # explicitly give 'foreach' the functions and data it needs
-    .export = c(
-      "apply_oc", "chol", "adj",
-      "params", "oc_params", "run_oc",
-      "oc_optim", "calc_opt_v", "norm_oc", "calc_j",
-      "eval_j_integrand", "param_changer", "run_no_optim"
-    )
+    .export = c("apply_oc","param_changer","run_oc","oc_optim", "run_no_optim",
+                "adj","calc_opt_v","norm_oc","calc_j","eval_j_integrand",
+                "chol","params", "oc_params")
   ) %dopar% {
     apply_oc(
       change_params = test_params[i, ],
@@ -41,12 +38,12 @@ test_mult_params <- function(test_params, base_params,
   }
   test_params$test_case <- 1:nrow(test_params)
   states <- lapply(1:nrow(test_params), function(i) {
-    return(data.frame(test_case = i, output[[i]]$trajectories))
+    return(data.frame(test_case = i, vary_params[[i]]$trajectories))
   })
   states <- as.data.frame(do.call(rbind, states))
   states <- left_join(test_params, states)
-  j_vals <- lapply(1:length(output), function(i) {
-    return(data.frame(test_case = i, output[[i]][["j"]]))
+  j_vals <- lapply(1:nrow(test_params), function(i) {
+    return(data.frame(test_case = i, vary_params[[i]][["j"]]))
   })
   j_vals <- as.data.frame(do.call(rbind, j_vals))
   j_vals <- left_join(test_params, j_vals)
