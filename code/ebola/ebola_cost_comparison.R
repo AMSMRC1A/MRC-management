@@ -14,13 +14,14 @@ m_values<-seq(-5,-3,by=1)
 m_grid<-expand.grid(m1=m_values,m2=m_values)  #Expands 2 (or more) vectors into a grid
 m_grid<-m_grid%>%filter(abs(m1-m2)<2)
 #Set maximum control levels M1,M2
-maxControl<-c(.1,.1)
+maxControl<-c(.015,.015)
 
 #Set timeframe
-times=seq(0,365,by=1)
+times<-seq(0,365,by=1)
+preTimes<-seq(0,50,by=1)
 
 #set intial conditions (initial outbreak) - 10 I in patch 1
-initial=c(S1=parm$N1-10,E1=0,I1=10,H1=0,D1=0,R1=0,S2=parm$N2,E2=0,I2=0,H2=0,D2=0,R2=0)
+initial=c(S1=parm$N1-1,E1=0,I1=1,H1=0,D1=0,R1=0,S2=parm$N2,E2=0,I2=0,H2=0,D2=0,R2=0)
 
 v1 <- data.frame(times = times, v1 = rep(0,length(times)))
 v1_interp <- approxfun(v1, rule = 2)
@@ -33,7 +34,12 @@ parm_temp<-c(parm,v1_interp=v1_interp,v2_interp=v2_interp)
 uncontrolled<-lapply(1:dim(m_grid)[1],function(x){
   parm_temp$m1<-10^(m_grid[x,"m1"]) #overwrite variables of interest in the temp
   parm_temp$m2<-10^(m_grid[x,"m2"]) #parameter set
-  temp<-ode(y=initial,
+  prePeriod<-ode(y=initial,
+                 times=preTimes,
+                 func=ebola.ode,
+                 parms=parm_temp,
+                 method = "ode45")
+  temp<-ode(y=prePeriod[dim(prePeriod)[1],2:dim(prePeriod)[2]],
             times=times,
             func=ebola.ode,
             parms=parm_temp,
@@ -65,7 +71,13 @@ parm_temp<-parm
 unique_control<-lapply(1:dim(m_grid)[1],function(x){
   parm_temp$m1<-10^(m_grid[x,"m1"]) #overwrite variables of interest in the temp
   parm_temp$m2<-10^(m_grid[x,"m2"]) #parameter set
-  temp<-ebola.optim(inits=initial,M=maxControl,params=parm_temp,
+  prePeriod<-ode(y=initial,
+            times=preTimes,
+            func=ebola.ode,
+            parms=parm_temp,
+            method = "ode45")
+  temp<-ebola.optim(inits=prePeriod[dim(prePeriod)[1],2:dim(prePeriod)[2]],
+                    M=maxControl,params=parm_temp,
                     times=times,maxIter = 100,strictConv = F)
   return(temp)
 })
@@ -78,13 +90,8 @@ unique_control_vacc<-lapply(1:dim(m_grid)[1],function(x){
 })%>%bind_rows()%>%
   select(m1,m2,time,v1,v2)%>%
   pivot_longer(cols=c("v1","v2"),names_to = "patch",values_to = "vacc_rate")%>%
-  mutate(m1=paste0("10^",m1),m2=paste0("10^",m2),control_type="Unique")
+  mutate(m1=10^m1,m2=10^m2,control_type="Unique")
 
-#Renaming parameters so that they are more interpretable
-unique_control_vacc$m1<-unique_control_vacc$m1%>%
-  factor(levels=paste0("10^",seq(-5,1)),ordered = T)
-unique_control_vacc$m2<-unique_control_vacc$m2%>%
-  factor(levels=paste0("10^",seq(-5,1)),ordered = T)
 
 #Extract cost values---------------------
 unique_control_costs<-lapply(1:dim(m_grid)[1],function(x){
@@ -112,7 +119,13 @@ parm_temp<-parm
 same_control<-lapply(1:dim(m_grid)[1],function(x){
   parm_temp$m1<-10^(m_grid[x,"m1"]) #overwrite variables of interest in the temp
   parm_temp$m2<-10^(m_grid[x,"m2"]) #parameter set
-  temp<-ebola.optim(inits=initial,M=maxControl,params=parm_temp,
+  prePeriod<-ode(y=initial,
+                 times=preTimes,
+                 func=ebola.ode,
+                 parms=parm_temp,
+                 method = "ode45")
+  temp<-ebola.optim(inits=prePeriod[dim(prePeriod)[1],2:dim(prePeriod)[2]],
+                    M=maxControl,params=parm_temp,
                     times=times,maxIter = 100,strictConv = F,sameRate = T)
   return(temp)
 })
@@ -126,13 +139,7 @@ same_control_vacc<-lapply(1:dim(m_grid)[1],function(x){
 })%>%bind_rows()%>%
   select(m1,m2,time,v1,v2)%>%
   pivot_longer(cols=c("v1","v2"),names_to = "patch",values_to = "vacc_rate")%>%
-  mutate(m1=paste0("10^",m1),m2=paste0("10^",m2),control_type="Same")
-
-#Renaming parameters so that they are more interpretable
-same_control_vacc$m1<-same_control_vacc$m1%>%
-  factor(levels=paste0("10^",seq(-5,1)),ordered = T)
-same_control_vacc$m2<-same_control_vacc$m2%>%
-  factor(levels=paste0("10^",seq(-5,1)),ordered = T)
+  mutate(m1=10^m1,m2=10^m2,control_type="Same")
 
 #Extract cost values---------------------
 same_control_costs<-lapply(1:dim(m_grid)[1],function(x){
@@ -161,33 +168,50 @@ costs<-bind_rows(uncontrolled_cost,same_control_costs,unique_control_costs)
 costs$control_type<-costs$control_type%>%
   factor(levels=c("Uncontrolled","Same","Unique"))
 vacc_rates$m1<-vacc_rates$m1%>%
-  factor(levels=c("10^-3","10^-4","10^-5"),ordered = T)
+  factor(ordered = T)
 vacc_rates$m2<-vacc_rates$m2%>%
-  factor(levels=c("10^-5","10^-4","10^-3"),ordered = T)
+  factor(ordered = T)
 costs$m1<-costs$m1%>%
-  factor(levels=c(10^-3,10^-4,10^-5),
-         labels=c("10^-3","10^-4","10^-5"),ordered = T)
+  factor(ordered = T)
 costs$m2<-costs$m2%>%
-  factor(levels=c(10^-5,10^-4,10^-3),
-         labels=c("10^-5","10^-4","10^-3"),ordered = T)
+  factor(ordered = T)
 
 
 #Plot figure of vaccination rates
 rates_plot<-ggplot(vacc_rates,aes(x=time,y=vacc_rate,color=patch,linetype=control_type))+
   geom_line(size=1.25)+
   facet_grid(m1~m2,labeller = "label_both")+
+  scale_linetype_discrete(name="Control")+
+  scale_color_discrete(name="Patch",labels=c("1","2"))+
   ylab("Vaccination Rate")+
   xlab("Day")+
-  theme_bw()
+  theme_bw()+
+  guides(linetype=guide_legend(nrow=2),
+         color=guide_legend(nrow=2))+
+  theme(legend.position = "bottom",
+        legend.text=element_text(size=8),
+        legend.title = element_text(size=10),
+        axis.title = element_text(size=10),
+        axis.text = element_text(size=8),
+        strip.text = element_text(size=8))
 
 #Plot Cost Figure
 costs_plot<-ggplot(filter(costs,!Type%in%c("Total Cost","Patch 1 Total Cost","Patch 2 Total Cost")),
        aes(x=control_type,y=Cost,fill=Type))+
   geom_col()+
+  scale_x_discrete(breaks=c("Uncontrolled","Same","Unique"),labels=c("None","Same","Unique"))+
   facet_grid(m1~m2,labeller = "label_both")+
   ylab("Cost")+
-  xlab("Control Type")+
-  theme_bw()
+  xlab(NULL)+
+  scale_fill_discrete(name=NULL,guide=guide_legend(nrow=2))+
+  theme_bw()+
+  theme(legend.position = "bottom",
+        legend.text=element_text(size=8),
+        legend.title = element_text(size=10),
+        axis.title = element_text(size=10),
+        axis.text.y = element_text(size=8),
+        axis.text.x=element_text(size=8,angle=45,hjust=1),
+        strip.text = element_text(size=8))
 
 #Plot Relative Costs
 costs_relative<-costs%>%
@@ -195,12 +219,23 @@ costs_relative<-costs%>%
   pivot_wider(names_from = control_type,values_from = Cost)%>%
   mutate(Unique_rel=Unique/Uncontrolled,Same_rel=Same/Uncontrolled,.keep="unused")%>%
   pivot_longer(cols=c("Unique_rel","Same_rel"),names_to = "Cost_Type",values_to = "Cost")%>%
-  mutate(movement=paste("m1:",m1,",","m2:",m2))
+  mutate(movement=paste("m1:",m1,"\n","m2:",m2))
 
 rel_costs_plot<-ggplot(costs_relative,aes(x=movement,y=Cost,color=Cost_Type,fill=Cost_Type))+
   geom_col(position="dodge")+
-  xlab("Movement")+
+  scale_color_discrete(name="Control",breaks=c("Same_rel","Unique_rel"),labels=c("Same","Unique"))+
+  scale_fill_discrete(name="Control",breaks=c("Same_rel","Unique_rel"),labels=c("Same","Unique"))+
+  xlab(NULL)+
   ylab("Cost Relative to No Control")+
-  theme_bw()
+  theme_bw()+
+  theme(legend.position = "bottom",
+      legend.text=element_text(size=8),
+      legend.title = element_text(size=10),
+      axis.title = element_text(size=10),
+      axis.text.y = element_text(size=8),
+      axis.text.x = element_text(size=8,angle=45,hjust=1),
+      strip.text = element_text(size=8))
 
-ggarrange(rates_plot,costs_plot,rel_costs_plot,nrow=1)
+full_figure<-ggarrange(rates_plot,costs_plot,rel_costs_plot,nrow=1)
+full_figure
+ggsave("Example_Costs.tiff",plot=full_figure)
