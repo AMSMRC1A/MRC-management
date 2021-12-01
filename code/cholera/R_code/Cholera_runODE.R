@@ -15,6 +15,11 @@ v1 <- data.frame(times = times, v1 = rep(0, length(times)))
 v1_interp <- approxfun(v1, rule = 2)
 v2 <- data.frame(times = times, v2 = rep(0, length(times)))
 v2_interp <- approxfun(v2, rule = 2)
+# time varying sanitation
+u1 <- data.frame(times = times, u1 = rep(0, length(times)))
+u1_interp <- approxfun(u1, rule = 2)
+u2 <- data.frame(times = times, u2 = rep(0, length(times)))
+u2_interp <- approxfun(u2, rule = 2)
 
 IC <- c(
   S1 = 10000 - 1, S2 = 10000, # consider doubling population of Patch 1
@@ -24,14 +29,9 @@ IC <- c(
 )
 
 # solve ODE
-out <- ode(
-  y = IC,
-  times = times,
-  func = chol,
-  parms = params,
-  v1_interp = v1_interp,
-  v2_interp = v2_interp
-) %>% 
+out <- ode(y = IC, times = times, func = chol, parms = params, 
+           v1_interp = v1_interp, v2_interp = v2_interp, 
+           u1_interp = u1_interp, u2_interp = u2_interp) %>% 
   as_tibble()
 
 # Save time series to use as initial condition to optimal control scenarios
@@ -89,6 +89,7 @@ test_params <- expand.grid(
   nu1 = 7.56E-3,
   rho1 = c(0, 0.025),
   v1 = 0,
+  u1 = 0,
   # mu2 = c(0,0.00001),
   beta_I2 = 0, # c(0,0.0000264),
   beta_W2 = 0.000121, #* c(1/10,1,10), going to assume this for now based off of Kyle's fig
@@ -99,7 +100,8 @@ test_params <- expand.grid(
   xi2 = 7.56E-3,
   nu2 = 7.56E-3,
   rho2 = c(0, 0.025),
-  v2 = 0
+  v2 = 0,
+  u2 = 0
 )
 test_params$mu2 <- test_params$mu1 # assume birth rates are equal right now
 test_params$sim <- 1:nrow(test_params) # assign a simulation number

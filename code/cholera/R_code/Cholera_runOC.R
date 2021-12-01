@@ -8,7 +8,8 @@ library(pracma)
 # libraries for parallelization
 library(doParallel)
 library(foreach)
-registerDoParallel(4) # update this 4 if you want to use more cores
+# update this if you want to be less aggressive with your core use
+registerDoParallel(detectCores() - 2) 
 
 # load files
 source("CholeraSIRW_ODE.R")
@@ -21,31 +22,35 @@ source("Cholera_adjoints.R")
 # initial guesses - controls
 guess_v1 <- rep(0, length(times))
 guess_v2 <- rep(0, length(times))
+guess_u1 <- rep(0, length(times))
+guess_u2 <- rep(0, length(times))
 
 # setup optimal control (oc) parameters
 tolerance <- 0.01
 oc_params <- list(
   b1 = 1, b2 = 1,
   C1 = 0.125, C2 = 0.125,
-  epsilon1 = 10000, epsilon2 = 10000
+  epsilon1 = 10000, epsilon2 = 10000,
+  D1 = 0.125, D2 = 0.125,
+  eta1 = 100, eta2 = 100 
 )
 all_params <- c(params, oc_params)
 
 # Run optimization--------------------------------------------------------------
 oc <- run_oc(
-  guess_v1, guess_v2, IC, bounds, chol, adj,
+  guess_v1, guess_v2, guess_u1, guess_u2, IC, bounds, chol, adj,
   times, all_params, tolerance, "unique"
 )
 
 # collect trajectories and controls
 control_trajectories <- select(
   oc$trajectories,
-  time, S1, S2, I1, I2, R1, R2, W1, W2, v1, v2
+  time, S1, S2, I1, I2, R1, R2, W1, W2, v1, v2, u1, u2
 )
 # reconfigure table to use for plotting
 control_trajectories <- melt(control_trajectories, id = c("time"))
 control_trajectories$compartment <- substr(control_trajectories$variable, 1, 1)
-control_trajectories$compartment <- factor(control_trajectories$compartment, levels = c("S", "I", "R", "W", "v"))
+control_trajectories$compartment <- factor(control_trajectories$compartment, levels = c("S", "I", "R", "W", "v", "u"))
 control_trajectories$patch <- substr(control_trajectories$variable, 2, 2)
 
 # find no control ODE
@@ -98,8 +103,8 @@ j_no_control <- calc_j(
 j_max_control <- calc_j(
   times = times,
   optim_states = cbind(max_control_ode,
-    v1 = rep(bounds[[1]], nrow(max_control_ode)),
-    v2 = rep(bounds[[2]], nrow(max_control_ode))
+                       v1 = rep(bounds[[1]], nrow(max_control_ode)),
+                       v2 = rep(bounds[[2]], nrow(max_control_ode))
   ),
   params= all_params
 ) # ,

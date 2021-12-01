@@ -7,19 +7,23 @@
 # base_params: vector containing baseline params to be used if not varying
 #              includes both biological and OC params
 test_mult_params <- function(test_params, base_params,
-                             guess_v1, guess_v2, IC, bounds, times, tol) {
+                             guess_v1, guess_v2, 
+                             guess_u1, guess_u2, 
+                             IC, bounds, times, tol) {
   # Run optimal control calculations across test_params dataframe
   vary_params <- foreach(
     i = 1:nrow(test_params),
     .packages = c("deSolve", "tidyverse", "pracma"),
     # explicitly give 'foreach' the functions and data it needs
     .export = c("apply_oc","param_changer","run_oc","oc_optim", "run_no_optim",
-                "adj","calc_opt_v","norm_oc","calc_j","eval_j_integrand",
+                "adj","calc_opt_v", "calc_opt_u",
+                "norm_oc","calc_j","eval_j_integrand",
                 "chol","params", "oc_params")
   ) %dopar% {
     apply_oc(
       change_params = test_params[i, ],
       guess_v1 = guess_v1, guess_v2 = guess_v2,
+      guess_u1 = guess_u1, guess_u2 = guess_u2,
       init_x = IC, bounds = bounds,
       ode_fn = chol, adj_fn = adj,
       control_type = test_params[i, "control_type"],

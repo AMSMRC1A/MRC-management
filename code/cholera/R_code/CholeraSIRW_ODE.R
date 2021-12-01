@@ -1,7 +1,9 @@
 # model equations
 # v1_interp, v2_interp for time-varying vaccination
-# if v1_interp and v2_interp NA, assume constant vaccination rates v1 and v2
-chol <- function(times, y, params, v1_interp = NA, v2_interp = NA) {
+# if v1/v2/u1/u2_interp are NA, assume constant vaccination rates for v1/v2/u1/u2
+chol <- function(times, y, params, 
+                 v1_interp = NA, v2_interp = NA, 
+                 u1_interp = NA, u2_interp = NA) {
   with(as.list(c(y, params)), {
     if (is.function(v1_interp)) {
       v1 <- v1_interp(times)
@@ -9,10 +11,16 @@ chol <- function(times, y, params, v1_interp = NA, v2_interp = NA) {
     if (is.function(v2_interp)) {
       v2 <- v2_interp(times)
     }
-    dS1 <- mu1 * (S1 + I1 + R1) - beta_I1 * S1 * I1 - beta_W1 * S1 * W1 - (mu1 + v1) * S1 - m1 * S1 + m2 * S2
-    dS2 <- mu2 * (S2 + I2 + R2) - beta_I2 * S2 * I2 - beta_W2 * S2 * W2 - (mu2 + v2) * S2 + m1 * S1 - m2 * S2
-    dI1 <- beta_I1 * S1 * I1 + beta_W1 * S1 * W1 - (gamma1 + mu1 + delta1) * I1 - n1 * I1 + n2 * I2
-    dI2 <- beta_I2 * S2 * I2 + beta_W2 * S2 * W2 - (gamma2 + mu2 + delta2) * I2 + n1 * I1 - n2 * I2
+    if(is.function(u1_interp)){
+      u1 <- u1_interp(times)
+    }
+    if(is.function(u2_interp)){
+      u2 <- u2_interp(times)
+    }
+    dS1 <- mu1 * (S1 + I1 + R1) - beta_I1 * S1 * I1 - (1-u1) * beta_W1 * S1 * W1 - (mu1 + v1) * S1 - m1 * S1 + m2 * S2
+    dS2 <- mu2 * (S2 + I2 + R2) - beta_I2 * S2 * I2 - (1-u2) * beta_W2 * S2 * W2 - (mu2 + v2) * S2 + m1 * S1 - m2 * S2
+    dI1 <- beta_I1 * S1 * I1 + (1-u1) * beta_W1 * S1 * W1 - (gamma1 + mu1 + delta1) * I1 - n1 * I1 + n2 * I2
+    dI2 <- beta_I2 * S2 * I2 + (1-u2) * beta_W2 * S2 * W2 - (gamma2 + mu2 + delta2) * I2 + n1 * I1 - n2 * I2
     dR1 <- gamma1 * I1 - mu1 * R1 + v1 * S1 - m1 * R1 + m2 * R2
     dR2 <- gamma2 * I2 - mu2 * R2 + v2 * S2 + m1 * R1 - m2 * R2
     dW1 <- xi1 * I1 - nu1 * W1 - rho1 * W1

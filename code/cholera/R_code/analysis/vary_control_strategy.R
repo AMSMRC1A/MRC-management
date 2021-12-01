@@ -32,15 +32,55 @@ test_param_builder <- function(change_params, all_params) {
 # initial guesses - controls----------------------------------------------------
 guess_v1 <- rep(0, length(times))
 guess_v2 <- rep(0, length(times))
+guess_u1 <- rep(0, length(times))
+guess_u2 <- rep(0, length(times))
 
 # setup baseline optimal control parameters-------------------------------------
-tol <- 0.01 # tolerance parameter for optimization
-oc_params <- list(
-  b1 = 1, b2 = 1, # cost of cases
-  C1 = 0.125, C2 = 0.125, # cost of vaccinations
-  epsilon1 = 10000, epsilon2 = 10000
-) # non-linearity
-all_params <- as.data.frame(c(params, oc_params))
+tol = 0.01 # tolerance parameter for optimization
+oc_params <- list(b1 = 1, b2 = 1, # cost of cases
+               C1 = 0.125, C2 = 0.125,  # cost of vaccinations
+               epsilon1  = 10000, epsilon2 = 10000, # non-linearity for vacc
+               D1 = 0.125, D2 = 0.125, # cost of sanitation 
+               eta1 = 100, eta2 = 100 ) # non-linearity for sanitation
+
+# Experiment 0: vary control type only------------------------------------------
+# define parameters to sweep across
+test_params <- expand.grid(
+  m1 = 0, 
+  m2 = 0,
+  control_type = c("unique", "uniform")
+)
+
+# calculate OC
+# begin system clock
+# to keep track of run-time, guide decisions about code optimization
+start_time <- Sys.time()
+
+# run OC across multiple parameters
+exper0 <- test_mult_params(
+  test_params = test_params,
+  base_params = c(params, oc_params),
+  guess_v1 = guess_v1, guess_v2 = guess_v2,
+  guess_u1 = guess_u1, guess_u2 = guess_u2,
+  IC = IC, bounds = bounds, times = times, tol = tol
+)
+
+# calculate run-time and print it
+end_time <- Sys.time()
+end_time - start_time
+
+exper0$states %>% 
+  melt(c("m1", "m2", "control_type", "test_case", "time")) %>%
+  mutate(patch = substr(variable, 2,2), 
+         variable = substr(variable, 1,1)) %>%
+  filter(control_type %in% c("uniform", "unique")) %>%
+  mutate(plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform")) %>%
+  ggplot(aes(x = time, y = value, color = plot_var)) + 
+  geom_point(size = 1)+
+  facet_wrap(~ variable, scale = "free_y") +
+  scale_color_manual(values = c("red", "blue", "black")) +
+  theme_bw()
+
 # Experiment 1: vary movement and control type----------------------------------
 # define parameters to sweep across
 test_params <- expand.grid(
@@ -62,6 +102,7 @@ exper1 <- test_mult_params(
   test_params = test_params,
   base_params = all_params,
   guess_v1 = guess_v1, guess_v2 = guess_v2,
+  guess_u1 = guess_u1, guess_u2 = guess_u2,
   IC = IC, bounds = bounds, times = times, tol = tol
 )
 
@@ -93,8 +134,10 @@ exper2 <- test_mult_params(
   test_params = test_params,
   base_params = c(params, oc_params),
   guess_v1 = guess_v1, guess_v2 = guess_v2,
+  guess_u1 = guess_u1, guess_u2 = guess_u2,
   IC = IC, bounds = bounds, times = times, tol = tol
 )
+
 # calculate run-time and print it
 end_time <- Sys.time()
 end_time - start_time

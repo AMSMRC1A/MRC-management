@@ -4,6 +4,7 @@ params <- data.frame(
   beta_I1 = 2.64E-5, beta_I2 = 2.64E-5, # transmission rate from people (consider setting to 0)
   beta_W1 = 1.01E-4, beta_W2 = 1.01E-4, # transmission rate from water (consider increasing by an order of magnitude)
   v1 = 0, v2 = 0, # vaccination rate
+  u1 = 0, u2 = 0, # reduction in transmission due to santation 
   m1 = 0, m2 = 0, # movement rate (non-infected)
   n1 = 0, n2 = 0, # movement rate (infected)
   gamma1 = 0.25, gamma2 = 0.25, # recovery rate
@@ -14,10 +15,15 @@ params <- data.frame(
 )
 
 # bounds of optimal control (OC) parameters
-bounds <- list(MaxV1 = 0.015, MaxV2 = 0.015)
+bounds <- list(V1_min = 0, V1_max = 0.015, 
+               V2_min = 0, V2_max = 0.015, 
+               U1_min = 0, U1_max = 0.4, 
+               U2_min = 0, U2_max = 0.4)
 max_params <- params
-max_params$v1 <- bounds$M1
-max_params$v2 <- bounds$M2
+max_params$v1 <- bounds$V1_max
+max_params$v2 <- bounds$V2_max
+max_params$u1 <- bounds$U1_max
+max_params$u2 <- bounds$U2_max
 
 # define time series (units of days)
 times <- seq(0, 200, 0.05)

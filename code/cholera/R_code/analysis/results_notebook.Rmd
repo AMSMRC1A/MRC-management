@@ -1,0 +1,140 @@
+---
+title: "Cholera Optimal Control Results"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# markdown settings-------------------------------------------------------------
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+
+# required packages-------------------------------------------------------------
+library(ggplot2)
+library(deSolve)
+library(reshape2)
+library(tidyverse)
+library(cowplot)
+library(pracma)
+library(RColorBrewer)
+
+# to paralellize
+library(doParallel)
+library(foreach)
+registerDoParallel(4) # update this 4 if you want to use more cores
+```
+
+```{r oc_setup}
+# load optimal control files--------------------------------------------------
+source("CholeraSIRW_ODE.R")
+source("Cholera_params.R")
+source("Cholera_OCfunc.R")
+source("Cholera_adjoints.R")
+source("Cholera_analysisfunc.R")
+
+# initial guesses - controls----------------------------------------------------
+guess_v1 <- rep(0, length(times))
+guess_v2 <- rep(0, length(times))
+guess_u1 <- rep(0, length(times))
+guess_u2 <- rep(0, length(times))
+
+# setup baseline optimal control parameters-------------------------------------
+tol = 0.01 # tolerance parameter for optimization
+oc_params <- c(b1 = 1, b2 = 1, # cost of cases
+               C1 = 0.125, C2 = 0.125,  # cost of vaccinations
+               epsilon1  = 10000, epsilon2 = 10000, # non-linearity for vacc
+               D1 = 0.125, D2 = 0.125, # cost of sanitation 
+               eta1 = 100, eta2 = 100 ) # non-linearity for sanitation
+
+# setup control_type parameters to test-----------------------------------------
+# unique: optimal control can vary between patches
+# uniform: optimal control must be the same in each patch
+test_params <- data.frame(
+  m1 = 0,
+  control_type = c("unique", "uniform") # how to optimize control in each patch
+)
+```
+
+```{r plot_setup}
+compartment_names = c("susceptible", "infected", "recovered", "water", "vaccination", "sanitation")
+names(compartment_names) = c("S", "I", "R", "W", "v", "u")
+```
+
+## Cholera Optimal Control
+
+Here we keep the results of various numerical experiments of optimal control outcomes in the Cholera model. Specifically, we focus on the difference between the optimal strategy, when control is customized to each patch versus the "one size fits all strategy" where both patches are forced to be given the same control. 
+
+## No control
+
+```{r}
+# read in csv with solution to ode without control------------------------------
+uncontrolled_epi <- read.csv("analysis/initialOutbreak_noControl_forIC.csv")
+
+# plot the time series in each compartment by patch ----------------------------
+uncontrolled_epi %>%
+  # melt from wide to long format
+  melt(c("time")) %>%
+  # use variable names to distinguish compartment and patch
+  mutate(compartment = substr(variable, 1, 1),
+         compartment = factor(compartment, levels = c("S", "I", "R", "W")),
+         patch = substr(variable, 2, 2)) %>%
+  # plot time series
+  ggplot(aes(x = time, y = value, color = patch)) + 
+  geom_line() +
+  facet_wrap(vars(compartment), scales = "free") +
+  theme_bw() + 
+  theme(axis.title.y = element_blank(),
+        legend.position = "bottom")
+  
+```
+
+
+## Vaccination Only
+Next we consider the case with only vaccination (no sanitation).
+
+```{r vacc_only_oc}
+# exclude sanitation by setting u max to 0--------------------------------------
+bounds_vonly <- bounds
+bounds_vonly["U1_max"] = 0
+bounds_vonly["U2_max"] = 0
+
+# calculate optimal control-----------------------------------------------------
+# run OC across multiple parameters
+exper_v_only <- test_mult_params(
+  test_params = test_params,
+  return_type = c("X", "j", "v", "u"),
+  base_params = c(params, oc_params),
+  guess_v1 = guess_v1, guess_v2 = guess_v2,
+  guess_u1 = guess_u1, guess_u2 = guess_u2,
+  IC = IC, bounds = bounds_vonly, times = times, tol = tol
+)
+
+# reformat output---------------------------------------------------------------
+exper_v_only <- reformat_mult_params_output(output = exper_v_only, 
+                                            test_params = test_params)
+```
+
+```{r vacc_only_plot_time_series}
+# plot states 
+exper_v_only$v %>% 
+  left_join(exper_v_only$u) %>%
+  left_join(exper_v_only$X) %>% 
+  melt(c("m1", "control_type", "test_case", "time")) %>%
+  mutate(patch = substr(variable, 2,2), 
+         variable = substr(variable, 1,1)) %>%
+  filter(control_type %in% c("uniform", "unique")) %>%
+  mutate(plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
+         variable = factor(variable, levels = c("S", "I", "R", "W", "v", "u"))) %>%
+  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) + 
+  geom_line(size = 1)+
+  facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
+  scale_linetype_manual(values = c("dotted", "solid")) +
+  theme_bw()+
+  theme(legend.position = "bottom",
+        panel.grid = element_blank())
+```
+
+
+## Sanitation Only
+
+## Both Vaccination and Sanitation
+
+
