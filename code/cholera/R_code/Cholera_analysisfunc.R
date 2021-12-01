@@ -9,15 +9,6 @@
 test_mult_params <- function(test_params, base_params,
                              guess_v1, guess_v2, IC, bounds, times, tol) {
   # Run optimal control calculations across test_params dataframe
-  # helper_function <- function(change_params, guess_v1, guess_v2, init_x, bounds,
-  #                             ode_fn, adj_fn, control_type,
-  #                             times, params, tol) {
-  #   temp <- apply_oc(change_params, guess_v1, guess_v2, init_x, bounds,
-  #                    ode_fn, adj_fn, control_type,
-  #                    times, params, tol)
-  #   temp$trajectories <- select(temp$trajectories, -starts_with("lambda"))
-  #   return(temp)
-  # }
   vary_params <- foreach(
     i = 1:nrow(test_params),
     .packages = c("deSolve", "tidyverse", "pracma"),
