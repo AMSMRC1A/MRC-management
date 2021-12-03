@@ -1,8 +1,8 @@
 # define parameters
 params <- c(
   mu1 = 0, mu2 = 0, # natural birth/death rate 1E-4
-  beta_I1 = 2.64E-5, beta_I2 = 2.64E-5, # transmission rate from people (consider settings to 0)
-  beta_W1 = 1.01E-4, beta_W2 = 1.01E-4, # transmission rate from water (consider increasing an OOM)
+  beta_I1 = 2.64E-6, beta_I2 = 2.64E-6, # transmission rate from people (consider settings to 0)
+  beta_W1 = 1.01E-5, beta_W2 = 1.01E-5, # transmission rate from water (consider increasing an OOM)
   v1 = 0, v2 = 0, # vaccination rate
   u1 = 0, u2 = 0, # reduction in transmission due to santation 
   m1 = 0, m2 = 0, # movement rate (non-infected)

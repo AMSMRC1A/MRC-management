@@ -42,9 +42,9 @@ guess_u2 <- rep(0, length(times))
 tol = 0.01 # tolerance parameter for optimization
 oc_params <- c(b1 = 1, b2 = 1, # cost of cases
                C1 = 0.125, C2 = 0.125,  # cost of vaccinations
-               epsilon1  = 10000, epsilon2 = 10000, # non-linearity for vacc
+               epsilon1  = 1000000, epsilon2 = 1000000, # non-linearity for vacc
                D1 = 0.0125, D2 = 0.0125, # cost of sanitation 
-               eta1 = 100, eta2 = 100 ) # non-linearity for sanitation
+               eta1 = 10000, eta2 = 10000 ) # non-linearity for sanitation
 
 # setup control_type parameters to test-----------------------------------------
 # unique: optimal control can vary between patches
@@ -72,18 +72,21 @@ patch_colors2 = c("#DE2D26", "#3182BD")
 cost_colors6 = c(rev(brewer.pal(3, "Reds")), rev(brewer.pal(3, "Blues")))
 ```
 
+# Experiments {.tabset}
 
-Here we keep the results of various numerical experiments of optimal control outcomes in the Cholera model. Specifically, we focus on the difference between the optimal strategy, when control is customized to each patch versus the "one size fits all strategy" where both patches are forced to be given the same control. 
+Here we keep the results of various numerical experiments of optimal control outcomes in the Cholera model. Specifically, we focus on the difference between the optimal strategy, when control is customized to each patch versus the "one size fits all strategy" where both patches are forced to be given the same control.
 
-Our model uses the following parameters and initial conditions: 
-```{r params}
-knitr::kable(params, format="markdown")
-knitr::kable(oc_params, format = "markdown")
-knitr::kable(IC, format = "markdown")
-```
+## Parameters 
+The following experiments use these  parameters and initial conditions.
+
+Parameters: `r knitr::kable(params, format="markdown")`
+
+Optimal control parameters: `r knitr::kable(oc_params, format = "markdown")`
+
+Initial conditions: `r knitr::kable(IC, format = "markdown")`
 
 ## No control
-
+Black line indicates the start of controls in other scenarios at day 50.
 ```{r}
 # read in csv with solution to ode without control------------------------------
 uncontrolled_epi <- read.csv("analysis/initialOutbreak_noControl_forIC.csv")
@@ -100,7 +103,7 @@ uncontrolled_epi %>%
   ggplot(aes(x = time, y = value, color = patch)) + 
   geom_line() +
   geom_vline(aes(xintercept = 50)) +
-  facet_wrap(vars(compartment), scales = "free") +
+  facet_wrap(vars(compartment), scales = "free", labeller = labeller(variable = compartment_names)) +
   scale_color_manual(values = patch_colors2) +
   theme_bw() + 
   theme(axis.title.y = element_blank(),
@@ -112,6 +115,8 @@ uncontrolled_epi %>%
 
 ## Vaccination Only
 We consider the case with only vaccination (no sanitation).
+
+Controls start at day 50.
 
 ```{r vacc_only_oc}
 # exclude sanitation by setting u max to 0--------------------------------------
@@ -186,6 +191,8 @@ exper_v_only$j %>%
 
 ## Sanitation Only
 We also consider the case with only sanitation (no vaccination).
+
+Controls start at day 50.
 ```{r sani_only_oc}
 # exclude sanitation by setting u max to 0--------------------------------------
 bounds_uonly <- bounds
@@ -258,6 +265,8 @@ exper_u_only$j %>%
 
 ## Both Vaccination and Sanitation
 Lastly, we show how results change if we optimize both controls.
+
+Controls start at day 50.
 
 ```{r both_oc}
 # calculate optimal control-----------------------------------------------------

@@ -22,7 +22,7 @@ u2 <- data.frame(times = times, u2 = rep(0, length(times)))
 u2_interp <- approxfun(u2, rule = 2)
 
 IC <- c(
-  S1 = 10000 - 1, S2 = 10000, # consider doubling population of Patch 1
+  S1 = 100000 - 1, S2 = 100000, # consider doubling population of Patch 1
   I1 = 1, I2 = 0,
   R1 = 0, R2 = 0,
   W1 = 0, W2 = 0
