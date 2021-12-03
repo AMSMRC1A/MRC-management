@@ -120,8 +120,9 @@ oc_optim <- function(v1, v2, u1, u2, x, lambda, # initial guesses
                      times, params, control_type) {
   with(as.list(bounds), {
     counter <- 1
+    counter_limit <- 50
     test <- -1
-    while (test < 0 & counter < 50) {
+    while (test < 0 & counter < counter_limit) {
       # set previous control, state, and adjoint
       oldv1 <- v1
       oldv2 <- v2
@@ -173,7 +174,9 @@ oc_optim <- function(v1, v2, u1, u2, x, lambda, # initial guesses
         tol * norm_oc(lambda[, -1]) - norm_oc(oldlambda[, -1] - lambda[, -1])
       )
       counter <- counter + 1
+      print(paste(counter,test))
     }
+    if (counter == counter_limit) {warning("Hit the limit without convergence!", immediate. = TRUE)}
     return(list(
       x = x, lambda = lambda, v1 = v1, v2 = v2, u1 = u1, u2 = u2,
       j = calc_j(times, cbind(as.data.frame(x), v1 = v1, v2 = v2, u1 = u1, u2 = u2), params)

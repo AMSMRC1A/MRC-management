@@ -42,9 +42,9 @@ guess_u2 <- rep(0, length(times))
 tol = 0.01 # tolerance parameter for optimization
 oc_params <- c(b1 = 1, b2 = 1, # cost of cases
                C1 = 0.125, C2 = 0.125,  # cost of vaccinations
-               epsilon1  = 1000000, epsilon2 = 1000000, # non-linearity for vacc
+               epsilon1  = 10000, epsilon2 = 10000, # non-linearity for vacc
                D1 = 0.0125, D2 = 0.0125, # cost of sanitation 
-               eta1 = 10000, eta2 = 10000 ) # non-linearity for sanitation
+               eta1 = 100, eta2 = 100 ) # non-linearity for sanitation
 
 # setup control_type parameters to test-----------------------------------------
 # unique: optimal control can vary between patches

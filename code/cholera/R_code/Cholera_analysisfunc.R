@@ -12,6 +12,7 @@ test_mult_params <- function(test_params, return_type, base_params,
                              guess_u1, guess_u2, 
                              IC, bounds, times, tol) {
   # Run optimal control calculations across test_params dataframe
+  browser()
   vary_params <- foreach(
     i = 1:nrow(test_params),
     .packages = c("deSolve", "tidyverse", "pracma"),
