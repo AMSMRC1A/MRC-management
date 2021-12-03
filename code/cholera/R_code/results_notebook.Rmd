@@ -57,7 +57,7 @@ test_params <- data.frame(
 ```
 
 ```{r plot_setup}
-# define labels to make plots more interpretable--------------------------------
+# define labels to make plots more interpretable
 # names of each compartment/control
 compartment_names <- c(
   "susceptible", "infected", "recovered",
@@ -74,27 +74,43 @@ names(cost_names) <- c(
   "j_case2", "j_vacc2", "j_sani2"
 )
 
-# define color palettes for plots-----------------------------------------------
+# define color palettes for plots
 patch_colors2 <- c("#DE2D26", "#3182BD")
 cost_colors6 <- c(rev(brewer.pal(3, "Reds")), rev(brewer.pal(3, "Blues")))
+
+
+# make parameter tables look nice
+# KD: this is a temporary fix to make things look nice.
+#     I think the way I reconfigured on my branch will allow us to avoid doing this
+params_table<- matrix(as.list(params),1, length(as.list(params)))
+colnames(params_table) <- names(as.list(params))
+
+oc_params_table<- matrix(as.list(oc_params),1, length(as.list(oc_params)))
+colnames(oc_params_table) <- names(as.list(oc_params))
+
+IC_table<- matrix(as.list(IC),1, length(as.list(IC)))
+colnames(IC_table) <- names(as.list(IC))
+
 ```
 
 # Experiments {.tabset}
 
 Here we keep the results of various numerical experiments of optimal control outcomes in the Cholera model. Specifically, we focus on the difference between the optimal strategy, when control is customized to each patch versus the "one size fits all strategy" where both patches are forced to be given the same control.
 
-## Parameters 
+## Experiment 1 (no movement between patches) {.tabset}
+
+### Parameters 
 The following experiments use these  parameters and initial conditions.
 
-Parameters: `r knitr::kable(params, format="markdown")`
+Parameters: `r knitr::kable(params_table, format="markdown")`
 
-Optimal control parameters: `r knitr::kable(oc_params, format = "markdown")`
+Optimal control parameters: `r knitr::kable(oc_params_table, format = "markdown")`
 
-Initial conditions: `r knitr::kable(IC, format = "markdown")`
+Initial conditions: `r knitr::kable(IC_table, format =  "markdown")`
 
-## No control
-Black line indicates the start of controls in other scenarios at day 50.
-```{r}
+### No control
+Black line indicates the start of controls in other scenarios at day `r response_time`.
+```{r no-control}
 # read in csv with solution to ode without control------------------------------
 uncontrolled_epi <- read.csv("analysis/initialOutbreak_noControl_forIC.csv")
 
@@ -111,7 +127,7 @@ uncontrolled_epi %>%
   # plot time series
   ggplot(aes(x = time, y = value, color = patch)) +
   geom_line() +
-  geom_vline(aes(xintercept = 50)) +
+  geom_vline(aes(xintercept = response_time)) +
   facet_wrap(vars(compartment), scales = "free", labeller = labeller(variable = compartment_names)) +
   scale_color_manual(values = patch_colors2) +
   theme_bw() +
@@ -123,10 +139,10 @@ uncontrolled_epi %>%
 ```
 
 
-## Vaccination Only
+### Vaccination Only
 We consider the case with only vaccination (no sanitation).
 
-Controls start at day 50.
+Controls start at day `r response_time`.
 
 ```{r vacc_only_oc}
 # exclude sanitation by setting u max to 0--------------------------------------
@@ -145,14 +161,14 @@ exper_v_only <- test_mult_params(
   IC = IC, bounds = bounds_vonly, times = times, tol = tol
 )
 
-# reformat output---------------------------------------------------------------
+# reformat output
 exper_v_only <- reformat_mult_params_output(
   output = exper_v_only,
   test_params = test_params
 )
 ```
 
-```{r vacc_only_plot_time_series}
+```{r vacc_only_plot, fig.show="hold", out.width = "100%"}
 # plot states
 exper_v_only$v %>%
   left_join(exper_v_only$u) %>%
@@ -177,9 +193,8 @@ exper_v_only$v %>%
     legend.position = "bottom",
     panel.grid = element_blank()
   )
-```
 
-```{r vacc_only_plot_costs}
+# plot costs
 exper_v_only$j %>%
   melt(c("m1", "control_type", "test_case")) %>%
   filter(variable != "j") %>%
@@ -216,7 +231,7 @@ exper_v_only$j %>%
 ```
 
 
-## Sanitation Only
+### Sanitation Only
 We also consider the case with only sanitation (no vaccination).
 
 Controls start at day 50.
@@ -237,14 +252,14 @@ exper_u_only <- test_mult_params(
   IC = IC, bounds = bounds_uonly, times = times, tol = tol
 )
 
-# reformat output---------------------------------------------------------------
+# reformat output
 exper_u_only <- reformat_mult_params_output(
   output = exper_u_only,
   test_params = test_params
 )
 ```
 
-```{r sani_only_plot_time_series}
+```{r sani_only_plot, fig.show="hold", out.width = "100%"}
 # plot states
 exper_u_only$v %>%
   left_join(exper_u_only$u) %>%
@@ -269,9 +284,8 @@ exper_u_only$v %>%
     legend.position = "bottom",
     panel.grid = element_blank()
   )
-```
 
-```{r sani_only_plot_costs}
+# plot costs
 exper_u_only$j %>%
   melt(c("m1", "control_type", "test_case")) %>%
   filter(variable != "j") %>%
@@ -307,7 +321,8 @@ exper_u_only$j %>%
   )
 ```
 
-## Both Vaccination and Sanitation
+### Both Vaccination and Sanitation
+
 Lastly, we show how results change if we optimize both controls.
 
 Controls start at day 50.
@@ -324,14 +339,14 @@ exper_both <- test_mult_params(
   IC = IC, bounds = bounds, times = times, tol = tol
 )
 
-# reformat output---------------------------------------------------------------
+# reformat output
 exper_both <- reformat_mult_params_output(
   output = exper_both,
   test_params = test_params
 )
 ```
 
-```{r both_plot_time_series}
+```{r both_plot, fig.show="hold", out.width = "100%"}
 # plot states
 exper_both$v %>%
   left_join(exper_both$u) %>%
@@ -356,9 +371,8 @@ exper_both$v %>%
     legend.position = "bottom",
     panel.grid = element_blank()
   )
-```
 
-```{r both_plot_costs}
+# 
 exper_both$j %>%
   melt(c("m1", "control_type", "test_case")) %>%
   filter(variable != "j") %>%
