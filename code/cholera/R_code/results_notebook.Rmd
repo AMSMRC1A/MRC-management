@@ -21,7 +21,7 @@ library(RColorBrewer)
 # to paralellize
 library(doParallel)
 library(foreach)
-registerDoParallel(4) # update this 4 if you want to use more cores
+registerDoParallel(detectCores() - 2) # update this 4 if you want to use more cores
 ```
 
 ```{r oc_setup}
@@ -39,12 +39,13 @@ guess_u1 <- rep(0, length(times))
 guess_u2 <- rep(0, length(times))
 
 # setup baseline optimal control parameters-------------------------------------
-tol = 0.01 # tolerance parameter for optimization
-oc_params <- c(b1 = 1, b2 = 1, # cost of cases
-               C1 = 0.125, C2 = 0.125,  # cost of vaccinations
-               epsilon1  = 10000, epsilon2 = 10000, # non-linearity for vacc
-               D1 = 0.0125, D2 = 0.0125, # cost of sanitation 
-               eta1 = 100, eta2 = 100 ) # non-linearity for sanitation
+tol <- .01 # tolerance parameter for optimization
+oc_params <- c(
+  b1 = 1, b2 = 1, # cost of cases
+  C1 = 0.125, C2 = 0.125, # cost of vaccinations
+  epsilon1 = 10000, epsilon2 = 10000, # non-linearity for vacc
+  D1 = 0.0125, D2 = 0.0125, # cost of sanitation
+  eta1 = 1000, eta2 = 1000) # non-linearity for sanitation
 
 # setup control_type parameters to test-----------------------------------------
 # unique: optimal control can vary between patches
@@ -58,18 +59,24 @@ test_params <- data.frame(
 ```{r plot_setup}
 # define labels to make plots more interpretable--------------------------------
 # names of each compartment/control
-compartment_names = c("susceptible", "infected", "recovered", 
-                      "water", "vaccination", "sanitation")
-names(compartment_names) = c("S", "I", "R", "W", "v", "u")
+compartment_names <- c(
+  "susceptible", "infected", "recovered",
+  "water", "vaccination", "sanitation"
+)
+names(compartment_names) <- c("S", "I", "R", "W", "v", "u")
 # names of each aspect of cost function
-cost_names =  c("P1: cases", "P1: vaccination", "P1: sanitation",
-                "P2: cases", "P2: vaccination", "P2: sanitation")
-names(cost_names) = c("j_case1", "j_vacc1", "j_sani1",
-                      "j_case2", "j_vacc2", "j_sani2")
+cost_names <- c(
+  "P1: cases", "P1: vaccination", "P1: sanitation",
+  "P2: cases", "P2: vaccination", "P2: sanitation"
+)
+names(cost_names) <- c(
+  "j_case1", "j_vacc1", "j_sani1",
+  "j_case2", "j_vacc2", "j_sani2"
+)
 
 # define color palettes for plots-----------------------------------------------
-patch_colors2 = c("#DE2D26", "#3182BD")
-cost_colors6 = c(rev(brewer.pal(3, "Reds")), rev(brewer.pal(3, "Blues")))
+patch_colors2 <- c("#DE2D26", "#3182BD")
+cost_colors6 <- c(rev(brewer.pal(3, "Reds")), rev(brewer.pal(3, "Blues")))
 ```
 
 # Experiments {.tabset}
@@ -96,20 +103,23 @@ uncontrolled_epi %>%
   # melt from wide to long format
   melt(c("time")) %>%
   # use variable names to distinguish compartment and patch
-  mutate(compartment = substr(variable, 1, 1),
-         compartment = factor(compartment, levels = c("S", "I", "R", "W")),
-         patch = substr(variable, 2, 2)) %>%
+  mutate(
+    compartment = substr(variable, 1, 1),
+    compartment = factor(compartment, levels = c("S", "I", "R", "W")),
+    patch = substr(variable, 2, 2)
+  ) %>%
   # plot time series
-  ggplot(aes(x = time, y = value, color = patch)) + 
+  ggplot(aes(x = time, y = value, color = patch)) +
   geom_line() +
   geom_vline(aes(xintercept = 50)) +
   facet_wrap(vars(compartment), scales = "free", labeller = labeller(variable = compartment_names)) +
   scale_color_manual(values = patch_colors2) +
-  theme_bw() + 
-  theme(axis.title.y = element_blank(),
-        legend.position = "bottom",
-        panel.grid = element_blank())
-  
+  theme_bw() +
+  theme(
+    axis.title.y = element_blank(),
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
 ```
 
 
@@ -121,8 +131,8 @@ Controls start at day 50.
 ```{r vacc_only_oc}
 # exclude sanitation by setting u max to 0--------------------------------------
 bounds_vonly <- bounds
-bounds_vonly["U1_max"] = 0
-bounds_vonly["U2_max"] = 0
+bounds_vonly["U1_max"] <- 0
+bounds_vonly["U2_max"] <- 0
 
 # calculate optimal control-----------------------------------------------------
 # run OC across multiple parameters
@@ -136,29 +146,37 @@ exper_v_only <- test_mult_params(
 )
 
 # reformat output---------------------------------------------------------------
-exper_v_only <- reformat_mult_params_output(output = exper_v_only, 
-                                            test_params = test_params)
+exper_v_only <- reformat_mult_params_output(
+  output = exper_v_only,
+  test_params = test_params
+)
 ```
 
 ```{r vacc_only_plot_time_series}
-# plot states 
-exper_v_only$v %>% 
+# plot states
+exper_v_only$v %>%
   left_join(exper_v_only$u) %>%
-  left_join(exper_v_only$X) %>% 
+  left_join(exper_v_only$X) %>%
   melt(c("m1", "control_type", "test_case", "time")) %>%
-  mutate(patch = substr(variable, 2,2), 
-         variable = substr(variable, 1,1)) %>%
+  mutate(
+    patch = substr(variable, 2, 2),
+    variable = substr(variable, 1, 1)
+  ) %>%
   filter(control_type %in% c("uniform", "unique")) %>%
-  mutate(plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
-         variable = factor(variable, levels = c("S", "I", "R", "W", "v", "u"))) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) + 
-  geom_line(size = 1)+
+  mutate(
+    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
+    variable = factor(variable, levels = c("S", "I", "R", "W", "v", "u"))
+  ) %>%
+  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
+  geom_line(size = 1) +
   facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
   scale_color_manual(values = patch_colors2) +
   scale_linetype_manual(values = c("dotted", "solid")) +
-  theme_bw()+
-  theme(legend.position = "bottom",
-        panel.grid = element_blank())
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
 ```
 
 ```{r vacc_only_plot_costs}
@@ -166,26 +184,35 @@ exper_v_only$j %>%
   melt(c("m1", "control_type", "test_case")) %>%
   filter(variable != "j") %>%
   mutate(variable = factor(variable,
-                           levels = c("j_case1", "j_vacc1", "j_sani1",
-                                      "j_case2", "j_vacc2", "j_sani2",
-                                      "j"))) %>%
-  ggplot(aes(x = control_type)) + 
-  geom_bar(aes(y = value, fill = variable), 
-           stat = "identity", position = "stack")+
-  geom_text(aes(y = value, label = round(value), group = variable), 
-            position=position_stack(vjust=0.5))+
-  geom_text(data = exper_v_only$j ,
-            aes(y = j, label = paste0("Total cost: ", round(j))), 
-            vjust = 0)+
-  guides(fill = guide_legend(nrow = 3))+
+    levels = c(
+      "j_case1", "j_vacc1", "j_sani1",
+      "j_case2", "j_vacc2", "j_sani2",
+      "j"
+    )
+  )) %>%
+  ggplot(aes(x = control_type)) +
+  geom_bar(aes(y = value, fill = variable),
+    stat = "identity", position = "stack"
+  ) +
+  geom_text(aes(y = value, label = round(value), group = variable),
+    position = position_stack(vjust = 0.5)
+  ) +
+  geom_text(
+    data = exper_v_only$j,
+    aes(y = j, label = paste0("Total cost: ", round(j))),
+    vjust = 0
+  ) +
+  guides(fill = guide_legend(nrow = 3)) +
   scale_fill_manual(values = cost_colors6, labels = cost_names) +
-  labs(y = "cost")+
-  scale_x_discrete(expand = c(0,0))+
-  theme_bw()+
-  theme(axis.title.x = element_blank(),
-        legend.position = "bottom",
-        legend.title = element_blank(),
-        panel.grid = element_blank())
+  labs(y = "cost") +
+  scale_x_discrete(expand = c(0, 0)) +
+  theme_bw() +
+  theme(
+    axis.title.x = element_blank(),
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    panel.grid = element_blank()
+  )
 ```
 
 
@@ -196,8 +223,8 @@ Controls start at day 50.
 ```{r sani_only_oc}
 # exclude sanitation by setting u max to 0--------------------------------------
 bounds_uonly <- bounds
-bounds_uonly["M1_max"] = 0
-bounds_uonly["M2_max"] = 0
+bounds_uonly["M1_max"] <- 0
+bounds_uonly["M2_max"] <- 0
 
 # calculate optimal control-----------------------------------------------------
 # run OC across multiple parameters
@@ -211,56 +238,73 @@ exper_u_only <- test_mult_params(
 )
 
 # reformat output---------------------------------------------------------------
-exper_u_only <- reformat_mult_params_output(output = exper_u_only, 
-                                            test_params = test_params)
+exper_u_only <- reformat_mult_params_output(
+  output = exper_u_only,
+  test_params = test_params
+)
 ```
 
 ```{r sani_only_plot_time_series}
-# plot states 
-exper_u_only$v %>% 
+# plot states
+exper_u_only$v %>%
   left_join(exper_u_only$u) %>%
-  left_join(exper_u_only$X) %>% 
+  left_join(exper_u_only$X) %>%
   melt(c("m1", "control_type", "test_case", "time")) %>%
-  mutate(patch = substr(variable, 2,2), 
-         variable = substr(variable, 1,1)) %>%
+  mutate(
+    patch = substr(variable, 2, 2),
+    variable = substr(variable, 1, 1)
+  ) %>%
   filter(control_type %in% c("uniform", "unique")) %>%
-  mutate(plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
-         variable = factor(variable, levels = c("S", "I", "R", "W", "v", "u"))) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) + 
-  geom_line(size = 1)+
+  mutate(
+    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
+    variable = factor(variable, levels = c("S", "I", "R", "W", "v", "u"))
+  ) %>%
+  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
+  geom_line(size = 1) +
   facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
   scale_color_manual(values = patch_colors2) +
   scale_linetype_manual(values = c("dotted", "solid")) +
-  theme_bw()+
-  theme(legend.position = "bottom",
-        panel.grid = element_blank())
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
 ```
 
 ```{r sani_only_plot_costs}
 exper_u_only$j %>%
   melt(c("m1", "control_type", "test_case")) %>%
   filter(variable != "j") %>%
-  mutate(variable = factor(variable, 
-                           levels = c("j_case1", "j_vacc1", "j_sani1",
-                                      "j_case2", "j_vacc2", "j_sani2", 
-                                      "j"))) %>%
-  ggplot(aes(x = control_type)) + 
-  geom_bar(aes(y = value, fill = variable), 
-           stat = "identity", position = "stack")+
-  geom_text(aes(y = value, label = round(value), group = variable), 
-            position=position_stack(vjust=0.5))+
-  geom_text(data = exper_u_only$j ,
-            aes(y = j, label = paste0("Total cost: ", round(j))), 
-            vjust = 0)+
-  guides(fill = guide_legend(nrow = 3))+
-  scale_fill_manual(values = cost_colors6, labels =cost_names) +
-  labs(y = "cost")+
-  scale_x_discrete(expand = c(0,0))+
-  theme_bw()+
-  theme(axis.title.x = element_blank(),
-        legend.position = "bottom",
-        legend.title = element_blank(),
-        panel.grid = element_blank())
+  mutate(variable = factor(variable,
+    levels = c(
+      "j_case1", "j_vacc1", "j_sani1",
+      "j_case2", "j_vacc2", "j_sani2",
+      "j"
+    )
+  )) %>%
+  ggplot(aes(x = control_type)) +
+  geom_bar(aes(y = value, fill = variable),
+    stat = "identity", position = "stack"
+  ) +
+  geom_text(aes(y = value, label = round(value), group = variable),
+    position = position_stack(vjust = 0.5)
+  ) +
+  geom_text(
+    data = exper_u_only$j,
+    aes(y = j, label = paste0("Total cost: ", round(j))),
+    vjust = 0
+  ) +
+  guides(fill = guide_legend(nrow = 3)) +
+  scale_fill_manual(values = cost_colors6, labels = cost_names) +
+  labs(y = "cost") +
+  scale_x_discrete(expand = c(0, 0)) +
+  theme_bw() +
+  theme(
+    axis.title.x = element_blank(),
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    panel.grid = element_blank()
+  )
 ```
 
 ## Both Vaccination and Sanitation
@@ -281,55 +325,71 @@ exper_both <- test_mult_params(
 )
 
 # reformat output---------------------------------------------------------------
-exper_both <- reformat_mult_params_output(output = exper_both, 
-                                            test_params = test_params)
+exper_both <- reformat_mult_params_output(
+  output = exper_both,
+  test_params = test_params
+)
 ```
 
 ```{r both_plot_time_series}
-# plot states 
-exper_both$v %>% 
+# plot states
+exper_both$v %>%
   left_join(exper_both$u) %>%
-  left_join(exper_both$X) %>% 
+  left_join(exper_both$X) %>%
   melt(c("m1", "control_type", "test_case", "time")) %>%
-  mutate(patch = substr(variable, 2,2), 
-         variable = substr(variable, 1,1)) %>%
+  mutate(
+    patch = substr(variable, 2, 2),
+    variable = substr(variable, 1, 1)
+  ) %>%
   filter(control_type %in% c("uniform", "unique")) %>%
-  mutate(plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
-         variable = factor(variable, levels = c("S", "I", "R", "W", "v", "u"))) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) + 
-  geom_line(size = 1)+
+  mutate(
+    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
+    variable = factor(variable, levels = c("S", "I", "R", "W", "v", "u"))
+  ) %>%
+  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
+  geom_line(size = 1) +
   facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
   scale_color_manual(values = patch_colors2) +
   scale_linetype_manual(values = c("dotted", "solid")) +
-  theme_bw()+
-  theme(legend.position = "bottom",
-        panel.grid = element_blank())
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
 ```
 
 ```{r both_plot_costs}
 exper_both$j %>%
   melt(c("m1", "control_type", "test_case")) %>%
   filter(variable != "j") %>%
-  mutate(variable = factor(variable, 
-                           levels = c("j_case1", "j_vacc1", "j_sani1",
-                                      "j_case2", "j_vacc2", "j_sani2", 
-                                      "j"))) %>%
-  ggplot(aes(x = control_type)) + 
-  geom_bar(aes(y = value, fill = variable), 
-           stat = "identity", position = "stack")+
-  geom_text(aes(y = value, label = round(value), group = variable), 
-            position=position_stack(vjust=0.5))+
-  geom_text(data = exper_both$j ,
-            aes(y = j, label = paste0("Total cost: ", round(j))), 
-            vjust = 0)+
-  guides(fill = guide_legend(nrow = 3))+
-  scale_fill_manual(values = cost_colors6, labels =cost_names) +
-  labs(y = "cost")+
-  scale_x_discrete(expand = c(0,0))+
-  theme_bw()+
-  theme(axis.title.x = element_blank(),
-        legend.position = "bottom",
-        legend.title = element_blank(),
-        panel.grid = element_blank())
+  mutate(variable = factor(variable,
+    levels = c(
+      "j_case1", "j_vacc1", "j_sani1",
+      "j_case2", "j_vacc2", "j_sani2",
+      "j"
+    )
+  )) %>%
+  ggplot(aes(x = control_type)) +
+  geom_bar(aes(y = value, fill = variable),
+    stat = "identity", position = "stack"
+  ) +
+  geom_text(aes(y = value, label = round(value), group = variable),
+    position = position_stack(vjust = 0.5)
+  ) +
+  geom_text(
+    data = exper_both$j,
+    aes(y = j, label = paste0("Total cost: ", round(j))),
+    vjust = 0
+  ) +
+  guides(fill = guide_legend(nrow = 3)) +
+  scale_fill_manual(values = cost_colors6, labels = cost_names) +
+  labs(y = "cost") +
+  scale_x_discrete(expand = c(0, 0)) +
+  theme_bw() +
+  theme(
+    axis.title.x = element_blank(),
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    panel.grid = element_blank()
+  )
 ```
-

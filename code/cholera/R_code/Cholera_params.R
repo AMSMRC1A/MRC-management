@@ -37,7 +37,7 @@ times <- seq(0, 200, 0.05)
 #  V1 = 0,      V2 = 0) # added V to count vaccinations
 
 # use initially uncontrolled outbreak as initial conditions
-response_time <- 50 # define time of outbreak response in days
+response_time <- 100 # define time of outbreak response in days
 uncontrolled_epidemic <- read.csv("analysis/initialOutbreak_noControl_forIC.csv")
 IC <- as.double(uncontrolled_epidemic[uncontrolled_epidemic$time == response_time, -1])
 names(IC) <- names(uncontrolled_epidemic[, -1])
