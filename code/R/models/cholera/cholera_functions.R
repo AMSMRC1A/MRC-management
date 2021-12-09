@@ -212,6 +212,20 @@ calc_j <- function(times, optim_states, params) {
   ))
 }
 
+#' helper function to calculate costs
+#' 
+#' EH NOTE: THIS IS A GENERAL HELPER FUNCTION, DOES IT BELONG HERE?
+#' 
+#' @inheritParams calc_j
+#' @param integrand list of integrands to be evaluated
+#' 
+#' @return list of evaluated integrands
+eval_j_integrand <- function(params, optim_states, integrand) {
+  with(as.list(c(optim_states, params)), {
+    eval(parse(text = integrand))
+  })
+}
+
 
 # R0 calculator ----------------------------------------------------------------
 
