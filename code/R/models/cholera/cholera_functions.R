@@ -1,23 +1,36 @@
 
 # ODE model equations-----------------------------------------------------------
 
-# v1_interp, v2_interp for time-varying vaccination
-# if v1/v2/u1/u2_interp are NA, assume constant vaccination rates for v1/v2/u1/u2
-ode_cholera <- function(times, y, params, 
+#' cholera ODE model
+#' 
+#' defines 2-patch SIRW model for cholera, with two controls: 
+#' vaccination (v1, v2) and sanitation (u1, u2). To be passed to \code{ode()}
+#'  
+#' @param t current time step
+#' @param y vector of current conditions 
+#' @param params vector of model parameters
+#' @param v1_interp function to interpolate v1 (for time-varying vaccination)
+#' @param v2_interp function to interpolate v2 (for time-varying vaccination)
+#' @param u1_interp function to interpolate u1 (for time-varying sanitation)
+#' @param u2_interp function to interpolate u2 (for time-varying sanitation)
+#' 
+#' @details constant rates are assumed for NA control interpolation functions 
+#' (\code{v1_interp}, \code{v2_interp}, \code{u1_interp}, \code{u2_interp})
+ode_cholera <- function(t, y, params, 
                  v1_interp = NA, v2_interp = NA, 
                  u1_interp = NA, u2_interp = NA) {
   with(as.list(c(y, params)), {
     if (is.function(v1_interp)) {
-      v1 <- v1_interp(times)
+      v1 <- v1_interp(t)
     }
     if (is.function(v2_interp)) {
-      v2 <- v2_interp(times)
+      v2 <- v2_interp(t)
     }
     if(is.function(u1_interp)){
-      u1 <- u1_interp(times)
+      u1 <- u1_interp(t)
     }
     if(is.function(u2_interp)){
-      u2 <- u2_interp(times)
+      u2 <- u2_interp(t)
     }
     dS1 <- mu1*(S1+I1+R1) - beta_I1*S1*I1 - (1-u1)*beta_W1*S1*W1 - 
       (mu1 + v1)*S1 - m1*S1 + m2*S2
@@ -38,6 +51,14 @@ ode_cholera <- function(times, y, params,
 
 
 # adjoint equations-------------------------------------------------------------
+
+#' Cholera adjoint equations
+#' 
+#'  defines adjoint equations for cholera optimal control problem.
+#'  To be passed to \code{ode()}
+#' 
+#'  @inheritParams ode_cholera
+#'  @param x_interp list of functions to interpolate state variables, x
 adjoint_cholera <- function(t, y, params, 
                             v1_interp, v2_interp, 
                             u1_interp, u2_interp, 
@@ -100,9 +121,20 @@ adjoint_cholera <- function(t, y, params,
   })
 }
 
-# 
-# Sub-function 'opt_v_cholera' (used in 'oc_optim'):
-# Calculate optimal vaccination strategy
+# optimal control solutions ----------------------------------------------------
+ 
+#' calculate optimal vaccination strategy
+#' 
+#' sub-function used in \code{oc_optim()}
+#' 
+#' @param params vector of model parameters
+#' @param lambda matrix of optimal lambda values (over time)
+#' @param x matrix of optimal states (over time)
+#' @param control_type character to define the type of control being implemented;
+#' either \code{"uniform"} for the same control being applied in both patches 
+#' or \code{"unique"} where control can vary across patches 
+#' 
+#' @return list of optimal vaccination in both patches (vectors)
 opt_v_cholera <- function(params, lambda, x, control_type) {
   with(as.list(c(params, lambda, x)), {
     params <- as_tibble(as.list(params))
@@ -120,8 +152,13 @@ opt_v_cholera <- function(params, lambda, x, control_type) {
   })
 }
 
-# Sub-function 'opt_u_cholera' (used in 'oc_optim'):
-# Calculate optimal sanitation strategy
+#' calculate optimal sanitation strategy
+#' 
+#' sub-function used in \code{oc_optim()}
+#' 
+#' @inheritParams opt_v_cholera
+#' 
+#' @return list of optimal sanitation in both patches (vectors)
 opt_u_cholera <- function(params, lambda, x, control_type){
   with(as.list(c(params, lambda, x)), {
     params <- as_tibble(as.list(params))
@@ -140,8 +177,18 @@ opt_u_cholera <- function(params, lambda, x, control_type){
   )
 }
 
-# Sub-function 'calc_j' (used in oc_optim):
-# Calculates costs (j) from parameters and oc time series
+# total cost -------------------------------------------------------------------
+
+#' calculate total cost of a given strategy
+#' 
+#' sub-function used in \code{oc_optim()}
+#' 
+#' @param times vector of times over which optimal solution is defined
+#' @param optim_states matrix of optimal states
+#' @param params vector of model parameters
+#' 
+#' @return data.frame of each component of the total cost (cases, vaccination,
+#' sanitation in patches 1 and 2)
 calc_j <- function(times, optim_states, params) {
   x <- times
   j_ints <- list(
@@ -167,6 +214,14 @@ calc_j <- function(times, optim_states, params) {
 
 
 # R0 calculator ----------------------------------------------------------------
+
+#' calculate R0 for the cholera model
+#' 
+#' @param params vector of model parameters
+#' @params N0_1 integer (or double?) of initial population size in patch 1
+#' @params N0_2 integer (or double?) of initial population size in patch 2
+#' 
+#' @return double of R0 value
 R0_cholera <- function(params, N0_1, N0_2) {
   with(as.list(params), {
     # calculate intermediate parameters
