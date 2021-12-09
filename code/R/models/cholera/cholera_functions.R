@@ -189,7 +189,7 @@ opt_u_cholera <- function(params, lambda, x, control_type){
 #' 
 #' @return data.frame of each component of the total cost (cases, vaccination,
 #' sanitation in patches 1 and 2)
-calc_j <- function(times, optim_states, params) {
+calc_j_cholera <- function(times, optim_states, params) {
   x <- times
   j_ints <- list(
     case1 = expression(b1*(beta_I1*S1*I1 + (1-u1)*beta_W1*S1*W1)),

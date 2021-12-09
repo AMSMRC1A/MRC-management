@@ -52,10 +52,10 @@ oc_optim <- function(model,  control_type) {
       temp_v <- calc_opt_v(params, lambda_df, x_df, control_type)
       temp_u <- calc_opt_u(params, lambda_df, x_df, control_type)
       # include bounds
-      v1 <- pmin(V1_max, pmax(V1_min, temp_v$temp_v1))
-      v2 <- pmin(V2_max, pmax(V2_min, temp_v$temp_v2))
-      u1 <- pmin(U1_max, pmax(U1_min, temp_u$temp_u1))
-      u2 <- pmin(U2_max, pmax(U2_min, temp_u$temp_u2))
+      v1 <- pmin(bounds$V1_max, pmax(bounds$V1_min, temp_v$temp_v1))
+      v2 <- pmin(bounds$V2_max, pmax(bounds$V2_min, temp_v$temp_v2))
+      u1 <- pmin(bounds$U1_max, pmax(bounds$U1_min, temp_u$temp_u1))
+      u2 <- pmin(bounds$U2_max, pmax(bounds$U2_min, temp_u$temp_u2))
       # update control
       v1 <- 0.5 * (v1 + oldv1)
       v2 <- 0.5 * (v2 + oldv2)
@@ -148,8 +148,8 @@ setup_model <- function(model){
                   v2 = guess_v2, 
                   u1 = guess_u1, 
                   u2 = guess_u2, 
-                  x = matrix(0, nrow = length(times), ncol = 9),
-                  lambda = matrix(0, nrow = length(times), ncol = 9),
+                  x = matrix(0, nrow = length(times_cholera), ncol = 9),
+                  lambda = matrix(0, nrow = length(times_cholera), ncol = 9),
                   # ICs for ode solver
                   init_x = IC_cholera, 
                   lambda_init = lambda_init, 
@@ -158,11 +158,15 @@ setup_model <- function(model){
                   bounds = bounds_cholera, 
                   # functions
                   ode_fn = ode_cholera, 
-                  adj_fn = adjoint_cholera, 
+                  adj_fn = adjoint_cholera,
+                  calc_opt_u = opt_u_cholera,
+                  calc_opt_v = opt_v_cholera,
+                  calc_j = calc_j_cholera,
                   # model settings
                   times = times_cholera, 
-                  params = params_cholera, 
+                  params = params_cholera
     )
   }
   return(setup)
 }
+

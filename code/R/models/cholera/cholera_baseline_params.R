@@ -31,6 +31,15 @@ bounds_cholera <- list(
 # define time series (units of days)
 times_cholera <- seq(0, 200, 0.05)
 
+#initial control guesses
+guess_v1 <- rep(0, length(times_cholera))
+guess_v2 <- rep(0, length(times_cholera))
+guess_u1 <- rep(0, length(times_cholera))
+guess_u2 <- rep(0, length(times_cholera))
+
+# optimization tolerance
+tol_cholera <- 0.01
+
 # define initial conditions (ICs)-----------------------------------------------
 # run uncontrolled outbreak (beginning with ) for response time days, 
 # use the states on this day
@@ -44,15 +53,13 @@ IC_init <- c(
   W1 = 0, W2 = 0
 )
 
+source("models/cholera/cholera_functions.R")
 # solve ODE
 uncontrolled <- ode(y = IC_init, 
            times = times_cholera, 
            func = ode_cholera, 
-           parms = params_cholera, 
-           v1_interp = v1_interp, 
-           v2_interp = v2_interp, 
-           u1_interp = u1_interp, 
-           u2_interp = u2_interp)
+           parms = params_cholera)
 # set IC based on response_time
-IC_cholera <- as.double(uncontrolled[uncontrolled$time == response_time, -1])
-names(IC_cholera) <- names(uncontrolled[, -1])
+IC_cholera <- as.double(uncontrolled[uncontrolled[,"time"] == response_time, -1])
+names(IC_cholera) <- colnames(uncontrolled[, -1])
+
