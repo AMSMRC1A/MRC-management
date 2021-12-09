@@ -1,34 +1,29 @@
-# Function 'run_no_optim':
-# Calculate time series and cost, j, with no optimization
-run_no_optim <- function(bounds, init_x, times, ode_fn, params, control_type) {
-  if (control_type == "none") {
-    params$v1 <- 0
-    params$v2 <- 0
-    params$u1 <- 0
-    params$u2 <- 0
-  } 
-  else if (control_type == "max") {
-    params$v1 <- bounds$V1_max
-    params$v2 <- bounds$V2_max
-    params$u1 <- bounds$U1_max
-    params$u2 <- bounds$U2_max
-  }
-  out <- ode(y = init_x, times = times, func = ode_fn, parms = params)
-  trajectories <- as.data.frame(out)
-  trajectories$v1 <- params$v1
-  trajectories$v2 <- params$v2
-  trajectories$u1 <- params$u1
-  trajectories$u2 <- params$u2
-  j <- calc_j(times, out, params)
-  return(list(trajectories = trajectories, j = j))
-}
+# optimal control --------------------------------------------------------------
 
-# Function 'run_oc':
-# function to implement optimal control analysis
+#' implement optimal control analysis
+#' 
+#' @param guess_v1 double of starting value for v1
+#' @param guess_v2 double of starting value for v2
+#' @param guess_u1 double of starting value for u1
+#' @param guess_u2 double of starting value for u2
+#' @param init_x vector initial conditions for states
+#' @param bounds vector of bounds for each control
+#' @param ode_fn function containing ode equations
+#' @param adj_fn function containing adjoint equations
+#' @param times vector of times over which to define optimal solution
+#' @param params vector of model parameters
+#' @param tol tolerance for optimization
+#' @param control_type character to define the type of control being implemented;
+#' either \code{"none"} for no control 
+#' or \code{"max"} for control at the upper bound
+#' 
+#' @return list containing \code{trajectories}, a data.frame with all 
+#' time-varying values (state variables, controls, and adjoints), and 
+#' \code{j}, a double of the total cost
 run_oc <- function(guess_v1, guess_v2, 
                    guess_u1, guess_u2,
                    init_x, bounds, ode_fn, adj_fn,
-                   times, params, tol, control_type) {
+                   times, params, tol = 0.01, control_type) {
   # initialize variables
   x <- matrix(0, nrow = length(times), ncol = 9)
   lambda <- matrix(0, nrow = length(times), ncol = 9)
@@ -50,16 +45,25 @@ run_oc <- function(guess_v1, guess_v2,
     bounds, tol, ode_fn, adj_fn,
     times, params, control_type
   )
-  # "oc" is a list with entries:
-  #     trajectories = all time-varying values (state variables, controls,
-  #                    and adjoints)
-  #     j = costs
   return(oc)
 }
 
-# Sub-function 'oc_optim' (used in 'run_oc'):
-# Used in 'run_oc' for the optimization loop
-# implement loop for optimization
+#' implement loop for OC optimization
+#' 
+#' used in \code{run_oc()} for the optimization loop
+#' 
+#' @inheritParams run_oc 
+#' @param v1 initial guess for v1
+#' @param v2 initial guess for v2
+#' @param u1 initial guess for u1
+#' @param u2 initial guess for u2
+#' @param x initial guess for x
+#' @param lambda initial guess for lambda
+#' @param lambda_init final time adjoints
+#' 
+#' #' @return list containing \code{trajectories}, a data.frame with all 
+#' time-varying values (state variables, controls, and adjoints), and 
+#' \code{j}, a double of the total cost
 oc_optim <- function(v1, v2, u1, u2, x, lambda, # initial guesses
                      IC, lambda_init, # state ICs & final time adjoints
                      bounds, tol, # optimal control settings
@@ -140,15 +144,43 @@ oc_optim <- function(v1, v2, u1, u2, x, lambda, # initial guesses
   })
 }
 
-# Utilities --------------------------------------------------------------------
-# define norm(X,1) command from matlab
-norm_oc <- function(x) {
-  sum(abs(x))
+# no control -------------------------------------------------------------------
+
+#' calculate time series and cost, j, with no optimization
+#' 
+#' @inheritParams run_oc
+#' 
+#' @return list containing \code{trajectories}, a data.frame with all 
+#' time-varying values (state variables, controls, and adjoints), and 
+#' \code{j}, a double of the total cost
+run_no_optim <- function(bounds, init_x, times, ode_fn, params, control_type) {
+  if (control_type == "none") {
+    params$v1 <- 0
+    params$v2 <- 0
+    params$u1 <- 0
+    params$u2 <- 0
+  } 
+  else if (control_type == "max") {
+    params$v1 <- bounds$V1_max
+    params$v2 <- bounds$V2_max
+    params$u1 <- bounds$U1_max
+    params$u2 <- bounds$U2_max
+  }
+  out <- ode(y = init_x, times = times, func = ode_fn, parms = params)
+  trajectories <- as.data.frame(out)
+  trajectories$v1 <- params$v1
+  trajectories$v2 <- params$v2
+  trajectories$u1 <- params$u1
+  trajectories$u2 <- params$u2
+  j <- calc_j(times, out, params)
+  return(list(trajectories = trajectories, j = j))
 }
 
-# define cost function (j values)
-eval_j_integrand <- function(params, optim_states, integrand) {
-  with(as.list(c(optim_states, params)), {
-    eval(parse(text = integrand))
-  })
+
+# utilities --------------------------------------------------------------------
+#' define norm(X,1) command from matlab
+#' 
+#' @param x vector
+norm_oc <- function(x) {
+  sum(abs(x))
 }
