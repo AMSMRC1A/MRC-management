@@ -9,29 +9,20 @@
 #' @param t current time step
 #' @param y vector of current conditions 
 #' @param params vector of model parameters
-#' @param v1_interp function to interpolate v1 (for time-varying vaccination)
-#' @param v2_interp function to interpolate v2 (for time-varying vaccination)
-#' @param u1_interp function to interpolate u1 (for time-varying sanitation)
-#' @param u2_interp function to interpolate u2 (for time-varying sanitation)
-#' 
-#' @details constant rates are assumed for NA control interpolation functions 
-#' (\code{v1_interp}, \code{v2_interp}, \code{u1_interp}, \code{u2_interp})
-ode_cholera <- function(t, y, params, 
-                 v1_interp = NA, v2_interp = NA, 
-                 u1_interp = NA, u2_interp = NA) {
+#' @param interp_controls list of functions to interpolate controls 
+#' (for time-varying controls), if NA constant control rates are assumed; names 
+#' in list should correspond to variable name
+ode_cholera <- function(t, y, params, interp_controls = NA) {
   with(as.list(c(y, params)), {
-    if (is.function(v1_interp)) {
-      v1 <- v1_interp(t)
+    # if controls are time-varying, use interpolation functions to generate
+    # control rates over time
+    if(any(is.function(interp_controls))){
+      # loop over all time-varying controls
+      for(i in names(interp_controls)){
+        assign(i, interp_controls[[i]](t))
+      }
     }
-    if (is.function(v2_interp)) {
-      v2 <- v2_interp(t)
-    }
-    if(is.function(u1_interp)){
-      u1 <- u1_interp(t)
-    }
-    if(is.function(u2_interp)){
-      u2 <- u2_interp(t)
-    }
+    # ODE model
     dS1 <- mu1*(S1+I1+R1) - beta_I1*S1*I1 - (1-u1)*beta_W1*S1*W1 - 
       (mu1 + v1)*S1 - m1*S1 + m2*S2
     dS2 <- mu2*(S2+I2+R2) - beta_I2*S2*I2 - (1-u2)*beta_W2*S2*W2 - 
@@ -60,8 +51,7 @@ ode_cholera <- function(t, y, params,
 #'  @inheritParams ode_cholera
 #'  @param x_interp list of functions to interpolate state variables, x
 adjoint_cholera <- function(t, y, params, 
-                            v1_interp, v2_interp, 
-                            u1_interp, u2_interp, 
+                            interp_controls = NA, 
                             x_interp, x) {
   # calculate state at time t using interpolated function
   state <- c(
@@ -70,10 +60,12 @@ adjoint_cholera <- function(t, y, params,
     R1 = x_interp[[5]](t), R2 = x_interp[[6]](t),
     W1 = x_interp[[7]](t), W2 = x_interp[[8]](t)
   )
-  v1 <- v1_interp(t)
-  v2 <- v2_interp(t)
-  u1 <- u1_interp(t)
-  u2 <- u2_interp(t)
+  if(any(is.function(interp_controls))){
+    # loop over all time-varying controls
+    for(i in names(interp_controls)){
+      assign(i, interp_controls[[i]](t))
+    }
+  }
   # adjoint equations
   with(as.list(c(y, params, state)), {
     dlambda1 <- -(b1*(beta_I1*I1 + (1-u1)*beta_W1*W1) + C1*v1 +

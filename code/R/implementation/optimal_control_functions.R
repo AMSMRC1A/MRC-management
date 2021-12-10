@@ -17,22 +17,15 @@ oc_optim <- function(model,  control_type) {
     test <- -1
     while (test < 0 & counter < 50) {
       # set previous control, state, and adjoint
-      oldv1 <- v1
-      oldv2 <- v2
-      oldu1 <- u1
-      oldu2 <- u2
-      oldx <- x
-      oldlambda <- lambda
+      browser()
+      set_old_variables(c(controls,
+                          list(x = x,lambda = lambda)))
       # define interpolating functions for v
-      v1_interp <- approxfun(times, v1, rule = 2)
-      v2_interp <- approxfun(times, v2, rule = 2)
-      u1_interp <- approxfun(times, u1, rule = 2)
-      u2_interp <- approxfun(times, u2, rule = 2)
+      interp_controls <- define_interp_fns(controls, times)
       # solve states
       x <- ode(
         y = init_x, times = times, func = ode_fn, parms = params,
-        v1_interp = v1_interp, v2_interp = v2_interp,
-        u1_interp = u1_interp, u2_interp = u2_interp
+        interp_controls = interp_controls
       )
       x_df <- as.data.frame(x)
       # define interpolating functions for x (states)
@@ -42,8 +35,7 @@ oc_optim <- function(model,  control_type) {
       # solve adjoint equations (backwards)
       lambda <- ode(
         y = lambda_init, times = rev(times), func = adj_fn, parms = params,
-        v1_interp = v1_interp, v2_interp = v2_interp, 
-        u1_interp = u1_interp, u2_interp = u2_interp,
+        interp_controls = interp_controls,
         x_interp = x_interp, x = x
       )
       lambda <- lambda[nrow(lambda):1, ]
@@ -143,30 +135,69 @@ setup_model <- function(model){
   if(model == "cholera"){
     source("models/cholera/cholera_baseline_params.R")
     source("models/cholera/cholera_functions.R")
-    # initial guesses
-    setup <- list(v1 = guess_v1, 
-                  v2 = guess_v2, 
-                  u1 = guess_u1, 
-                  u2 = guess_u2, 
-                  x = matrix(0, nrow = length(times_cholera), ncol = 9),
-                  lambda = matrix(0, nrow = length(times_cholera), ncol = 9),
-                  # ICs for ode solver
-                  init_x = IC_cholera, 
-                  lambda_init = lambda_init, 
-                  # optimal control settings
-                  tol = tol_cholera,
-                  bounds = bounds_cholera, 
-                  # functions
-                  ode_fn = ode_cholera, 
-                  adj_fn = adjoint_cholera,
-                  calc_opt_u = opt_u_cholera,
-                  calc_opt_v = opt_v_cholera,
-                  calc_j = calc_j_cholera,
-                  # model settings
-                  times = times_cholera, 
-                  params = params_cholera
+    # create list of all model-specific objects to load
+    setup <- list(
+      # initial guesses
+      controls = list(
+        v1 = guess_v1, 
+        v2 = guess_v2, 
+        u1 = guess_u1, 
+        u2 = guess_u2), 
+      x = matrix(0, nrow = length(times_cholera), ncol = 9),
+      lambda = matrix(0, nrow = length(times_cholera), ncol = 9),
+      # ICs for ode solver #EH: some of these variable names are confusing
+      init_x = IC_cholera, 
+      lambda_init = lambda_init, 
+      # optimal control settings
+      tol = tol_cholera,
+      bounds = bounds_cholera, 
+      # functions
+      ode_fn = ode_cholera, 
+      adj_fn = adjoint_cholera,
+      calc_opt_u = opt_u_cholera,
+      calc_opt_v = opt_v_cholera,
+      calc_j = calc_j_cholera,
+      # model settings
+      times = times_cholera, 
+      params = params_cholera
     )
   }
   return(setup)
+}
+
+## EH: THERE MAY BE A SIMPLER WAY TO IMPLEMENT THESE
+
+#' add renamed variables to the parent environment
+#' 
+#' all variables in \code{vars} will generate a new, identical object in the  
+#' parent environment as "old" + variable name (e.g., \code{v1} will 
+#' generate \code{oldv1}) 
+#' 
+#' @param vars list of variables to be renamed
+set_old_variables <- function(vars){
+  renamed_old <- list()
+  for(i in names(vars)){
+    renamed_old[[paste0("old",i)]] <- vars[[i]]
+  }
+  invisible(list2env(renamed_old, envir = parent.frame()))
+}
+
+#' create interpolation functions for controls
+#' 
+#' all variables in \code{vars} will generate a new object 
+#' that is the function to linearly interpolate the values in \code{vars};
+#' the name of the new object is variable name + "_interp"
+#' (e.g., \code{v1} will generate \code{v1_interp}) 
+#' 
+#' @param vars list of variables to be renamed
+#' @param times vector of time points to interpolate over
+#' 
+#' @return list of interpolation functions for each element in \code{vars}
+define_interp_fns <- function(vars, times){
+  interp_fns <- list()
+  for(i in names(vars)){
+    interp_fns[[paste0(i,"_interp")]] <-  approxfun(times, vars[[i]], rule = 2) 
+  }
+  return(interp_fns)
 }
 
