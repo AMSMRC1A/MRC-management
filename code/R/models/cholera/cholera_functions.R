@@ -16,7 +16,7 @@ ode_cholera <- function(t, y, params, interp_controls = NA) {
   with(as.list(c(y, params)), {
     # if controls are time-varying, use interpolation functions to generate
     # control rates over time
-    if(any(is.function(interp_controls))){
+    if(all(!is.na(interp_controls))){
       # loop over all time-varying controls
       for(i in names(interp_controls)){
         assign(i, interp_controls[[i]](t))
@@ -60,7 +60,7 @@ adjoint_cholera <- function(t, y, params,
     R1 = x_interp[[5]](t), R2 = x_interp[[6]](t),
     W1 = x_interp[[7]](t), W2 = x_interp[[8]](t)
   )
-  if(any(is.function(interp_controls))){
+  if(all(!is.na(interp_controls))){
     # loop over all time-varying controls
     for(i in names(interp_controls)){
       assign(i, interp_controls[[i]](t))
@@ -127,46 +127,50 @@ adjoint_cholera <- function(t, y, params,
 #' or \code{"unique"} where control can vary across patches 
 #' 
 #' @return list of optimal vaccination in both patches (vectors)
-opt_v_cholera <- function(params, lambda, x, control_type) {
+### UPDATE DOCUMENTATION
+optimal_controls_cholera <- function(params, lambda, x, control_type){
   with(as.list(c(params, lambda, x)), {
     params <- as_tibble(as.list(params))
-    # KD: !!! for consistency, change "lambda" to use same entry calls as params
-    if (control_type == "uniform") {
-      temp_v1 <- (((lambda1-C1-lambda3)*S1) + ((lambda5-C2-lambda7)*S2)) /
-        (2*epsilon1 + 2*epsilon2)
-      temp_v2 <- temp_v1
+    if(control_type == "uniform")
+      temp_controls <- list(
+        v1 = (((lambda1-C1-lambda3)*S1) + ((lambda5-C2-lambda7)*S2)) / 
+          (2*epsilon1 + 2*epsilon2),
+        v2 = (((lambda1-C1-lambda3)*S1) + ((lambda5-C2-lambda7)*S2)) / 
+          (2*epsilon1 + 2*epsilon2),
+        u1 = ((lambda2 + b1 - lambda1)*beta_W1*S1*W1 - D1 + 
+                (lambda6 + b2 - lambda5)*beta_W2*S2*W2 - D2) /
+          (2*(eta1 + eta2)), 
+        u2 = ((lambda2 + b1 - lambda1)*beta_W1*S1*W1 - D1 + 
+                (lambda6 + b2 - lambda5)*beta_W2*S2*W2 - D2) /
+          (2*(eta1 + eta2))
+      )
+    else if(control_type == "unique"){
+      temp_controls <- list(
+        v1 = ((lambda1-C1-lambda3)*S1) / (2*epsilon1),
+        v2 = ((lambda5-C2-lambda7)*S2) / (2*epsilon2),
+        u1 = ((beta_W1*S1*W1)*(b1 - lambda1 + lambda2) - D1) / (2*eta1),
+        u2 = ((beta_W2*S2*W2)*(b2 - lambda5 + lambda6) - D2) / (2*eta2)
+      )
     }
-    if (control_type == "unique") {
-      temp_v1 <- ((lambda1-C1-lambda3)*S1) / (2*epsilon1)
-      temp_v2 <- ((lambda5-C2-lambda7)*S2) / (2*epsilon2)
-    }
-    return(list(temp_v1 = temp_v1, temp_v2 = temp_v2))
+    return(temp_controls)
   })
 }
 
-#' calculate optimal sanitation strategy
-#' 
-#' sub-function used in \code{oc_optim()}
-#' 
-#' @inheritParams opt_v_cholera
-#' 
-#' @return list of optimal sanitation in both patches (vectors)
-opt_u_cholera <- function(params, lambda, x, control_type){
-  with(as.list(c(params, lambda, x)), {
-    params <- as_tibble(as.list(params))
-    if (control_type == "uniform"){
-      temp_u1 <- ((lambda2 + b1 - lambda1)*beta_W1*S1*W1 - D1 + 
-                    (lambda6 + b2 - lambda5)*beta_W2*S2*W2 - D2) /
-        (2*(eta1 + eta2))
-      temp_u2 <- temp_u1
-    }
-    if (control_type == "unique"){
-      temp_u1 <- ((beta_W1*S1*W1)*(b1 - lambda1 + lambda2) - D1) / (2*eta1)
-      temp_u2 <- ((beta_W2*S2*W2)*(b2 - lambda5 + lambda6) - D2) / (2*eta2)
-    }
-    return(list(temp_u1 = temp_u1, temp_u2 = temp_u2))
-  }
-  )
+# EH: is there a better way to do this?
+calc_test_cholera <- function(tol, controls, old_controls, x, lambda){
+  return(min(
+    # EH: figure out how to generalize these
+    tol * norm_oc(c(controls$v1, controls$v2)) - 
+      norm_oc(c(old_controls$oldv1, old_controls$oldv2) - 
+                c(controls$v1, controls$v2)),
+    tol * norm_oc(c(controls$u1, controls$u2)) - 
+      norm_oc(c(old_controls$oldu1, old_controls$oldu2) - 
+                c(controls$u1, controls$u2)),
+    tol * norm_oc(x[, -1]) - 
+      norm_oc(old_controls$oldx[, -1] - x[, -1]),
+    tol * norm_oc(lambda[, -1]) - 
+      norm_oc(old_controls$oldlambda[, -1] - lambda[, -1])
+  ))
 }
 
 # total cost -------------------------------------------------------------------

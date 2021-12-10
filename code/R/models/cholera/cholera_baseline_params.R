@@ -23,10 +23,10 @@ params_cholera <- data.frame(
 
 # bounds of optimal control (OC) parameters
 bounds_cholera <- list(
-  V1_min = 0, V1_max = 0.015, 
-  V2_min = 0, V2_max = 0.015, 
-  U1_min = 0, U1_max = 0.4, 
-  U2_min = 0, U2_max = 0.4)
+  v1_min = 0, v1_max = 0.015, 
+  v2_min = 0, v2_max = 0.015, 
+  u1_min = 0, u1_max = 0.4, 
+  u2_min = 0, u2_max = 0.4)
 
 # define time series (units of days)
 times_cholera <- seq(0, 200, 0.05)

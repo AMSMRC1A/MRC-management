@@ -17,8 +17,7 @@ oc_optim <- function(model,  control_type) {
     test <- -1
     while (test < 0 & counter < 50) {
       # set previous control, state, and adjoint
-      browser()
-      set_old_variables(c(controls,
+      old_controls <- set_old_variables(c(controls,
                           list(x = x,lambda = lambda)))
       # define interpolating functions for v
       interp_controls <- define_interp_fns(controls, times)
@@ -40,35 +39,22 @@ oc_optim <- function(model,  control_type) {
       )
       lambda <- lambda[nrow(lambda):1, ]
       lambda_df <- as.data.frame(lambda)
-      # calculate v1*, v2*, u1*, u2*
-      temp_v <- calc_opt_v(params, lambda_df, x_df, control_type)
-      temp_u <- calc_opt_u(params, lambda_df, x_df, control_type)
-      # include bounds
-      v1 <- pmin(bounds$V1_max, pmax(bounds$V1_min, temp_v$temp_v1))
-      v2 <- pmin(bounds$V2_max, pmax(bounds$V2_min, temp_v$temp_v2))
-      u1 <- pmin(bounds$U1_max, pmax(bounds$U1_min, temp_u$temp_u1))
-      u2 <- pmin(bounds$U2_max, pmax(bounds$U2_min, temp_u$temp_u2))
-      # update control
-      v1 <- 0.5 * (v1 + oldv1)
-      v2 <- 0.5 * (v2 + oldv2)
-      u1 <- 0.5 * (u1 + oldu1)
-      u2 <- 0.5 * (u2 + oldu2)
+      # calculate new controls 
+      controls <- update_optimal_solution(params = params, 
+                                          lambda = lambda_df, 
+                                          x = x_df, 
+                                          control_type = control_type, 
+                                          optimal_control_fn = optimal_control_fn,
+                                          bounds = bounds, 
+                                          old_controls = old_controls)
       # recalculate test
-      test <- min(
-        tol * norm_oc(c(v1, v2)) - norm_oc(c(oldv1, oldv2) - c(v1, v2)),
-        tol * norm_oc(c(u1, u2)) - norm_oc(c(oldu1, oldu2) - c(u1, u2)),
-        tol * norm_oc(x[, -1]) - norm_oc(oldx[, -1] - x[, -1]),
-        tol * norm_oc(lambda[, -1]) - norm_oc(oldlambda[, -1] - lambda[, -1])
-      )
+      test <- calc_test_fn(tol, controls, old_controls, x, lambda)
       counter <- counter + 1
     }
-    trajectories <- x_df
-    trajectories$v1 <- v1
-    trajectories$v2 <- v2
-    trajectories$u1 <- u1
-    trajectories$u2 <- u2
+    trajectories <- cbind(x_df, do.call(cbind, controls))
     j_vals <- calc_j(times, 
-                     cbind(as.data.frame(x), v1 = v1, v2 = v2, u1 = u1, u2 = u2),
+                     cbind(as.data.frame(x), 
+                           do.call(cbind, controls)),
                      params)
     return(list(
       trajectories = trajectories,
@@ -154,8 +140,8 @@ setup_model <- function(model){
       # functions
       ode_fn = ode_cholera, 
       adj_fn = adjoint_cholera,
-      calc_opt_u = opt_u_cholera,
-      calc_opt_v = opt_v_cholera,
+      optimal_control_fn = optimal_controls_cholera,
+      calc_test_fn = calc_test_cholera,
       calc_j = calc_j_cholera,
       # model settings
       times = times_cholera, 
@@ -179,7 +165,7 @@ set_old_variables <- function(vars){
   for(i in names(vars)){
     renamed_old[[paste0("old",i)]] <- vars[[i]]
   }
-  invisible(list2env(renamed_old, envir = parent.frame()))
+  return(renamed_old)
 }
 
 #' create interpolation functions for controls
@@ -196,8 +182,24 @@ set_old_variables <- function(vars){
 define_interp_fns <- function(vars, times){
   interp_fns <- list()
   for(i in names(vars)){
-    interp_fns[[paste0(i,"_interp")]] <-  approxfun(times, vars[[i]], rule = 2) 
+    interp_fns[[i]] <-  approxfun(times, vars[[i]], rule = 2) 
   }
   return(interp_fns)
+}
+
+### ADD DOCUMENTATION
+update_optimal_solution <- function(params, lambda, x, control_type, 
+                                    optimal_control_fn, bounds, old_controls){
+  # calculate v1*, v2*, u1*, u2* (or other optimal controls)
+  temp_controls <- optimal_control_fn(params, lambda, x, control_type)
+  controls <- list()
+  for(i in names(temp_controls)){
+    # include bounds
+    controls[[i]] <- pmin(bounds[[paste0(i,"_max")]], 
+                          pmax(bounds[[paste0(i,"_min")]], temp_controls[[i]]))
+    # update control
+    controls[[i]] <- 0.5 * (controls[[i]] + old_controls[[paste0("old",i)]])
+  }
+  return(controls)
 }
 
