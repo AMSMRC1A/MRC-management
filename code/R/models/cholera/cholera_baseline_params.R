@@ -2,10 +2,10 @@
 params_cholera <- data.frame(
   ### ODE parameters
   mu1 = 0, mu2 = 0, # natural birth/death rate 1E-4
-  beta_I1 = 2.64E-5, beta_I2 = 2.64E-5, # transmission rate from people (consider setting to 0)
-  beta_W1 = 1.01E-4, beta_W2 = 1.01E-4, # transmission rate from water (consider increasing by an order of magnitude)
+  beta_I1 = 2.64E-6, beta_I2 = 2.64E-6, # transmission rate from people (consider settings to 0)
+  beta_W1 = 1.01E-5, beta_W2 = 1.01E-5, # transmission rate from water (consider increasing an order of magnitude)
   v1 = 0, v2 = 0, # vaccination rate
-  u1 = 0, u2 = 0, # reduction in transmission due to santation 
+  u1 = 0, u2 = 0, # reduction in transmission due to sanitation 
   m1 = 0, m2 = 0, # movement rate (non-infected)
   n1 = 0, n2 = 0, # movement rate (infected)
   gamma1 = 0.25, gamma2 = 0.25, # recovery rate
@@ -62,4 +62,5 @@ uncontrolled <- ode(y = IC_init,
 # set IC based on response_time
 IC_cholera <- as.double(uncontrolled[uncontrolled[,"time"] == response_time, -1])
 names(IC_cholera) <- colnames(uncontrolled[, -1])
+
 
