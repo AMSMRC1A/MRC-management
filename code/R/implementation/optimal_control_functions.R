@@ -187,7 +187,21 @@ define_interp_fns <- function(vars, times){
   return(interp_fns)
 }
 
-### ADD DOCUMENTATION
+#' calculate optimal solution
+#' 
+#' calculate optimal solution using optimal control characterization, and 
+#' update to account for bounds
+#' 
+#' @param params vector of model and optimal control parameters
+#' @param lambda matrix of adjoints over time
+#' @param x matrix of states over time
+#' @param control_type character to define the type of control being implemented;
+#' either \code{"uniform"} for the same control being applied in both patches 
+#' or \code{"unique"} where control can vary across patches 
+#' @param optimal_control_fn function to calculate optimal control 
+#' characterization
+#' @param bounds vector of bounds for all controls
+#' @param old_controls list of controls from previous iteration
 update_optimal_solution <- function(params, lambda, x, control_type, 
                                     optimal_control_fn, bounds, old_controls){
   # calculate v1*, v2*, u1*, u2* (or other optimal controls)

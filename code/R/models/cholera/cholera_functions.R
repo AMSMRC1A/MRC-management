@@ -115,9 +115,9 @@ adjoint_cholera <- function(t, y, params,
 
 # optimal control solutions ----------------------------------------------------
  
-#' calculate optimal vaccination strategy
+#' calculate optimal control characterization
 #' 
-#' sub-function used in \code{oc_optim()}
+#' sub-function used in \code{update_optimal_solution()}
 #' 
 #' @param params vector of model parameters
 #' @param lambda matrix of optimal lambda values (over time)
@@ -126,8 +126,7 @@ adjoint_cholera <- function(t, y, params,
 #' either \code{"uniform"} for the same control being applied in both patches 
 #' or \code{"unique"} where control can vary across patches 
 #' 
-#' @return list of optimal vaccination in both patches (vectors)
-### UPDATE DOCUMENTATION
+#' @return list of optimal control characterizations (vectors)
 optimal_controls_cholera <- function(params, lambda, x, control_type){
   with(as.list(c(params, lambda, x)), {
     params <- as_tibble(as.list(params))
