@@ -18,15 +18,15 @@ params_cholera <- data.frame(
   C1 = 0.125, C2 = 0.125, # cost of vaccinations
   epsilon1 = 10000, epsilon2 = 10000, # non-linearity for vacc
   D1 = 0.0125, D2 = 0.0125, # cost of sanitation
-  eta1 = 1000, eta2 = 1000 # non-linearity for sanitation
-)
-
-# bounds of optimal control (OC) parameters
-bounds_cholera <- list(
+  eta1 = 1000, eta2 = 1000, # non-linearity for sanitation
+  tol= 0.01, # optimization tolerance
+  control_type = "unique",
+  ### optimal control bounds
   v1_min = 0, v1_max = 0.015, 
   v2_min = 0, v2_max = 0.015, 
   u1_min = 0, u1_max = 0.4, 
-  u2_min = 0, u2_max = 0.4)
+  u2_min = 0, u2_max = 0.4
+)
 
 # define time series (units of days)
 times_cholera <- seq(0, 200, 0.05)
@@ -37,8 +37,6 @@ guess_v2 <- rep(0, length(times_cholera))
 guess_u1 <- rep(0, length(times_cholera))
 guess_u2 <- rep(0, length(times_cholera))
 
-# optimization tolerance
-tol_cholera <- 0.01
 
 # define initial conditions (ICs)-----------------------------------------------
 # run uncontrolled outbreak (beginning with ) for response time days, 

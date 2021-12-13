@@ -3,16 +3,21 @@
 #' implement optimal control optimization
 #' 
 #' @param model string to indicate which model is being run
-#' @param control_type character to define the type of control being implemented;
 #' either \code{"uniform"} for the same control being applied in both patches 
 #' or \code{"unique"} where control can vary across patches 
+#' @param change_params data frame with parameter values to change from baseline
 #' 
 #' #' @return list containing \code{trajectories}, a data.frame with all 
 #' time-varying values (state variables, controls, and adjoints), and 
 #' \code{j}, a double of the total cost
-oc_optim <- function(model,  control_type) {
+oc_optim <- function(model, change_params = NA) {
+  # load baseline objects
   setup <- setup_model(model)
   with(setup, {
+    # update parameters if !is.na(change_params)
+    if(!is.na(change_params)){
+      params <- param_changer(change_params, params)
+    }
     counter <- 1
     test <- -1
     while (test < 0 & counter < 50) {
@@ -43,12 +48,10 @@ oc_optim <- function(model,  control_type) {
       controls <- update_optimal_solution(params = params, 
                                           lambda = lambda_df, 
                                           x = x_df, 
-                                          control_type = control_type, 
                                           optimal_control_fn = optimal_control_fn,
-                                          bounds = bounds, 
                                           old_controls = old_controls)
       # recalculate test
-      test <- calc_test_fn(tol, controls, old_controls, x, lambda)
+      test <- calc_test_fn(params$tol, controls, old_controls, x, lambda)
       counter <- counter + 1
     }
     trajectories <- cbind(x_df, do.call(cbind, controls))
@@ -134,9 +137,6 @@ setup_model <- function(model){
       # ICs for ode solver #EH: some of these variable names are confusing
       init_x = IC_cholera, 
       lambda_init = lambda_init, 
-      # optimal control settings
-      tol = tol_cholera,
-      bounds = bounds_cholera, 
       # functions
       ode_fn = ode_cholera, 
       adj_fn = adjoint_cholera,
@@ -151,8 +151,7 @@ setup_model <- function(model){
   return(setup)
 }
 
-## EH: THERE MAY BE A SIMPLER WAY TO IMPLEMENT THESE
-
+## EH: THERE MAY BE A SIMPLER WAY TO IMPLEMENT THIS
 #' add renamed variables to the parent environment
 #' 
 #' all variables in \code{vars} will generate a new, identical object in the  
@@ -195,25 +194,41 @@ define_interp_fns <- function(vars, times){
 #' @param params vector of model and optimal control parameters
 #' @param lambda matrix of adjoints over time
 #' @param x matrix of states over time
-#' @param control_type character to define the type of control being implemented;
 #' either \code{"uniform"} for the same control being applied in both patches 
 #' or \code{"unique"} where control can vary across patches 
 #' @param optimal_control_fn function to calculate optimal control 
 #' characterization
-#' @param bounds vector of bounds for all controls
 #' @param old_controls list of controls from previous iteration
-update_optimal_solution <- function(params, lambda, x, control_type, 
-                                    optimal_control_fn, bounds, old_controls){
-  # calculate v1*, v2*, u1*, u2* (or other optimal controls)
-  temp_controls <- optimal_control_fn(params, lambda, x, control_type)
-  controls <- list()
-  for(i in names(temp_controls)){
-    # include bounds
-    controls[[i]] <- pmin(bounds[[paste0(i,"_max")]], 
-                          pmax(bounds[[paste0(i,"_min")]], temp_controls[[i]]))
-    # update control
-    controls[[i]] <- 0.5 * (controls[[i]] + old_controls[[paste0("old",i)]])
-  }
-  return(controls)
+update_optimal_solution <- function(params, lambda, x, 
+                                    optimal_control_fn, old_controls){
+  with(params, {
+    # calculate v1*, v2*, u1*, u2* (or other optimal controls)
+    temp_controls <- optimal_control_fn(params, lambda, x, control_type)
+    controls <- list()
+    for(i in names(temp_controls)){
+      # include bounds
+      controls[[i]] <- pmin(eval(as.name(paste0(i,"_max"))), 
+                            pmax(eval(as.name(paste0(i,"_min"))), 
+                                 temp_controls[[i]]))
+      # update control
+      controls[[i]] <- 0.5 * (controls[[i]] + old_controls[[paste0("old",i)]])
+    }
+    return(controls)
+  })
 }
 
+#' Helper function 'param_changer'
+#' 
+#' Update the \code{params} data frame with the parameter values listed in the
+#' \code{change_params} data frame
+#' 
+#' @param change_parmas data frame containing new parameter values
+#' @param params data frame containing original parameter values
+#' 
+#' @return new_params data frame with updated parameter values
+param_changer <- function(change_params, params) {
+  new_params <- params
+  p_loc <- match(names(change_params), names(new_params))
+  new_params[p_loc[!is.na(p_loc)]] <- change_params[!is.na(p_loc)]
+  return(new_params)
+}
