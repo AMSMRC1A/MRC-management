@@ -22,7 +22,7 @@ oc_optim <- function(model, change_params = NA) {
     test <- -1
     while (test < 0 & counter < 50) {
       # set previous control, state, and adjoint
-      old_controls <- set_old_variables(c(controls,
+      old_vals <- set_old_variables(c(controls,
                           list(x = x,lambda = lambda)))
       # define interpolating functions for v
       interp_controls <- define_interp_fns(controls, times)
@@ -49,9 +49,9 @@ oc_optim <- function(model, change_params = NA) {
                                           lambda = lambda_df, 
                                           x = x_df, 
                                           optimal_control_fn = optimal_control_fn,
-                                          old_controls = old_controls)
+                                          old_vals = old_vals)
       # recalculate test
-      test <- calc_test_fn(params$tol, controls, old_controls, x, lambda)
+      test <- calc_test_fn(params$tol, controls, x, lambda, old_vals)
       counter <- counter + 1
     }
     trajectories <- cbind(x_df, do.call(cbind, controls))
@@ -138,6 +138,7 @@ setup_model <- function(model){
       init_x = IC_cholera, 
       lambda_init = lambda_init, 
       # functions
+      # KD: could we do this algorithmically since we're just replacing "fn" with "cholera" for the most part?
       ode_fn = ode_cholera, 
       adj_fn = adjoint_cholera,
       optimal_control_fn = optimal_controls_cholera,
@@ -198,9 +199,9 @@ define_interp_fns <- function(vars, times){
 #' or \code{"unique"} where control can vary across patches 
 #' @param optimal_control_fn function to calculate optimal control 
 #' characterization
-#' @param old_controls list of controls from previous iteration
+#' @param old_vals list of controls from previous iteration
 update_optimal_solution <- function(params, lambda, x, 
-                                    optimal_control_fn, old_controls){
+                                    optimal_control_fn, old_vals){
   with(params, {
     # calculate v1*, v2*, u1*, u2* (or other optimal controls)
     temp_controls <- optimal_control_fn(params, lambda, x, control_type)
@@ -211,7 +212,7 @@ update_optimal_solution <- function(params, lambda, x,
                             pmax(eval(as.name(paste0(i,"_min"))), 
                                  temp_controls[[i]]))
       # update control
-      controls[[i]] <- 0.5 * (controls[[i]] + old_controls[[paste0("old",i)]])
+      controls[[i]] <- 0.5 * (controls[[i]] + old_vals[[paste0("old",i)]])
     }
     return(controls)
   })
