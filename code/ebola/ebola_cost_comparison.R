@@ -18,7 +18,7 @@ maxControl<-c(.015,.015)
 
 #Set timeframe
 times<-seq(0,365,by=1)
-preTimes<-seq(0,50,by=1)
+preTimes<-seq(0,100,by=1)
 
 #set intial conditions (initial outbreak) - 10 I in patch 1
 initial=c(S1=parm$N1-1,E1=0,I1=1,H1=0,D1=0,R1=0,S2=parm$N2,E2=0,I2=0,H2=0,D2=0,R2=0)

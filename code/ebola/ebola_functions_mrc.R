@@ -128,13 +128,16 @@ ebola.optim<-function(inits,params,M,times=seq(0,730,by=1),maxIter=200,strictCon
       
       v1 <- pmin(M[1], pmax(0, temp_v1))
       v1 <- 0.5*(v1 + oldv1)
+      #v1 <- v1*(1-.9^counter) + oldv1*.9^counter
       v2 <- pmin(M[2], pmax(0, temp_v2))
       v2 <- 0.5*(v2 + oldv2)
+      #v2<-v2*(1-.9^counter) + oldv2*.9^counter
     }else{
       temp_v1 <- with(params,(-C1*(solx[,"S1"]+solx[,"I1"])+lambda[,"lambda1"]*solx[,"S1"]-lambda[,"lambda6"]*solx[,"S1"]-
                                 C2*(solx[,"S2"]+solx[,"I2"])+lambda[,"lambda7"]*solx[,"S2"]-lambda[,"lambda12"]*solx[,"S2"])/(2*epsilon1))
       v1 <- pmin(M[1], pmax(0, temp_v1))
       v1 <- 0.5*(v1 + oldv1)
+      #v1 <- v1*(1-.9^counter) + oldv1*.9^counter
       v2 <- v1
     }
     

@@ -2,7 +2,7 @@ N1<-1e5
 N2<-1e5
 
 ##Set-up parameters
-parm<-list(mu1=1e-4,
+parm<-list(mu1=5.5e-5, #Change average lifespan to 50 years from 27
         alpha1=.1,
         gammaI1=1/15,
         gammaH1=.028,
@@ -11,10 +11,10 @@ parm<-list(mu1=1e-4,
         deltaH1=.01,
         xi1=0.222,
         #m1=0,
-        m1=0.005, #movement
+        m1=0, #movement
         n1=0,
         #Patch 2
-        mu2=1e-4,
+        mu2=5.5e-5, #Change average lifespan to 50 years from 27
         alpha2=.1,
         gammaI2=1/15,
         gammaH2=.028,
@@ -23,14 +23,14 @@ parm<-list(mu1=1e-4,
         deltaH2=.01,
         xi2=0.222,
         #m2=0,
-        m2=0.005,  #movement
+        m2=0.05,  #movement
         n2=0,
         b1=1,
         b2=1,
-        C1=.001,
-        C2=.001,
-        epsilon1=1.5e7,
-        epsilon2=1.5e7
+        C1=.01,
+        C2=.01,
+        epsilon1=5e7,  #5e7
+        epsilon2=5e7   #5e7 for 2  #1e4 for 1
 )
 
 #Calculate betas based on R0
