@@ -114,13 +114,39 @@ norm_oc <- function(x) {
 #' 
 #' @param model string to indicate which values to indicate which model to input
 #' 
-#' @return list of initial guesses, intial conditions, optimal control and model
+#' @return list of initial guesses, initial conditions, optimal control and model
 #' settings, and ode and adjoint functions
 setup_model <- function(model){
+  # source files where model-specific information is stored
+  source(file.path(paste0("models/",model,"/",model,"_baseline_params.R")))
+  source(file.path(paste0("models/",model,"/",model,"_functions.R")))
+  # define "dictionary" for model setup
+  n_states = length(get(paste0("IC_",model)))
   # final time adjoints
-  lambda_init <- rep(0, 8)
-  names(lambda_init) <- paste0("lambda", 1:8)
-  # "dictionary" for cholera setup
+  lambda_init <- rep(0, n_states)
+  names(lambda_init) <- paste0("lambda", 1:n_states)
+  # create list of all model-specific objects to load
+  setup <- list(
+    # initial guesses
+    controls = list(
+      v1 = guess_v1, 
+      v2 = guess_v2), 
+    x = matrix(0, nrow = length(get(paste0("times_",model))), ncol = n_states+1),
+    lambda = matrix(0, nrow = length(get(paste0("times_",model))), ncol = n_states+1),
+    # ICs for ode solver #EH: some of these variable names are confusing
+    init_x = get(paste0("IC_",model)), 
+    lambda_init = lambda_init, 
+    # functions
+    ode_fn = get(paste0("ode_",model)), 
+    adj_fn = get(paste0("adjoint_",model)),
+    optimal_control_fn = get(paste0("optimal_controls_",model)),
+    calc_test_fn = get(paste0("calc_test_",model)),
+    calc_j = get(paste0("calc_j_",model)),
+    # model settings
+    times = get(paste0("times_",model)), 
+    params =get(paste0("params_",model))
+  )
+  # add sanitation controls for cholera
   if(model == "cholera"){
     source("models/cholera/cholera_baseline_params.R")
     source("models/cholera/cholera_functions.R")
@@ -148,6 +174,8 @@ setup_model <- function(model){
       times = times_cholera, 
       params = params_cholera
     )
+    setup$controls$u1 = guess_u1
+    setup$controls$u2 = guess_u2
   }
   return(setup)
 }
@@ -199,9 +227,9 @@ define_interp_fns <- function(vars, times){
 #' or \code{"unique"} where control can vary across patches 
 #' @param optimal_control_fn function to calculate optimal control 
 #' characterization
-#' @param old_vals list of controls from previous iteration
-update_optimal_solution <- function(params, lambda, x, 
-                                    optimal_control_fn, old_vals){
+#' @param old_controls list of controls from previous iteration
+update_optimal_solution <- function(params, lambda, x,
+                                    optimal_control_fn, old_controls){
   with(params, {
     # calculate v1*, v2*, u1*, u2* (or other optimal controls)
     temp_controls <- optimal_control_fn(params, lambda, x, control_type)
