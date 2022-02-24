@@ -13,6 +13,8 @@
 #' in list should correspond to variable name
 ode_ebola <- function(t, y, params, interp_controls = NA) {
   with(as.list(c(y, params)), {
+    #if(t >= 37.66408){}
+    #browser()
     # define population size
     N1<-S1+E1+I1+H1+R1
     N2<-S2+E2+I2+H2+R2
@@ -58,7 +60,7 @@ adjoint_ebola <- function(t, y, params,
                             interp_controls = NA, 
                             x_interp, x) {
   # calculate state at time t using interpolated function
-  state<- sapply(1:length(p$x_interp),function(i){p$x_interp[[i]](t)})
+  state<- sapply(1:length(x_interp),function(i){x_interp[[i]](t)})
   names(state)<-c("S1","E1","I1","H1","D1","R1","S2","E2","I2","H2","D2","R2")
   # calculate control at time t using interpolated function
   if(all(!is.na(interp_controls))){
@@ -166,7 +168,7 @@ optimal_controls_ebola <- function(params, lambda, x, control_type){
     else if(control_type == "unique"){
       temp_controls <- list(
         v1 = (-C1*(S1+I1)+lambda1*S1-lambda6*S1)/(2*epsilon1),
-        v2 = (-C2*(S2+I2)+lambda7*S2-lambda12*S2)/(2*epsilon2),
+        v2 = (-C2*(S2+I2)+lambda7*S2-lambda12*S2)/(2*epsilon2)
       )
     }
     return(temp_controls)

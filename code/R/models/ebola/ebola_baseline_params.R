@@ -32,7 +32,13 @@ params_ebola <- data.frame(
   C1=.01,
   C2=.01,
   epsilon1=5e7,  #5e7
-  epsilon2=5e7   #5e7 for 2  #1e4 for 1
+  epsilon2=5e7, #5e7 for 2  #1e4 for 1  
+  # for baseline control_type
+  control_type = "unique",
+  tol= 0.01, # optimization tolerance
+  ### optimal control bounds
+  v1_min = 0, v1_max = 0.005, 
+  v2_min = 0, v2_max = 0.005
 )
 
 #Calculate betas based on R0
@@ -60,12 +66,18 @@ guess_u2 <- rep(0, length(times_ebola))
 
 # define initial conditions (ICs)-----------------------------------------------
 IC_ebola <- c(
-  S1=N1-700, S2=N2,
-  E1=400,    E2=0,
-  I1=300,    I2=0,
-  H1=0,      H2=0,
-  D1=0,      D2=0,
-  R1=0,      R2=0
+  S1=N1-700, 
+  E1=400,    
+  I1=300,    
+  H1=0,      
+  D1=0,      
+  R1=0,      
+  S2=N2,
+  E2=0,
+  I2=0,
+  H2=0,
+  D2=0,
+  R2=0
 )
 
 rm(betaI1,betaI2,betaD1,betaD2,N1,N2,R0,p)
