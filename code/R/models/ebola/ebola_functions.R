@@ -160,10 +160,10 @@ optimal_controls_ebola <- function(params, lambda, x, control_type){
     params <- as_tibble(as.list(params))
     if(control_type == "uniform")
       temp_controls <- list(
-        v1 = (-C1*(S1+I)+lambda1*S1-lambda6*S1-
-                C2*(S2I2)+lambda7*S2-lambda12*S2)/(2*epsilon1),
-        v2 = (-C1*(S1+I)+lambda1*S1-lambda6*S1-
-                C2*(S2I2)+lambda7*S2-lambda12*S2)/(2*epsilon1)
+        v1 = (-C1*(S1+I1)+lambda1*S1-lambda6*S1-
+                C2*(S2+I2)+lambda7*S2-lambda12*S2)/(2*epsilon1),
+        v2 = (-C1*(S1+I1)+lambda1*S1-lambda6*S1-
+                C2*(S2+I2)+lambda7*S2-lambda12*S2)/(2*epsilon1)
       )
     else if(control_type == "unique"){
       temp_controls <- list(
