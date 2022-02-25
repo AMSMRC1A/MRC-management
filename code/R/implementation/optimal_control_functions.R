@@ -49,7 +49,7 @@ oc_optim <- function(model, change_params = NA) {
                                           lambda = lambda_df, 
                                           x = x_df, 
                                           optimal_control_fn = optimal_control_fn,
-                                          old_vals = old_vals)
+                                          old_controls = old_vals)
       # recalculate test
       test <- calc_test_fn(params$tol, controls, x, lambda, old_vals)
       counter <- counter + 1
@@ -240,7 +240,7 @@ update_optimal_solution <- function(params, lambda, x,
                             pmax(eval(as.name(paste0(i,"_min"))), 
                                  temp_controls[[i]]))
       # update control
-      controls[[i]] <- 0.5 * (controls[[i]] + old_vals[[paste0("old",i)]])
+      controls[[i]] <- 0.5 * (controls[[i]] + old_controls[[paste0("old",i)]])
     }
     return(controls)
   })
