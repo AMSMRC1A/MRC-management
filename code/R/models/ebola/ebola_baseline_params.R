@@ -13,7 +13,7 @@ params_ebola <- data.frame(
   deltaH1=.01,
   xi1=0.222,
   #m1=0,
-  m1=0, #movement
+  m1=1e-5, #movement
   n1=0,
   #Patch 2
   mu2=5.5e-5, #Change average lifespan to 50 years from 27
@@ -25,20 +25,21 @@ params_ebola <- data.frame(
   deltaH2=.01,
   xi2=0.222,
   #m2=0,
-  m2=0.05,  #movement
+  m2=.001,  #movement
   n2=0,
   b1=1,
   b2=1,
   C1=.01,
   C2=.01,
-  epsilon1=5e7,  #5e7
-  epsilon2=5e7, #5e7 for 2  #1e4 for 1  
+  epsilon1=5e4,  #5e7
+  epsilon2=5e4, #5e7 for 2  #1e4 for 1  
   # for baseline control_type
-  control_type = "unique",
+  control_type = "uniform",
   tol= 0.01, # optimization tolerance
+  v1 = 0, v2 = 0, # baseline vaccination rate
   ### optimal control bounds
-  v1_min = 0, v1_max = 0.005, 
-  v2_min = 0, v2_max = 0.005
+  v1_min = 0, v1_max = 0.015, 
+  v2_min = 0, v2_max = 0.015
 )
 
 #Calculate betas based on R0
@@ -81,3 +82,36 @@ IC_ebola <- c(
 )
 
 rm(betaI1,betaI2,betaD1,betaD2,N1,N2,R0,p)
+
+
+# define initial conditions (ICs)-----------------------------------------------
+# run uncontrolled outbreak (beginning with ) for response time days, 
+# use the states on this day
+
+# response_time <- 100 # define time of outbreak response in days
+# # use initially uncontrolled outbreak to determine initial conditions
+# IC_init <- c(
+#   S1 = 100000 - 1, 
+#   E1 = 0,
+#   I1 = 1,
+#   H1 = 0, 
+#   D1 = 0,
+#   R1 = 0, 
+#   S2 = 100000, 
+#   E2 = 0,
+#   I2 = 0,
+#   H2 = 0, 
+#   D2 = 0,
+#   R2 = 0
+# )
+# 
+# source("models/ebola/ebola_functions.R")
+# # solve ODE
+# uncontrolled <- ode(y = IC_init, 
+#                     times = times_ebola, 
+#                     func = ode_ebola, 
+#                     parms = params_ebola)
+# # set IC based on response_time
+# IC_ebola <- as.double(uncontrolled[uncontrolled[,"time"] == response_time, -1])
+# names(IC_ebola) <- colnames(uncontrolled[, -1])
+
