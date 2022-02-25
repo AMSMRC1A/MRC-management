@@ -20,6 +20,7 @@ oc_optim <- function(model, change_params = NA) {
     }
     counter <- 1
     test <- -1
+    test_vals <- list() # list to store test
     while (test < 0 & counter < 50) {
       # set previous control, state, and adjoint
       old_vals <- set_old_variables(c(controls,
@@ -52,6 +53,7 @@ oc_optim <- function(model, change_params = NA) {
                                           old_controls = old_vals)
       # recalculate test
       test <- calc_test_fn(params$tol, controls, x, lambda, old_vals)
+      test_vals[[counter]] <- test
       counter <- counter + 1
     }
     trajectories <- cbind(x_df, do.call(cbind, controls))
@@ -61,7 +63,9 @@ oc_optim <- function(model, change_params = NA) {
                      params)
     return(list(
       trajectories = trajectories,
-      j = j_vals
+      j = j_vals, 
+      test_vals = unlist(test_vals), 
+      n_iterations = counter
     ))
   })
 }
