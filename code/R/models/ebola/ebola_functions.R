@@ -176,7 +176,7 @@ optimal_controls_ebola <- function(params, lambda, x, control_type){
 }
 
 # EH: is there a better way to do this?
-calc_test_ebola <- function(tol, controls, old_controls, x, lambda){
+calc_test_ebola <- function(tol, controls,  x, lambda, old_controls){
   return(min(
     # EH: figure out how to generalize these
     tol * norm_oc(c(controls$v1, controls$v2)) - 
