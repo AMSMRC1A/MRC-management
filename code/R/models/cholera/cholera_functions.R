@@ -265,3 +265,12 @@ R0_cholera <- function(params, N0_1, N0_2) {
     return(R0)
   })
 }
+
+# utilities --------------------------------------------------------------------
+
+#' define norm(X,1) command from matlab
+#' 
+#' @param x vector
+norm_oc <- function(x) {
+  sum(abs(x))
+}

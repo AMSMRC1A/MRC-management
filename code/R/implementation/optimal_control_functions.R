@@ -70,6 +70,49 @@ oc_optim <- function(model, change_params = NA) {
   })
 }
 
+#' run optimal control optimization over different parameter sets
+#' 
+#' @param model string to indicate which model is being run
+#' either \code{"cholera"} for the cholera model or \code{"ebola"} for the ebola
+#' model
+#' @param param_sets data frame composed of parameter values to change from
+#'  baseline. Each row corresponds to a different 'experiment' to run
+#' 
+#' #' @return list containing \code{trajectories}, a data.frame with all 
+#' time-varying values (state variables and controls) indexed by the row number
+#' from param_sets, and \code{j}, a vector of the costs index by the row number
+#' from param_sets
+
+mult_oc_optim <- function(model, param_sets = NA) {
+  # Set up loop over param_sets
+  # Run loop over param_sets
+  vary_params <- foreach(
+    i = 1:nrow(param_sets),
+    .packages = c("deSolve", "tidyverse", "pracma"),
+    # explicitly give 'foreach' the functions and data it needs
+    .export = c("param_changer","oc_optim", "setup_model", "set_old_variables",
+                "define_interp_fns", "update_optimal_solution")
+  ) %dopar% {
+    
+    oc_optim(model, param_sets[i, ])
+  }
+  
+  # Organize output from loops 
+  param_sets$test_case <- 1:nrow(param_sets)
+  trajectories <- lapply(1:nrow(param_sets), function(i) {
+    return(data.frame(test_case = i, vary_params[[i]]$trajectories))
+  })
+  trajectories <- as.data.frame(do.call(rbind, trajectories))
+  trajectories <- left_join(param_sets, trajectories)
+  j_vals <- lapply(1:nrow(param_sets), function(i) {
+    return(data.frame(test_case = i, vary_params[[i]][["j"]]))
+  })
+  j_vals <- as.data.frame(do.call(rbind, j_vals))
+  j_vals <- left_join(param_sets, j_vals)
+  j_vals$j <- apply(j_vals[, c("j_case1", "j_case2", "j_vacc1", "j_vacc2")], 1, sum)
+  return(list(trajectories = trajectories, j_vals = j_vals))  
+}
+
 # no control -------------------------------------------------------------------
 
 #' calculate time series and cost, j, with no optimization
@@ -107,12 +150,6 @@ run_no_optim <- function(model, control_type) {
 
 
 # utilities --------------------------------------------------------------------
-#' define norm(X,1) command from matlab
-#' 
-#' @param x vector
-norm_oc <- function(x) {
-  sum(abs(x))
-}
 
 #' input all model-specific variables for optimal control analysis
 #' 

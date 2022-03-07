@@ -233,3 +233,12 @@ eval_j_integrand <- function(params, optim_states, integrand) {
     eval(parse(text = integrand))
   })
 }
+
+# utilities --------------------------------------------------------------------
+
+#' define norm(X,1) command from matlab
+#' 
+#' @param x vector
+norm_oc <- function(x) {
+  sum(abs(x))
+}

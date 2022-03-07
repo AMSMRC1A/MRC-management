@@ -1,0 +1,708 @@
+---
+title: "Optimal Control Results"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+# markdown settings
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+# required packages
+library(ggplot2)
+library(deSolve)
+library(reshape2)
+library(tidyverse)
+library(cowplot)
+library(pracma)
+library(RColorBrewer)
+
+# to paralellize
+library(doParallel)
+library(foreach)
+registerDoParallel(detectCores() - 2) # update this if you want to use more cores
+```
+
+```{r oc_setup}
+# load optimal control files
+source("implementation/optimal_control_functions.R")
+# source("run_optimal_control.R")
+
+# initial guesses - controls
+guess_v1 <- rep(0, length(times))
+guess_v2 <- rep(0, length(times))
+guess_u1 <- rep(0, length(times))
+guess_u2 <- rep(0, length(times))
+
+# setup baseline optimal control parameters
+tol <- .01 # tolerance parameter for optimization
+oc_params <- c(
+  b1 = 1, b2 = 1, # cost of cases
+  C1 = 0.125, C2 = 0.125, # cost of vaccinations
+  epsilon1 = 10000, epsilon2 = 10000, # non-linearity for vacc
+  D1 = 0.0125, D2 = 0.0125, # cost of sanitation
+  eta1 = 1000, eta2 = 1000
+) # non-linearity for sanitation
+
+# setup control_type parameters to test
+# unique: optimal control can vary between patches
+# uniform: optimal control must be the same in each patch
+test_params <- data.frame(
+  m1 = 0,
+  control_type = c("unique", "uniform") # how to optimize control in each patch
+)
+```
+
+```{r model_setup}
+
+# KD: Temporary. Will make these nicer in future
+
+cholera_setup <- setup_model("cholera")
+ebola_setup <- setup_model("ebola")
+
+cholera_IC <- cholera_setup$init_x
+ebola_IC <- ebola_setup$init_x
+
+cholera_params <- cholera_setup$params
+ebola_params <- ebola_setup$params
+```
+
+# Cholera {.tabset}
+
+```{r cholera-plot_setup}
+# define labels to make plots more interpretable
+# names of each compartment/control
+compartment_names <- c(
+  "Susceptible", "Infected", "Recovered", "Water",
+  "vaccination", "sanitation"
+)
+names(compartment_names) <- c("S", "I", "R", "W", "v", "u")
+# names of each aspect of cost function
+cost_names <- c(
+  "P1: cases", "P1: vaccination", "P1: sanitation",
+  "P2: cases", "P2: vaccination", "P2: sanitation"
+)
+names(cost_names) <- c(
+  "j_case1", "j_vacc1", "j_sani1",
+  "j_case2", "j_vacc2", "j_sani2"
+)
+
+# define color palettes for plots
+patch_colors2 <- c("#DE2D26", "#3182BD")
+cost_colors6 <- c(rev(brewer.pal(3, "Reds")), rev(brewer.pal(3, "Blues")))
+
+
+# make parameter tables look nice
+# KD: this is a temporary fix to make things look nice.
+#     I think the way I reconfigured on my branch will allow us to avoid doing this
+params_table <- matrix(as.list(cholera_params), 1, length(as.list(cholera_params)))
+colnames(params_table) <- names(as.list(cholera_params))
+params_table <- as.data.frame(params_table)
+
+IC_table <- as.data.frame(t(cholera_IC))
+
+# Calculate R0
+choleraR0 <- R0_cholera(cholera_params, 1e5, 1e5)
+```
+
+Here we keep the results of various numerical experiments of optimal control outcomes in the Cholera model. Specifically, we focus on the difference between the optimal strategy, when control is customized to each patch versus the "one size fits all strategy" where both patches are forced to be given the same control.
+
+## Experiment 1 (no movement between patches) {.tabset}
+
+### Parameters 
+The following experiments use these  parameters and initial conditions.
+
+Parameters: `r knitr::kable(params_table %>% select(mu1 : gamma2), format="markdown")`
+`r knitr::kable(params_table %>% select(delta1 : rho2), format="markdown")`
+
+Initial conditions: `r knitr::kable(IC_table, format =  "markdown", digits = 0, align = 'l')`
+
+Optimal control parameters: `r knitr::kable(params_table %>% select(b1 : control_type), format="markdown")`
+`r knitr::kable(params_table %>% select(v1_min : u2_max), format="markdown")`
+
+With these parameters, the system has an R0 of about `r choleraR0`.
+
+### No control
+Time 0 corresponds to `r response_time` days since the start of the outbreak.
+```{r cholera-no-control, fig.show="hold", out.width = "100%"}
+# read in csv with solution to ode without control
+uncontrolled_epi <- run_no_optim("cholera", "none")$trajectories
+
+# plot the time series in each compartment by patch
+uncontrolled_epi %>%
+  select(-v1, -v2, -u1, -u2) %>%
+  # melt from wide to long format
+  melt(c("time")) %>%
+  # use variable names to distinguish compartment and patch
+  mutate(
+    compartment = substr(variable, 1, 1),
+    compartment = factor(compartment, levels = c("S", "I", "R", "W")),
+    patch = substr(variable, 2, 2)
+  ) %>%
+  # plot time series
+  ggplot(aes(x = time, y = value, color = patch)) +
+  geom_line(size = 1) +
+  facet_wrap(vars(compartment), scales = "free", labeller = labeller(variable = compartment_names)) +
+  scale_color_manual(values = patch_colors2) +
+  theme_bw() +
+  theme(
+    axis.title.y = element_blank(),
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
+```
+
+
+### Vaccination Only
+We consider the case with only vaccination (no sanitation).
+
+Controls start at day `r response_time`.
+
+```{r cholera-vacc_only_oc}
+# calculate optimal control
+# exclude sanitation by setting u max to 0
+vacc_only_params <- expand_grid(test_params, u1_max = 0, u2_max = 0)
+# run OC across multiple parameters
+exper_v_only <- mult_oc_optim("cholera", vacc_only_params)
+```
+
+```{r cholera-vacc_only_plot, fig.show="hold", out.width = "100%"}
+# plot states
+exper_v_only$trajectories %>%
+  melt(c("m1", "control_type", "test_case", "time")) %>%
+  mutate(
+    patch = substr(variable, 2, 2),
+    variable = substr(variable, 1, 1)
+  ) %>%
+  filter(control_type %in% c("uniform", "unique")) %>%
+  mutate(
+    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
+    variable = factor(variable, levels = c("S", "I", "R", "W", "v", "u"))
+  ) %>%
+  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
+  geom_line(size = 1) +
+  facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
+  scale_color_manual(values = patch_colors2) +
+  scale_linetype_manual(values = c("dotted", "solid")) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
+
+# plot costs
+exper_v_only$j_vals %>%
+  melt(c("m1", "control_type", "test_case")) %>%
+  filter(variable != "j") %>%
+  mutate(variable = factor(variable,
+    levels = c(
+      "j_case1", "j_vacc1", "j_sani1",
+      "j_case2", "j_vacc2", "j_sani2",
+      "j"
+    )
+  )) %>%
+  ggplot(aes(x = control_type)) +
+  geom_bar(aes(y = value, fill = variable),
+    stat = "identity", position = "stack"
+  ) +
+  geom_text(aes(y = value, label = round(value), group = variable),
+    position = position_stack(vjust = 0.5)
+  ) +
+  geom_text(
+    data = exper_v_only$j,
+    aes(y = j, label = paste0("Total cost: ", round(j))),
+    vjust = 0
+  ) +
+  guides(fill = guide_legend(nrow = 3)) +
+  scale_fill_manual(values = cost_colors6, labels = cost_names) +
+  labs(y = "cost") +
+  scale_x_discrete(expand = c(0, 0)) +
+  theme_bw() +
+  theme(
+    axis.title.x = element_blank(),
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    panel.grid = element_blank()
+  )
+```
+
+```{r cholera-gov_diffs, fig.show="hold", out.width = "100%"}
+# Measure the relative differences in each type of cost between unique and uniform
+
+# exper_v_only
+
+# Total new cases = j_casei / bi
+# Total vaccinated = j_vacci / Ci
+# Total sanitized = j_sanii / Di
+
+rel_costs <- exper_v_only$j_vals %>%
+  mutate(total_cases1 = j_case1 / params_cholera$b1) %>%
+  mutate(total_cases2 = j_case2 / params_cholera$b2) %>%
+  mutate(total_vacc1 = j_vacc1 / params_cholera$C1) %>%
+  mutate(total_vacc2 = j_vacc2 / params_cholera$C2) %>%
+  mutate(total_sani1 = j_sani1 / params_cholera$D1) %>%
+  mutate(total_sani2 = j_sani2 / params_cholera$D2) %>%
+  mutate(case_diff = total_cases1 - total_cases2) %>%
+  mutate(vacc_diff = total_vacc1 - total_vacc2) %>%
+  mutate(sani_diff = total_sani1 - total_sani2) %>%
+  mutate(j_change = 100 * (j - j[control_type == "uniform"]) / j[control_type == "uniform"]) %>%
+  mutate(cases1_change = 100 * (total_cases1 - total_cases1[control_type == "uniform"]) /
+    total_cases1[control_type == "uniform"]) %>%
+  mutate(cases2_change = 100 * (total_cases2 - total_cases2[control_type == "uniform"]) /
+    total_cases2[control_type == "uniform"]) %>%
+  mutate(vacc1_change = 100 * (total_vacc1 - total_vacc1[control_type == "uniform"]) /
+    total_vacc1[control_type == "uniform"]) %>%
+  mutate(vacc2_change = 100 * (total_vacc2 - total_vacc2[control_type == "uniform"]) /
+    total_vacc2[control_type == "uniform"])
+# plot relative change in costs
+rel_costs %>%
+  filter(control_type == "unique") %>%
+  select(j_change, cases1_change, cases2_change, vacc1_change, vacc2_change) %>%
+  pivot_longer(cols = 1:4, names_to = "column", values_to = "values") %>%
+  ggplot(aes(x = column, y = values)) +
+  geom_col() +
+  labs(y = "% change from uniform to unique")
+```
+There was a `r rel_costs$cases1_change[1]` change in case counts in patch 1 when switching from unique to uniform and a `r rel_costs$cases2_change[1]` change in case counts in patch 2.
+
+There was a `r rel_costs$vacc1_change[1]` change in vaccination counts in patch 1 when switching from unique to uniform and a `r rel_costs$vacc2_change[1]` change in vaccination counts in patch 2.
+
+### Sanitation Only
+We also consider the case with only sanitation (no vaccination).
+
+Controls start at day `r response_time``.
+```{r cholera-sani_only_oc}
+# exclude vaccination by setting u max to 0
+sani_only_params <- expand_grid(test_params, v1_max = 0, v2_max = 0)
+# run OC across multiple parameters
+exper_u_only <- mult_oc_optim("cholera", sani_only_params)
+```
+
+```{r cholera-sani_only_plot, fig.show="hold", out.width = "100%"}
+# plot states
+exper_u_only$trajectories %>%
+  melt(c("m1", "control_type", "test_case", "time")) %>%
+  mutate(
+    patch = substr(variable, 2, 2),
+    variable = substr(variable, 1, 1)
+  ) %>%
+  filter(control_type %in% c("uniform", "unique")) %>%
+  mutate(
+    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
+    variable = factor(variable, levels = c("S", "I", "R", "W", "v", "u"))
+  ) %>%
+  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
+  geom_line(size = 1) +
+  facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
+  scale_color_manual(values = patch_colors2) +
+  scale_linetype_manual(values = c("dotted", "solid")) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
+
+# plot costs
+exper_u_only$j_vals %>%
+  melt(c("m1", "control_type", "test_case")) %>%
+  filter(variable != "j") %>%
+  mutate(variable = factor(variable,
+    levels = c(
+      "j_case1", "j_vacc1", "j_sani1",
+      "j_case2", "j_vacc2", "j_sani2",
+      "j"
+    )
+  )) %>%
+  ggplot(aes(x = control_type)) +
+  geom_bar(aes(y = value, fill = variable),
+    stat = "identity", position = "stack"
+  ) +
+  geom_text(aes(y = value, label = round(value), group = variable),
+    position = position_stack(vjust = 0.5)
+  ) +
+  geom_text(
+    data = exper_u_only$j,
+    aes(y = j, label = paste0("Total cost: ", round(j))),
+    vjust = 0
+  ) +
+  guides(fill = guide_legend(nrow = 3)) +
+  scale_fill_manual(values = cost_colors6, labels = cost_names) +
+  labs(y = "cost") +
+  scale_x_discrete(expand = c(0, 0)) +
+  theme_bw() +
+  theme(
+    axis.title.x = element_blank(),
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    panel.grid = element_blank()
+  )
+```
+
+### Both Vaccination and Sanitation
+
+Lastly, we show how results change if we optimize both controls.
+
+Controls start at day `r response_time`.
+
+```{r cholera-both_oc}
+# calculate optimal control
+# run OC across multiple parameters
+exper_both <- mult_oc_optim("cholera", test_params)
+```
+
+```{r cholera-both_plot, fig.show="hold", out.width = "100%"}
+# plot states
+exper_both$trajectories %>%
+  melt(c("m1", "control_type", "test_case", "time")) %>%
+  mutate(
+    patch = substr(variable, 2, 2),
+    variable = substr(variable, 1, 1)
+  ) %>%
+  filter(control_type %in% c("uniform", "unique")) %>%
+  mutate(
+    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
+    variable = factor(variable, levels = c("S", "I", "R", "W", "v", "u"))
+  ) %>%
+  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
+  geom_line(size = 1) +
+  facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
+  scale_color_manual(values = patch_colors2) +
+  scale_linetype_manual(values = c("dotted", "solid")) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
+
+#
+exper_both$j_vals %>%
+  melt(c("m1", "control_type", "test_case")) %>%
+  filter(variable != "j") %>%
+  mutate(variable = factor(variable,
+    levels = c(
+      "j_case1", "j_vacc1", "j_sani1",
+      "j_case2", "j_vacc2", "j_sani2",
+      "j"
+    )
+  )) %>%
+  ggplot(aes(x = control_type)) +
+  geom_bar(aes(y = value, fill = variable),
+    stat = "identity", position = "stack"
+  ) +
+  geom_text(aes(y = value, label = round(value), group = variable),
+    position = position_stack(vjust = 0.5)
+  ) +
+  geom_text(
+    data = exper_both$j,
+    aes(y = j, label = paste0("Total cost: ", round(j))),
+    vjust = 0
+  ) +
+  guides(fill = guide_legend(nrow = 3)) +
+  scale_fill_manual(values = cost_colors6, labels = cost_names) +
+  labs(y = "cost") +
+  scale_x_discrete(expand = c(0, 0)) +
+  theme_bw() +
+  theme(
+    axis.title.x = element_blank(),
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    panel.grid = element_blank()
+  )
+```
+
+# Ebola {.tabset}
+```{r ebola-plot_setup}
+# define labels to make plots more interpretable
+# names of each compartment/control
+compartment_names <- c(
+  "Susceptible", "Exposed", "Infected", "Hospitalized", "Dead", "Recovered",
+  "Vaccination", "TBD"
+)
+names(compartment_names) <- c("S", "E", "I", "H", "D", "R", "v", "u")
+# names of each aspect of cost function
+cost_names <- c(
+  "P1: cases", "P1: vaccination", "P1: ?",
+  "P2: cases", "P2: vaccination", "P2: ?"
+)
+names(cost_names) <- c(
+  "j_case1", "j_vacc1", "j_sani1",
+  "j_case2", "j_vacc2", "j_sani2"
+)
+
+# define color palettes for plots
+patch_colors2 <- c("#DE2D26", "#3182BD")
+cost_colors6 <- c(rev(brewer.pal(3, "Reds")), rev(brewer.pal(3, "Blues")))
+
+
+# make parameter tables look nice
+# KD: this is a temporary fix to make things look nice.
+#     I think the way I reconfigured on my branch will allow us to avoid doing this
+params_table <- matrix(as.list(ebola_params), 1, length(as.list(ebola_params)))
+colnames(params_table) <- names(as.list(ebola_params))
+params_table <- as.data.frame(ebola_params)
+
+IC_table <- as.data.frame(t(ebola_IC))
+```
+We show similar results instead employing  the Ebola model.
+
+## Experiment 1 (no movement between patches) {.tabset}
+
+### Parameters 
+The following experiments use these  parameters and initial conditions.
+
+Parameters: `r knitr::kable(params_table %>% select(mu1 : n1), format="markdown", align = 'l')`
+`r knitr::kable(params_table %>% select(mu2 : n2), format="markdown", align = 'l')`
+
+Initial conditions: `r knitr::kable(IC_table, format =  "markdown", digits = 0, align = 'l')`
+
+Optimal control parameters: `r knitr::kable(params_table %>% select(b1 : v2), format="markdown", align = 'l')`
+`r knitr::kable(params_table %>% select(v1_min : N2), format="markdown", align = 'l')`
+
+### No control
+Time 0 corresponds to `r response_time` days since the start of the outbreak.
+```{r ebola-no-control, fig.show="hold", out.width = "100%"}
+# read in csv with solution to ode without control
+uncontrolled_epi <- run_no_optim("ebola", "none")$trajectories
+
+# plot the time series in each compartment by patch
+uncontrolled_epi %>%
+  select(-v1, -v2, -u1, -u2) %>%
+  # melt from wide to long format
+  melt(c("time")) %>%
+  # use variable names to distinguish compartment and patch
+  mutate(
+    compartment = substr(variable, 1, 1),
+    compartment = factor(compartment, levels = c("S", "E", "I", "H", "D", "R")),
+    patch = substr(variable, 2, 2)
+  ) %>%
+  # plot time series
+  ggplot(aes(x = time, y = value, color = patch)) +
+  geom_line(size = 1) +
+  facet_wrap(vars(compartment), scales = "free", labeller = labeller(variable = compartment_names)) +
+  scale_color_manual(values = patch_colors2) +
+  theme_bw() +
+  theme(
+    axis.title.y = element_blank(),
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
+```
+
+
+### Vaccination Only
+We consider the case with only vaccination (no sanitation).
+
+Controls start at day `r response_time`.
+
+```{r ebola-vacc_only_oc}
+# calculate optimal control
+# exclude sanitation by setting u max to 0
+vacc_only_params <- expand_grid(test_params, u1_max = 0, u2_max = 0)
+# run OC across multiple parameters
+exper_v_only <- mult_oc_optim("ebola", vacc_only_params)
+```
+
+```{r ebola-vacc_only_plot, fig.show="hold", out.width = "100%"}
+# plot states
+exper_v_only$trajectories %>%
+  melt(c("m1", "control_type", "test_case", "time")) %>%
+  mutate(
+    patch = substr(variable, 2, 2),
+    variable = substr(variable, 1, 1)
+  ) %>%
+  filter(control_type %in% c("uniform", "unique")) %>%
+  mutate(
+    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
+    variable = factor(variable, levels = c("S", "E", "I", "H", "D", "R", "v", "u"))
+  ) %>%
+  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
+  geom_line(size = 1) +
+  facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
+  scale_color_manual(values = patch_colors2) +
+  scale_linetype_manual(values = c("dotted", "solid")) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
+
+# plot costs
+exper_v_only$j_vals %>%
+  melt(c("m1", "control_type", "test_case")) %>%
+  filter(variable != "j") %>%
+  mutate(variable = factor(variable,
+    levels = c(
+      "j_case1", "j_vacc1", "j_TBD1",
+      "j_case2", "j_vacc2", "j_TBD2",
+      "j"
+    )
+  )) %>%
+  ggplot(aes(x = control_type)) +
+  geom_bar(aes(y = value, fill = variable),
+    stat = "identity", position = "stack"
+  ) +
+  geom_text(aes(y = value, label = round(value), group = variable),
+    position = position_stack(vjust = 0.5)
+  ) +
+  geom_text(
+    data = exper_v_only$j,
+    aes(y = j, label = paste0("Total cost: ", round(j))),
+    vjust = 0
+  ) +
+  guides(fill = guide_legend(nrow = 3)) +
+  scale_fill_manual(values = cost_colors6, labels = cost_names) +
+  labs(y = "cost") +
+  scale_x_discrete(expand = c(0, 0)) +
+  theme_bw() +
+  theme(
+    axis.title.x = element_blank(),
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    panel.grid = element_blank()
+  )
+```
+
+
+### Control 2 Only
+We also consider the case with only sanitation (no vaccination).
+
+Controls start at day `r response_time`.
+```{r ebola-sani_only_oc}
+# exclude vaccination by setting u max to 0
+sani_only_params <- expand_grid(test_params, v1_max = 0, v2_max = 0)
+# run OC across multiple parameters
+exper_u_only <- mult_oc_optim("ebola", sani_only_params)
+```
+
+```{r ebola-sani_only_plot, fig.show="hold", out.width = "100%"}
+# plot states
+exper_u_only$trajectories %>%
+  melt(c("m1", "control_type", "test_case", "time")) %>%
+  mutate(
+    patch = substr(variable, 2, 2),
+    variable = substr(variable, 1, 1)
+  ) %>%
+  filter(control_type %in% c("uniform", "unique")) %>%
+  mutate(
+    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
+    variable = factor(variable, levels = c("S", "E", "I", "H", "D", "R", "v", "u"))
+  ) %>%
+  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
+  geom_line(size = 1) +
+  facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
+  scale_color_manual(values = patch_colors2) +
+  scale_linetype_manual(values = c("dotted", "solid")) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
+
+# plot costs
+exper_u_only$j_vals %>%
+  melt(c("m1", "control_type", "test_case")) %>%
+  filter(variable != "j") %>%
+  mutate(variable = factor(variable,
+    levels = c(
+      "j_case1", "j_vacc1", "j_sani1",
+      "j_case2", "j_vacc2", "j_sani2",
+      "j"
+    )
+  )) %>%
+  ggplot(aes(x = control_type)) +
+  geom_bar(aes(y = value, fill = variable),
+    stat = "identity", position = "stack"
+  ) +
+  geom_text(aes(y = value, label = round(value), group = variable),
+    position = position_stack(vjust = 0.5)
+  ) +
+  geom_text(
+    data = exper_u_only$j,
+    aes(y = j, label = paste0("Total cost: ", round(j))),
+    vjust = 0
+  ) +
+  guides(fill = guide_legend(nrow = 3)) +
+  scale_fill_manual(values = cost_colors6, labels = cost_names) +
+  labs(y = "cost") +
+  scale_x_discrete(expand = c(0, 0)) +
+  theme_bw() +
+  theme(
+    axis.title.x = element_blank(),
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    panel.grid = element_blank()
+  )
+```
+
+### Both Vaccination and Sanitation
+
+Lastly, we show how results change if we optimize both controls.
+
+Controls start at day `r response_time`.
+
+```{r ebola-both_oc}
+# calculate optimal control
+# run OC across multiple parameters
+exper_both <- mult_oc_optim("ebola", test_params)
+```
+
+```{r both_plot, fig.show="hold", out.width = "100%"}
+# plot states
+exper_both$trajectories %>%
+  melt(c("m1", "control_type", "test_case", "time")) %>%
+  mutate(
+    patch = substr(variable, 2, 2),
+    variable = substr(variable, 1, 1)
+  ) %>%
+  filter(control_type %in% c("uniform", "unique")) %>%
+  mutate(
+    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
+    variable = factor(variable, levels = c("S", "E", "I", "H", "D", "R", "v", "u"))
+  ) %>%
+  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
+  geom_line(size = 1) +
+  facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
+  scale_color_manual(values = patch_colors2) +
+  scale_linetype_manual(values = c("dotted", "solid")) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
+
+#
+exper_both$j_vals %>%
+  melt(c("m1", "control_type", "test_case")) %>%
+  filter(variable != "j") %>%
+  mutate(variable = factor(variable,
+    levels = c(
+      "j_case1", "j_vacc1", "j_sani1",
+      "j_case2", "j_vacc2", "j_sani2",
+      "j"
+    )
+  )) %>%
+  ggplot(aes(x = control_type)) +
+  geom_bar(aes(y = value, fill = variable),
+    stat = "identity", position = "stack"
+  ) +
+  geom_text(aes(y = value, label = round(value), group = variable),
+    position = position_stack(vjust = 0.5)
+  ) +
+  geom_text(
+    data = exper_both$j,
+    aes(y = j, label = paste0("Total cost: ", round(j))),
+    vjust = 0
+  ) +
+  guides(fill = guide_legend(nrow = 3)) +
+  scale_fill_manual(values = cost_colors6, labels = cost_names) +
+  labs(y = "cost") +
+  scale_x_discrete(expand = c(0, 0)) +
+  theme_bw() +
+  theme(
+    axis.title.x = element_blank(),
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    panel.grid = element_blank()
+  )
+```
