@@ -101,16 +101,16 @@ mult_oc_optim <- function(model, param_sets = NA) {
   param_sets$test_case <- 1:nrow(param_sets)
   trajectories <- lapply(1:nrow(param_sets), function(i) {
     return(data.frame(test_case = i, vary_params[[i]]$trajectories))
-  })
-  trajectories <- as.data.frame(do.call(rbind, trajectories))
-  trajectories <- left_join(param_sets, trajectories)
+  }) 
+  trajectories <- as_tibble(do.call(rbind, trajectories))
+  out <- left_join(param_sets, trajectories)
   j_vals <- lapply(1:nrow(param_sets), function(i) {
     return(data.frame(test_case = i, vary_params[[i]][["j"]]))
   })
-  j_vals <- as.data.frame(do.call(rbind, j_vals))
-  j_vals <- left_join(param_sets, j_vals)
+  j_vals <- as_tibble(do.call(rbind, j_vals))
   j_vals$j <- apply(j_vals[, c("j_case1", "j_case2", "j_vacc1", "j_vacc2")], 1, sum)
-  return(list(trajectories = trajectories, j_vals = j_vals))  
+  out <- left_join(out, j_vals)
+  return(out)  
 }
 
 # no control -------------------------------------------------------------------

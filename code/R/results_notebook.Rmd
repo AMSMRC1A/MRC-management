@@ -46,12 +46,41 @@ oc_params <- c(
 ) # non-linearity for sanitation
 
 # setup control_type parameters to test
+# KD: I expanded this to cover ALL the different variations in the models we want to consider. I added an example of what I mean in comments below
 # unique: optimal control can vary between patches
 # uniform: optimal control must be the same in each patch
-test_params <- data.frame(
-  m1 = 0,
-  control_type = c("unique", "uniform") # how to optimize control in each patch
-)
+# test_params <- data.frame(
+#   m1 = 0,
+#   control_type = c("unique", "uniform") # how to optimize control in each patch
+# )
+test_params <- expand.grid(
+  control_type = c("unique", "uniform"),
+  m1 = c(0, .05, .1),
+  m2 = c(0, .05, .1),
+  u1_max = c(0, 0.4),
+  u2_max = c(0, 0.4),
+  v1_max = c(0, 0.015),
+  v2_max = c(0, 0.015)
+) %>% 
+  as.data.frame() %>% 
+  filter_(~u1_max == u2_max) %>% 
+  filter_(~v1_max == v2_max)
+
+cholera_optim_full <- mult_oc_optim("cholera", test_params)
+
+exper_v_only <- filter(cholera_optim_full,
+                       m1 == 0,
+                       m2 == 0,
+                       u1_max == 0,
+                       v1_max == 0.015
+                       )
+
+trajectory_plot_function(exper_v_only, "cholera")
+
+cost_plot_function(exper_v_only, "cholera")
+
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_v_only, "cholera")
 ```
 
 ```{r model_setup}
@@ -66,6 +95,154 @@ ebola_IC <- ebola_setup$init_x
 
 cholera_params <- cholera_setup$params
 ebola_params <- ebola_setup$params
+```
+
+```{r plot_setup}
+# define color palettes for plots
+patch_colors2 <- c("#DE2D26", "#3182BD")
+cost_colors6 <- c(rev(brewer.pal(3, "Reds")), rev(brewer.pal(3, "Blues")))
+
+# Define functions for plotting
+
+# Plot trajectories of each compartment including controls
+trajectory_plot_function <- function(df, model) {
+  if (model == "ebola") {
+    level_codes <- c("S", "E", "I", "H", "D", "R", "v", "u")
+    compartment_names <- c("Susceptible", "Exposed", "Infected", "Hospitalized", "Dead", "Recovered", "Vaccinated", "TBD")
+  } else {
+    level_codes <- c("S", "I", "R", "W", "v", "u")
+    compartment_names <- c("Susceptible", "Infected", "Recovered", "Water", "Vaccinated", "Sanitation")
+  }
+  names(compartment_names) <- level_codes
+
+  plot <- df %>%
+    select(-c(m1, m2, u1_max, u2_max, v1_max, v2_max, test_case,
+              j_case1, j_case2)) %>% 
+    melt(c("control_type", "time")) %>%
+    mutate(
+      patch = substr(variable, 2, 2),
+      variable = substr(variable, 1, 1)
+    ) %>%
+    filter(control_type %in% c("uniform", "unique")) %>%
+    mutate(
+      plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
+      variable = factor(variable, levels = level_codes)
+    ) %>%
+    filter(!is.na(variable)) %>%
+    ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
+    geom_line(size = 1) +
+    facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
+    scale_color_manual(values = patch_colors2) +
+    scale_linetype_manual(values = c("dotted", "solid")) +
+    theme_bw() +
+    ggtitle("Trajectory comparisons") +
+    theme(
+      legend.position = "bottom",
+      panel.grid = element_blank()
+    )
+  return(plot)
+}
+
+# Plot bar graph of costs
+cost_plot_function <- function(df, model) {
+  if (model == "ebola") {
+    cost_levels <- c(
+      "j_case1", "j_vacc1", "j_sani1", "j_case2", "j_vacc2",
+      "j_sani2"
+    )
+    cost_names <- c(
+      "P1: cases", "P1: vaccination", "P1: ?",
+      "P2: cases", "P2: vaccination", "P2: ?"
+    )
+  } else {
+    cost_levels <- c(
+      "j_case1", "j_vacc1", "j_sani1", "j_case2", "j_vacc2",
+      "j_sani2"
+    )
+    cost_names <- c(
+      "P1: cases", "P1: vaccination", "P1: sanitation",
+      "P2: cases", "P2: vaccination", "P2: sanitation"
+    )
+  }
+  names(cost_names) <- cost_levels
+
+  df %>%
+    select(test_case, control_type, contains("j")) %>% 
+    melt(c("control_type", "test_case")) %>%
+    filter(variable != "j") %>%
+    mutate(variable = factor(variable, levels = cost_levels)) %>%
+    ggplot(aes(x = control_type)) +
+    geom_bar(aes(y = value, fill = variable),
+      stat = "identity", position = "stack"
+    ) +
+    geom_text(aes(y = value, label = round(value), group = variable), # KD: I broke this somehow!
+      position = position_stack(vjust = 0.5)
+    ) +
+    geom_text(
+      data = df,
+      aes(y = j, label = paste0("Total cost: ", round(j))),
+      vjust = 0
+    ) +
+    guides(fill = guide_legend(nrow = 3)) +
+    scale_fill_manual(values = cost_colors6, labels = cost_names) +
+    labs(y = "cost") +
+    scale_x_discrete(expand = c(0, 0)) +
+    theme_bw() +
+    ggtitle("Cost breakdown") +
+    theme(
+      axis.title.x = element_blank(),
+      legend.position = "bottom",
+      legend.title = element_blank(),
+      panel.grid = element_blank()
+    )
+}
+
+
+# Plot costs of uniform case relative to unique
+relcost_plot_function <- function(df, model) { #KD: double-check this still works!
+  params <- if (model == "cholera") {
+    params_cholera
+  } else {
+    params_ebola
+  }
+
+  rel_costs <- df %>%
+    select(test_case, control_type, contains("j")) %>% 
+    mutate(total_cases1 = j_case1 / params$b1) %>%
+    mutate(total_cases2 = j_case2 / params$b2) %>%
+    mutate(total_vacc1 = j_vacc1 / params$C1) %>%
+    mutate(total_vacc2 = j_vacc2 / params$C2) %>%
+    # mutate(total_sani1 = j_sani1 / params$D1) %>%
+    # mutate(total_sani2 = j_sani2 / params$D2) %>%
+    mutate(case_diff = total_cases1 - total_cases2) %>%
+    mutate(vacc_diff = total_vacc1 - total_vacc2) %>%
+    # mutate(sani_diff = total_sani1 - total_sani2) %>%
+    mutate(`Total cost` = 100 * (j - j[control_type == "uniform"]) / j[control_type == "uniform"]) %>%
+    mutate(`Cases in patch 1` = 100 * (total_cases1 - total_cases1[control_type == "uniform"]) /
+      total_cases1[control_type == "uniform"]) %>%
+    mutate(`Cases in patch 2` = 100 * (total_cases2 - total_cases2[control_type == "uniform"]) /
+      total_cases2[control_type == "uniform"]) %>%
+    mutate(`Vaccinations in patch 1` = 100 * (total_vacc1 - total_vacc1[control_type == "uniform"]) /
+      total_vacc1[control_type == "uniform"]) %>%
+    mutate(`Vaccinations in patch 2` = 100 * (total_vacc2 - total_vacc2[control_type == "uniform"]) /
+      total_vacc2[control_type == "uniform"]) %>%
+    filter(control_type == "unique")
+
+  rel_costs %>%
+    select(
+      `Total cost`, `Cases in patch 1`, `Cases in patch 2`,
+      `Vaccinations in patch 1`, `Vaccinations in patch 2`
+    ) %>%
+    pivot_longer(cols = 1:5, names_to = "column", values_to = "values") %>%
+    ggplot(aes(x = column, y = values)) +
+    geom_col() +
+    scale_x_discrete(limits = c(
+      "Total cost", "Cases in patch 1", "Cases in patch 2",
+      "Vaccinations in patch 1", "Vaccinations in patch 2"
+    )) +
+    ggtitle("Relative changes due to switching from Uniform to Unique") +
+    labs(y = "% change")
+}
 ```
 
 # Cholera {.tabset}
@@ -88,10 +265,6 @@ names(cost_names) <- c(
   "j_case2", "j_vacc2", "j_sani2"
 )
 
-# define color palettes for plots
-patch_colors2 <- c("#DE2D26", "#3182BD")
-cost_colors6 <- c(rev(brewer.pal(3, "Reds")), rev(brewer.pal(3, "Blues")))
-
 
 # make parameter tables look nice
 # KD: this is a temporary fix to make things look nice.
@@ -103,7 +276,7 @@ params_table <- as.data.frame(params_table)
 IC_table <- as.data.frame(t(cholera_IC))
 
 # Calculate R0
-choleraR0 <- R0_cholera(cholera_params, 1e5, 1e5)
+choleraR0 <- R0_cholera(cholera_params, sum(IC_table[c(1, 3, 5)]), sum(IC_table[c(2, 4, 6)]))
 ```
 
 Here we keep the results of various numerical experiments of optimal control outcomes in the Cholera model. Specifically, we focus on the difference between the optimal strategy, when control is customized to each patch versus the "one size fits all strategy" where both patches are forced to be given the same control.
@@ -167,140 +340,19 @@ vacc_only_params <- expand_grid(test_params, u1_max = 0, u2_max = 0)
 exper_v_only <- mult_oc_optim("cholera", vacc_only_params)
 ```
 
-```{r cholera-vacc_only_plot, fig.show="hold", out.width = "100%"}
+```{r cholera-vacc_only_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
+trajectory_plot_function(exper_v_only, "cholera")
 
-trajectory_plot_function <- function(df, model) {
-  if (model == "ebola") {
-    level_codes <- c("S", "E", "I", "H", "D", "R", "v", "u")
-    compartment_names <- c("Susceptible", "Exposed", "Infected", "Hospitalized", "Dead", "Recovered", "Vaccinated", "TBD")
-  } else {
-    level_codes <- c("S", "I", "R", "W", "v", "u")
-    compartment_names <- c("Susceptible", "Infected", "Recovered", "Water", "Vaccinated", "Sanitation")
-  }
+```
 
-  plot <- df$trajectories %>%
-  melt(c("m1", "control_type", "test_case", "time")) %>%
-  mutate(
-    patch = substr(variable, 2, 2),
-    variable = substr(variable, 1, 1)
-  ) %>%
-  filter(control_type %in% c("uniform", "unique")) %>%
-  mutate(
-    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
-    variable = factor(variable, levels = level_codes)
-  ) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
-  geom_line(size = 1) +
-  facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
-  scale_color_manual(values = patch_colors2) +
-  scale_linetype_manual(values = c("dotted", "solid")) +
-  theme_bw() +
-  theme(
-    legend.position = "bottom",
-    panel.grid = element_blank()
-  )
-  return(plot)
-}
-
-exper_v_only$trajectories %>%
-  melt(c("m1", "control_type", "test_case", "time")) %>%
-  mutate(
-    patch = substr(variable, 2, 2),
-    variable = substr(variable, 1, 1)
-  ) %>%
-  filter(control_type %in% c("uniform", "unique")) %>%
-  mutate(
-    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
-    variable = factor(variable, levels = c("S", "I", "R", "W", "v", "u"))
-  ) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
-  geom_line(size = 1) +
-  facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
-  scale_color_manual(values = patch_colors2) +
-  scale_linetype_manual(values = c("dotted", "solid")) +
-  theme_bw() +
-  theme(
-    legend.position = "bottom",
-    panel.grid = element_blank()
-  )
-
+```{r cholera-vacc_only_cost, fig.show="hold", out.width = "50%"}
 # plot costs
-exper_v_only$j_vals %>%
-  melt(c("m1", "control_type", "test_case")) %>%
-  filter(variable != "j") %>%
-  mutate(variable = factor(variable,
-    levels = c(
-      "j_case1", "j_vacc1", "j_sani1",
-      "j_case2", "j_vacc2", "j_sani2",
-      "j"
-    )
-  )) %>%
-  ggplot(aes(x = control_type)) +
-  geom_bar(aes(y = value, fill = variable),
-    stat = "identity", position = "stack"
-  ) +
-  geom_text(aes(y = value, label = round(value), group = variable),
-    position = position_stack(vjust = 0.5)
-  ) +
-  geom_text(
-    data = exper_v_only$j,
-    aes(y = j, label = paste0("Total cost: ", round(j))),
-    vjust = 0
-  ) +
-  guides(fill = guide_legend(nrow = 3)) +
-  scale_fill_manual(values = cost_colors6, labels = cost_names) +
-  labs(y = "cost") +
-  scale_x_discrete(expand = c(0, 0)) +
-  theme_bw() +
-  theme(
-    axis.title.x = element_blank(),
-    legend.position = "bottom",
-    legend.title = element_blank(),
-    panel.grid = element_blank()
-  )
-```
+cost_plot_function(exper_v_only, "cholera")
 
-```{r cholera-gov_diffs, fig.show="hold", out.width = "100%"}
 # Measure the relative differences in each type of cost between unique and uniform
-
-# exper_v_only
-
-# Total new cases = j_casei / bi
-# Total vaccinated = j_vacci / Ci
-# Total sanitized = j_sanii / Di
-
-rel_costs <- exper_v_only$j_vals %>%
-  mutate(total_cases1 = j_case1 / params_cholera$b1) %>%
-  mutate(total_cases2 = j_case2 / params_cholera$b2) %>%
-  mutate(total_vacc1 = j_vacc1 / params_cholera$C1) %>%
-  mutate(total_vacc2 = j_vacc2 / params_cholera$C2) %>%
-  mutate(total_sani1 = j_sani1 / params_cholera$D1) %>%
-  mutate(total_sani2 = j_sani2 / params_cholera$D2) %>%
-  mutate(case_diff = total_cases1 - total_cases2) %>%
-  mutate(vacc_diff = total_vacc1 - total_vacc2) %>%
-  mutate(sani_diff = total_sani1 - total_sani2) %>%
-  mutate(j_change = 100 * (j - j[control_type == "uniform"]) / j[control_type == "uniform"]) %>%
-  mutate(cases1_change = 100 * (total_cases1 - total_cases1[control_type == "uniform"]) /
-    total_cases1[control_type == "uniform"]) %>%
-  mutate(cases2_change = 100 * (total_cases2 - total_cases2[control_type == "uniform"]) /
-    total_cases2[control_type == "uniform"]) %>%
-  mutate(vacc1_change = 100 * (total_vacc1 - total_vacc1[control_type == "uniform"]) /
-    total_vacc1[control_type == "uniform"]) %>%
-  mutate(vacc2_change = 100 * (total_vacc2 - total_vacc2[control_type == "uniform"]) /
-    total_vacc2[control_type == "uniform"])
-# plot relative change in costs
-rel_costs %>%
-  filter(control_type == "unique") %>%
-  select(j_change, cases1_change, cases2_change, vacc1_change, vacc2_change) %>%
-  pivot_longer(cols = 1:4, names_to = "column", values_to = "values") %>%
-  ggplot(aes(x = column, y = values)) +
-  geom_col() +
-  labs(y = "% change from uniform to unique")
+relcost_plot_function(exper_v_only, "cholera")
 ```
-There was a `r rel_costs$cases1_change[1]` change in case counts in patch 1 when switching from unique to uniform and a `r rel_costs$cases2_change[1]` change in case counts in patch 2.
-
-There was a `r rel_costs$vacc1_change[1]` change in vaccination counts in patch 1 when switching from unique to uniform and a `r rel_costs$vacc2_change[1]` change in vaccination counts in patch 2.
 
 ### Sanitation Only
 We also consider the case with only sanitation (no vaccination).
@@ -313,64 +365,18 @@ sani_only_params <- expand_grid(test_params, v1_max = 0, v2_max = 0)
 exper_u_only <- mult_oc_optim("cholera", sani_only_params)
 ```
 
-```{r cholera-sani_only_plot, fig.show="hold", out.width = "100%"}
+```{r cholera-sani_only_trajectories, fig.show="hold", out.width = "50%"}
 # plot states
-exper_u_only$trajectories %>%
-  melt(c("m1", "control_type", "test_case", "time")) %>%
-  mutate(
-    patch = substr(variable, 2, 2),
-    variable = substr(variable, 1, 1)
-  ) %>%
-  filter(control_type %in% c("uniform", "unique")) %>%
-  mutate(
-    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
-    variable = factor(variable, levels = c("S", "I", "R", "W", "v", "u"))
-  ) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
-  geom_line(size = 1) +
-  facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
-  scale_color_manual(values = patch_colors2) +
-  scale_linetype_manual(values = c("dotted", "solid")) +
-  theme_bw() +
-  theme(
-    legend.position = "bottom",
-    panel.grid = element_blank()
-  )
+trajectory_plot_function(exper_u_only, "cholera")
+
+```
+
+```{r cholera-sani_cost, fig.show="hold", out.width = "100%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "cholera")
 
 # plot costs
-exper_u_only$j_vals %>%
-  melt(c("m1", "control_type", "test_case")) %>%
-  filter(variable != "j") %>%
-  mutate(variable = factor(variable,
-    levels = c(
-      "j_case1", "j_vacc1", "j_sani1",
-      "j_case2", "j_vacc2", "j_sani2",
-      "j"
-    )
-  )) %>%
-  ggplot(aes(x = control_type)) +
-  geom_bar(aes(y = value, fill = variable),
-    stat = "identity", position = "stack"
-  ) +
-  geom_text(aes(y = value, label = round(value), group = variable),
-    position = position_stack(vjust = 0.5)
-  ) +
-  geom_text(
-    data = exper_u_only$j,
-    aes(y = j, label = paste0("Total cost: ", round(j))),
-    vjust = 0
-  ) +
-  guides(fill = guide_legend(nrow = 3)) +
-  scale_fill_manual(values = cost_colors6, labels = cost_names) +
-  labs(y = "cost") +
-  scale_x_discrete(expand = c(0, 0)) +
-  theme_bw() +
-  theme(
-    axis.title.x = element_blank(),
-    legend.position = "bottom",
-    legend.title = element_blank(),
-    panel.grid = element_blank()
-  )
+cost_plot_function(exper_u_only, "cholera")
 ```
 
 ### Both Vaccination and Sanitation
@@ -385,68 +391,41 @@ Controls start at day `r response_time`.
 exper_both <- mult_oc_optim("cholera", test_params)
 ```
 
-```{r cholera-both_plot, fig.show="hold", out.width = "100%"}
+```{r cholera-both_trajectories, fig.show="hold", out.width = "50%"}
 # plot states
-exper_both$trajectories %>%
-  melt(c("m1", "control_type", "test_case", "time")) %>%
-  mutate(
-    patch = substr(variable, 2, 2),
-    variable = substr(variable, 1, 1)
-  ) %>%
-  filter(control_type %in% c("uniform", "unique")) %>%
-  mutate(
-    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
-    variable = factor(variable, levels = c("S", "I", "R", "W", "v", "u"))
-  ) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
-  geom_line(size = 1) +
-  facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
-  scale_color_manual(values = patch_colors2) +
-  scale_linetype_manual(values = c("dotted", "solid")) +
-  theme_bw() +
-  theme(
-    legend.position = "bottom",
-    panel.grid = element_blank()
-  )
+trajectory_plot_function(exper_both, "cholera")
 
-#
-exper_both$j_vals %>%
-  melt(c("m1", "control_type", "test_case")) %>%
-  filter(variable != "j") %>%
-  mutate(variable = factor(variable,
-    levels = c(
-      "j_case1", "j_vacc1", "j_sani1",
-      "j_case2", "j_vacc2", "j_sani2",
-      "j"
-    )
-  )) %>%
-  ggplot(aes(x = control_type)) +
-  geom_bar(aes(y = value, fill = variable),
-    stat = "identity", position = "stack"
-  ) +
-  geom_text(aes(y = value, label = round(value), group = variable),
-    position = position_stack(vjust = 0.5)
-  ) +
-  geom_text(
-    data = exper_both$j,
-    aes(y = j, label = paste0("Total cost: ", round(j))),
-    vjust = 0
-  ) +
-  guides(fill = guide_legend(nrow = 3)) +
-  scale_fill_manual(values = cost_colors6, labels = cost_names) +
-  labs(y = "cost") +
-  scale_x_discrete(expand = c(0, 0)) +
-  theme_bw() +
-  theme(
-    axis.title.x = element_blank(),
-    legend.position = "bottom",
-    legend.title = element_blank(),
-    panel.grid = element_blank()
-  )
 ```
 
+```{r cholera-both_cost, fig.show="hold", out.width = "100%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "cholera")
+# plot costs
+cost_plot_function(exper_both, "cholera")
 
-## Experiment 1 (symmetric movement, ...) {.tabset}
+```
+
+## Experiment 1 (symmetric, m1=m2=0.05) {.tabset}
+### Parameters 
+```{r cholera-exp1-parameters}
+exp1_params <- cholera_params
+exp1_params$m1 <- 0.05
+exp1_params$m2 <- 0.05
+
+choleraR0 <- R0_cholera(exp1_params, sum(IC_table[c(1, 3, 5)]), sum(IC_table[c(2, 4, 6)]))
+```
+The following experiments use these  parameters and initial conditions.
+
+Parameters: `r knitr::kable(exp1_params %>% select(mu1 : gamma2), format="markdown")`
+`r knitr::kable(exp1_params %>% select(delta1 : rho2), format="markdown")`
+
+Initial conditions: *need to re-calculate initial conditions with movement * `r knitr::kable(IC_table, format =  "markdown", digits = 0, align = 'l')`
+
+Optimal control parameters: `r knitr::kable(exp1_params %>% select(b1 : control_type), format="markdown")`
+`r knitr::kable(exp1_params %>% select(v1_min : u2_max), format="markdown")`
+
+With these parameters, the system has an R0 of about `r choleraR0`.
+
 
 ## Experiment 2 (symmetric movement, ...) {.tabset}
 
@@ -546,66 +525,18 @@ vacc_only_params <- expand_grid(test_params, u1_max = 0, u2_max = 0)
 exper_v_only <- mult_oc_optim("ebola", vacc_only_params)
 ```
 
-```{r ebola-vacc_only_plot, fig.show="hold", out.width = "100%"}
+```{r ebola-vacc_only_plot, fig.show="hold", out.width = "50%"}
 # plot states
-exper_v_only$trajectories %>%
-  melt(c("m1", "control_type", "test_case", "time")) %>%
-  mutate(
-    patch = substr(variable, 2, 2),
-    variable = substr(variable, 1, 1)
-  ) %>%
-  filter(control_type %in% c("uniform", "unique")) %>%
-  mutate(
-    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
-    variable = factor(variable, levels = c("S", "E", "I", "H", "D", "R", "v", "u"))
-  ) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
-  geom_line(size = 1) +
-  facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
-  scale_color_manual(values = patch_colors2) +
-  scale_linetype_manual(values = c("dotted", "solid")) +
-  theme_bw() +
-  theme(
-    legend.position = "bottom",
-    panel.grid = element_blank()
-  )
+trajectory_plot_function(exper_v_only, "ebola")
 
 # plot costs
-exper_v_only$j_vals %>%
-  melt(c("m1", "control_type", "test_case")) %>%
-  filter(variable != "j") %>%
-  mutate(variable = factor(variable,
-    levels = c(
-      "j_case1", "j_vacc1", "j_TBD1",
-      "j_case2", "j_vacc2", "j_TBD2",
-      "j"
-    )
-  )) %>%
-  ggplot(aes(x = control_type)) +
-  geom_bar(aes(y = value, fill = variable),
-    stat = "identity", position = "stack"
-  ) +
-  geom_text(aes(y = value, label = round(value), group = variable),
-    position = position_stack(vjust = 0.5)
-  ) +
-  geom_text(
-    data = exper_v_only$j,
-    aes(y = j, label = paste0("Total cost: ", round(j))),
-    vjust = 0
-  ) +
-  guides(fill = guide_legend(nrow = 3)) +
-  scale_fill_manual(values = cost_colors6, labels = cost_names) +
-  labs(y = "cost") +
-  scale_x_discrete(expand = c(0, 0)) +
-  theme_bw() +
-  theme(
-    axis.title.x = element_blank(),
-    legend.position = "bottom",
-    legend.title = element_blank(),
-    panel.grid = element_blank()
-  )
+cost_plot_function(exper_v_only, "ebola")
 ```
 
+```{r ebola-vacc_only_diffs, fig.show="hold", out.width = "100%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_v_only, "ebola")
+```
 
 ### Control 2 Only
 We also consider the case with only sanitation (no vaccination).
@@ -618,66 +549,18 @@ sani_only_params <- expand_grid(test_params, v1_max = 0, v2_max = 0)
 exper_u_only <- mult_oc_optim("ebola", sani_only_params)
 ```
 
-```{r ebola-sani_only_plot, fig.show="hold", out.width = "100%"}
+```{r ebola-sani_only_plot, fig.show="hold", out.width = "50%"}
 # plot states
-exper_u_only$trajectories %>%
-  melt(c("m1", "control_type", "test_case", "time")) %>%
-  mutate(
-    patch = substr(variable, 2, 2),
-    variable = substr(variable, 1, 1)
-  ) %>%
-  filter(control_type %in% c("uniform", "unique")) %>%
-  mutate(
-    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
-    variable = factor(variable, levels = c("S", "E", "I", "H", "D", "R", "v", "u"))
-  ) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
-  geom_line(size = 1) +
-  facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
-  scale_color_manual(values = patch_colors2) +
-  scale_linetype_manual(values = c("dotted", "solid")) +
-  theme_bw() +
-  theme(
-    legend.position = "bottom",
-    panel.grid = element_blank()
-  )
+trajectory_plot_function(exper_u_only, "ebola")
 
 # plot costs
-exper_u_only$j_vals %>%
-  melt(c("m1", "control_type", "test_case")) %>%
-  filter(variable != "j") %>%
-  mutate(variable = factor(variable,
-    levels = c(
-      "j_case1", "j_vacc1", "j_sani1",
-      "j_case2", "j_vacc2", "j_sani2",
-      "j"
-    )
-  )) %>%
-  ggplot(aes(x = control_type)) +
-  geom_bar(aes(y = value, fill = variable),
-    stat = "identity", position = "stack"
-  ) +
-  geom_text(aes(y = value, label = round(value), group = variable),
-    position = position_stack(vjust = 0.5)
-  ) +
-  geom_text(
-    data = exper_u_only$j,
-    aes(y = j, label = paste0("Total cost: ", round(j))),
-    vjust = 0
-  ) +
-  guides(fill = guide_legend(nrow = 3)) +
-  scale_fill_manual(values = cost_colors6, labels = cost_names) +
-  labs(y = "cost") +
-  scale_x_discrete(expand = c(0, 0)) +
-  theme_bw() +
-  theme(
-    axis.title.x = element_blank(),
-    legend.position = "bottom",
-    legend.title = element_blank(),
-    panel.grid = element_blank()
-  )
+cost_plot_function(exper_u_only, "ebola")
 ```
 
+```{r ebola-sani_only_diffs, fig.show="hold", out.width = "100%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "ebola")
+```
 ### Both Vaccination and Sanitation
 
 Lastly, we show how results change if we optimize both controls.
@@ -690,66 +573,18 @@ Controls start at day `r response_time`.
 exper_both <- mult_oc_optim("ebola", test_params)
 ```
 
-```{r both_plot, fig.show="hold", out.width = "100%"}
+```{r both_plot, fig.show="hold", out.width = "50%"}
 # plot states
-exper_both$trajectories %>%
-  melt(c("m1", "control_type", "test_case", "time")) %>%
-  mutate(
-    patch = substr(variable, 2, 2),
-    variable = substr(variable, 1, 1)
-  ) %>%
-  filter(control_type %in% c("uniform", "unique")) %>%
-  mutate(
-    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
-    variable = factor(variable, levels = c("S", "E", "I", "H", "D", "R", "v", "u"))
-  ) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
-  geom_line(size = 1) +
-  facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
-  scale_color_manual(values = patch_colors2) +
-  scale_linetype_manual(values = c("dotted", "solid")) +
-  theme_bw() +
-  theme(
-    legend.position = "bottom",
-    panel.grid = element_blank()
-  )
+trajectory_plot_function(exper_both, "ebola")
 
-#
-exper_both$j_vals %>%
-  melt(c("m1", "control_type", "test_case")) %>%
-  filter(variable != "j") %>%
-  mutate(variable = factor(variable,
-    levels = c(
-      "j_case1", "j_vacc1", "j_sani1",
-      "j_case2", "j_vacc2", "j_sani2",
-      "j"
-    )
-  )) %>%
-  ggplot(aes(x = control_type)) +
-  geom_bar(aes(y = value, fill = variable),
-    stat = "identity", position = "stack"
-  ) +
-  geom_text(aes(y = value, label = round(value), group = variable),
-    position = position_stack(vjust = 0.5)
-  ) +
-  geom_text(
-    data = exper_both$j,
-    aes(y = j, label = paste0("Total cost: ", round(j))),
-    vjust = 0
-  ) +
-  guides(fill = guide_legend(nrow = 3)) +
-  scale_fill_manual(values = cost_colors6, labels = cost_names) +
-  labs(y = "cost") +
-  scale_x_discrete(expand = c(0, 0)) +
-  theme_bw() +
-  theme(
-    axis.title.x = element_blank(),
-    legend.position = "bottom",
-    legend.title = element_blank(),
-    panel.grid = element_blank()
-  )
+# plot costs
+cost_plot_function(exper_both, "ebola")
 ```
 
+```{r ebola-both_diffs, fig.show="hold", out.width = "100%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "ebola")
+```
 
 ## Experiment 1 (symmetric movement, ...) {.tabset}
 
