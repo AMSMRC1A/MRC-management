@@ -108,7 +108,7 @@ choleraR0 <- R0_cholera(cholera_params, 1e5, 1e5)
 
 Here we keep the results of various numerical experiments of optimal control outcomes in the Cholera model. Specifically, we focus on the difference between the optimal strategy, when control is customized to each patch versus the "one size fits all strategy" where both patches are forced to be given the same control.
 
-## Experiment 1 (no movement between patches) {.tabset}
+## Experiment 0 (no movement between patches) {.tabset}
 
 ### Parameters 
 The following experiments use these  parameters and initial conditions.
@@ -169,6 +169,40 @@ exper_v_only <- mult_oc_optim("cholera", vacc_only_params)
 
 ```{r cholera-vacc_only_plot, fig.show="hold", out.width = "100%"}
 # plot states
+
+trajectory_plot_function <- function(df, model) {
+  if (model == "ebola") {
+    level_codes <- c("S", "E", "I", "H", "D", "R", "v", "u")
+    compartment_names <- c("Susceptible", "Exposed", "Infected", "Hospitalized", "Dead", "Recovered", "Vaccinated", "TBD")
+  } else {
+    level_codes <- c("S", "I", "R", "W", "v", "u")
+    compartment_names <- c("Susceptible", "Infected", "Recovered", "Water", "Vaccinated", "Sanitation")
+  }
+
+  plot <- df$trajectories %>%
+  melt(c("m1", "control_type", "test_case", "time")) %>%
+  mutate(
+    patch = substr(variable, 2, 2),
+    variable = substr(variable, 1, 1)
+  ) %>%
+  filter(control_type %in% c("uniform", "unique")) %>%
+  mutate(
+    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
+    variable = factor(variable, levels = level_codes)
+  ) %>%
+  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
+  geom_line(size = 1) +
+  facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
+  scale_color_manual(values = patch_colors2) +
+  scale_linetype_manual(values = c("dotted", "solid")) +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
+  return(plot)
+}
+
 exper_v_only$trajectories %>%
   melt(c("m1", "control_type", "test_case", "time")) %>%
   mutate(
@@ -411,6 +445,15 @@ exper_both$j_vals %>%
   )
 ```
 
+
+## Experiment 1 (symmetric movement, ...) {.tabset}
+
+## Experiment 2 (symmetric movement, ...) {.tabset}
+
+## Experiment 3 (asymmetric movement, ...) {.tabset}
+
+## Experiment 4 (asymmetric movement, ...) {.tabset}
+
 # Ebola {.tabset}
 ```{r ebola-plot_setup}
 # define labels to make plots more interpretable
@@ -446,7 +489,7 @@ IC_table <- as.data.frame(t(ebola_IC))
 ```
 We show similar results instead employing  the Ebola model.
 
-## Experiment 1 (no movement between patches) {.tabset}
+## Experiment 0 (no movement between patches) {.tabset}
 
 ### Parameters 
 The following experiments use these  parameters and initial conditions.
@@ -706,3 +749,12 @@ exper_both$j_vals %>%
     panel.grid = element_blank()
   )
 ```
+
+
+## Experiment 1 (symmetric movement, ...) {.tabset}
+
+## Experiment 2 (symmetric movement, ...) {.tabset}
+
+## Experiment 3 (asymmetric movement, ...) {.tabset}
+
+## Experiment 4 (asymmetric movement, ...) {.tabset}
