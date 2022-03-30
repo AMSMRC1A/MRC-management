@@ -152,6 +152,7 @@ cost_plot_function <- function(df, model) {
       "P1: cases", "P1: vaccination", "P1: ?",
       "P2: cases", "P2: vaccination", "P2: ?"
     )
+    clrs <- cost_colors6[c(1:2,4:5)]
   } else {
     cost_levels <- c(
       "j_case1", "j_vacc1", "j_sani1", "j_case2", "j_vacc2",
@@ -161,28 +162,30 @@ cost_plot_function <- function(df, model) {
       "P1: cases", "P1: vaccination", "P1: sanitation",
       "P2: cases", "P2: vaccination", "P2: sanitation"
     )
+    clrs <- cost_colors6
   }
   names(cost_names) <- cost_levels
   
-  df %>%
+  plt <- df %>%
     select(test_case, control_type, contains("j")) %>% 
     melt(c("control_type", "test_case")) %>%
     filter(variable != "j") %>%
     mutate(variable = factor(variable, levels = cost_levels)) %>%
-    ggplot(aes(x = control_type)) +
+    unique()
+  ggplot(data = plt, aes(x = control_type)) +
     geom_bar(aes(y = value, fill = variable),
              stat = "identity", position = "stack"
     ) +
-    geom_text(aes(y = value, label = round(value), group = variable), # KD: I broke this somehow!
+    geom_text(aes(y = value, label = round(value), group = variable),
               position = position_stack(vjust = 0.5)
     ) +
     geom_text(
-      data = df,
-      aes(y = j, label = paste0("Total cost: ", round(j))),
+      data = plt %>% group_by(control_type) %>% summarise(value = sum(value)),
+      aes(y = value, label = paste0("Total cost: ", round(value))),
       vjust = 0
     ) +
-    guides(fill = guide_legend(nrow = 3)) +
-    scale_fill_manual(values = cost_colors6, labels = cost_names) +
+    guides(fill = guide_legend(nrow = length(clrs)/2)) +
+    scale_fill_manual(values = clrs, labels = cost_names) +
     labs(y = "cost") +
     scale_x_discrete(expand = c(0, 0)) +
     theme_bw() +
@@ -197,49 +200,54 @@ cost_plot_function <- function(df, model) {
 
 
 # Plot costs of uniform case relative to unique
-relcost_plot_function <- function(df, model) { #KD: double-check this still works!
-  params <- if (model == "cholera") {
-    params_cholera
+relcost_plot_function <- function(df, model) { 
+  if (model == "cholera") {
+    change_vars <- c("j", "j_case1", "j_case2", "j_vacc1", "j_vacc2", "j_sani1", "j_sani2")
+    names(change_vars) <- c("Total cost", "Cases in patch 1", "Cases in patch 2", 
+                            "Vaccinations in patch 1", "Vaccinations in patch 2",
+                            "Sanitation in patch 1", "Sanitation in patch 2")
   } else {
-    params_ebola
+    change_vars <- c("j", "j_case1", "j_case2", "j_vacc1", "j_vacc2")
+    names(change_vars) <- c("Total cost", "Cases in patch 1", "Cases in patch 2", 
+                            "Vaccinations in patch 1", "Vaccinations in patch 2")
   }
   
   rel_costs <- df %>%
-    select(test_case, control_type, contains("j")) %>% 
-    mutate(total_cases1 = j_case1 / params$b1) %>%
-    mutate(total_cases2 = j_case2 / params$b2) %>%
-    mutate(total_vacc1 = j_vacc1 / params$C1) %>%
-    mutate(total_vacc2 = j_vacc2 / params$C2) %>%
-    # mutate(total_sani1 = j_sani1 / params$D1) %>%
-    # mutate(total_sani2 = j_sani2 / params$D2) %>%
-    mutate(case_diff = total_cases1 - total_cases2) %>%
-    mutate(vacc_diff = total_vacc1 - total_vacc2) %>%
-    # mutate(sani_diff = total_sani1 - total_sani2) %>%
-    mutate(`Total cost` = 100 * (j - j[control_type == "uniform"]) / j[control_type == "uniform"]) %>%
-    mutate(`Cases in patch 1` = 100 * (total_cases1 - total_cases1[control_type == "uniform"]) /
-             total_cases1[control_type == "uniform"]) %>%
-    mutate(`Cases in patch 2` = 100 * (total_cases2 - total_cases2[control_type == "uniform"]) /
-             total_cases2[control_type == "uniform"]) %>%
-    mutate(`Vaccinations in patch 1` = 100 * (total_vacc1 - total_vacc1[control_type == "uniform"]) /
-             total_vacc1[control_type == "uniform"]) %>%
-    mutate(`Vaccinations in patch 2` = 100 * (total_vacc2 - total_vacc2[control_type == "uniform"]) /
-             total_vacc2[control_type == "uniform"]) %>%
-    filter(control_type == "unique")
+    select(control_type, change_vars) %>%
+    unique() %>%
+    melt(id.var = "control_type") %>% 
+    dcast(variable ~ control_type) %>%
+    mutate(rel_change = (unique - uniform)/uniform,
+           variable = factor(variable, levels = names(change_vars)))
+  
+  # rel_costs <- df %>%
+  #   select(test_case, control_type, contains("j")) %>% 
+  #   mutate(total_cases1 = j_case1 / params$b1) %>%
+  #   mutate(total_cases2 = j_case2 / params$b2) %>%
+  #   mutate(total_vacc1 = j_vacc1 / params$C1) %>%
+  #   mutate(total_vacc2 = j_vacc2 / params$C2) %>%
+  #   # mutate(total_sani1 = j_sani1 / params$D1) %>%
+  #   # mutate(total_sani2 = j_sani2 / params$D2) %>%
+  #   mutate(case_diff = total_cases1 - total_cases2) %>%
+  #   mutate(vacc_diff = total_vacc1 - total_vacc2) %>%
+  #   # mutate(sani_diff = total_sani1 - total_sani2) %>%
+  #   mutate(`Total cost` = 100 * (j - j[control_type == "uniform"]) / j[control_type == "uniform"]) %>%
+  #   mutate(`Cases in patch 1` = 100 * (total_cases1 - total_cases1[control_type == "uniform"]) /
+  #            total_cases1[control_type == "uniform"]) %>%
+  #   mutate(`Cases in patch 2` = 100 * (total_cases2 - total_cases2[control_type == "uniform"]) /
+  #            total_cases2[control_type == "uniform"]) %>%
+  #   mutate(`Vaccinations in patch 1` = 100 * (total_vacc1 - total_vacc1[control_type == "uniform"]) /
+  #            total_vacc1[control_type == "uniform"]) %>%
+  #   mutate(`Vaccinations in patch 2` = 100 * (total_vacc2 - total_vacc2[control_type == "uniform"]) /
+  #            total_vacc2[control_type == "uniform"]) %>%
+  #   filter(control_type == "unique")
   
   rel_costs %>%
-    select(
-      `Total cost`, `Cases in patch 1`, `Cases in patch 2`,
-      `Vaccinations in patch 1`, `Vaccinations in patch 2`
-    ) %>%
-    pivot_longer(cols = 1:5, names_to = "column", values_to = "values") %>%
-    ggplot(aes(x = column, y = values)) +
+    ggplot(aes(x = variable, y = rel_change)) +
     geom_col() +
-    scale_x_discrete(limits = c(
-      "Total cost", "Cases in patch 1", "Cases in patch 2",
-      "Vaccinations in patch 1", "Vaccinations in patch 2"
-    )) +
     ggtitle("Relative changes due to switching from Uniform to Unique") +
-    labs(y = "% change")
+    labs(y = "% change", x = "") + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
 }
 ```
 
@@ -935,15 +943,15 @@ Controls start at day `r response_time`.
 
 ```{r ebola-exp0-vacc_only_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
-trajectory_plot_function(exper_v_only, "cholera")
+trajectory_plot_function(exper_v_only, "ebola")
 ```
 
 ```{r ebola-exp0-vacc_only_cost, fig.show="hold", out.width = "50%"}
 # plot costs
-cost_plot_function(exper_v_only, "cholera")
+cost_plot_function(exper_v_only, "ebola")
 
 # Measure the relative differences in each type of cost between unique and uniform
-relcost_plot_function(exper_v_only, "cholera")
+relcost_plot_function(exper_v_only, "ebola")
 ```
 
 ### TBD Only
@@ -953,15 +961,15 @@ Controls start at day `r response_time``.
 
 ```{r ebola-exp0-TBD_only_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
-trajectory_plot_function(exper_u_only, "cholera")
+trajectory_plot_function(exper_u_only, "ebola")
 ```
 
 ```{r ebola-exp0-TBD_cost, fig.show="hold", out.width = "50%"}
 # Measure the relative differences in each type of cost between unique and uniform
-relcost_plot_function(exper_u_only, "cholera")
+relcost_plot_function(exper_u_only, "ebola")
 
 # plot costs
-cost_plot_function(exper_u_only, "cholera")
+cost_plot_function(exper_u_only, "ebola")
 ```
 
 ### Both Vaccination and TBD
@@ -972,14 +980,14 @@ Controls start at day `r response_time`.
 
 ```{r ebola-exp0-both_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
-trajectory_plot_function(exper_both, "cholera")
+trajectory_plot_function(exper_both, "ebola")
 ```
 
 ```{r ebola-exp0-both_cost, fig.show="hold", out.width = "50%"}
 # Measure the relative differences in each type of cost between unique and uniform
-relcost_plot_function(exper_u_only, "cholera")
+relcost_plot_function(exper_u_only, "ebola")
 # plot costs
-cost_plot_function(exper_both, "cholera")
+cost_plot_function(exper_both, "ebola")
 ```
 
 ## Experiment 1 (symmetric, m1=m2=0.05) {.tabset}
@@ -1034,15 +1042,15 @@ Controls start at day `r response_time`.
 
 ```{r ebola-exp1-vacc_only_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
-trajectory_plot_function(exper_v_only, "cholera")
+trajectory_plot_function(exper_v_only, "ebola")
 ```
 
 ```{r ebola-exp1-vacc_only_cost, fig.show="hold", out.width = "50%"}
 # plot costs
-cost_plot_function(exper_v_only, "cholera")
+cost_plot_function(exper_v_only, "ebola")
 
 # Measure the relative differences in each type of cost between unique and uniform
-relcost_plot_function(exper_v_only, "cholera")
+relcost_plot_function(exper_v_only, "ebola")
 ```
 
 ### TBD Only
@@ -1052,15 +1060,15 @@ Controls start at day `r response_time``.
 
 ```{r ebola-exp1-TBD_only_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
-trajectory_plot_function(exper_u_only, "cholera")
+trajectory_plot_function(exper_u_only, "ebola")
 ```
 
 ```{r ebola-exp1-TBD_cost, fig.show="hold", out.width = "50%"}
 # Measure the relative differences in each type of cost between unique and uniform
-relcost_plot_function(exper_u_only, "cholera")
+relcost_plot_function(exper_u_only, "ebola")
 
 # plot costs
-cost_plot_function(exper_u_only, "cholera")
+cost_plot_function(exper_u_only, "ebola")
 ```
 
 ### Both Vaccination and TBD
@@ -1071,14 +1079,14 @@ Controls start at day `r response_time`.
 
 ```{r ebola-exp1-both_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
-trajectory_plot_function(exper_both, "cholera")
+trajectory_plot_function(exper_both, "ebola")
 ```
 
 ```{r ebola-exp1-both_cost, fig.show="hold", out.width = "50%"}
 # Measure the relative differences in each type of cost between unique and uniform
-relcost_plot_function(exper_u_only, "cholera")
+relcost_plot_function(exper_u_only, "ebola")
 # plot costs
-cost_plot_function(exper_both, "cholera")
+cost_plot_function(exper_both, "ebola")
 ```
 
 ## Experiment 2 (symmetric, m1=m2=0.1) {.tabset}
@@ -1133,15 +1141,15 @@ Controls start at day `r response_time`.
 
 ```{r ebola-exp2-vacc_only_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
-trajectory_plot_function(exper_v_only, "cholera")
+trajectory_plot_function(exper_v_only, "ebola")
 ```
 
 ```{r ebola-exp2-vacc_only_cost, fig.show="hold", out.width = "50%"}
 # plot costs
-cost_plot_function(exper_v_only, "cholera")
+cost_plot_function(exper_v_only, "ebola")
 
 # Measure the relative differences in each type of cost between unique and uniform
-relcost_plot_function(exper_v_only, "cholera")
+relcost_plot_function(exper_v_only, "ebola")
 ```
 
 ### TBD Only
@@ -1151,15 +1159,15 @@ Controls start at day `r response_time``.
 
 ```{r ebola-exp2-TBD_only_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
-trajectory_plot_function(exper_u_only, "cholera")
+trajectory_plot_function(exper_u_only, "ebola")
 ```
 
 ```{r ebola-exp2-TBD_cost, fig.show="hold", out.width = "50%"}
 # Measure the relative differences in each type of cost between unique and uniform
-relcost_plot_function(exper_u_only, "cholera")
+relcost_plot_function(exper_u_only, "ebola")
 
 # plot costs
-cost_plot_function(exper_u_only, "cholera")
+cost_plot_function(exper_u_only, "ebola")
 ```
 
 ### Both Vaccination and TBD
@@ -1170,14 +1178,14 @@ Controls start at day `r response_time`.
 
 ```{r ebola-exp2-both_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
-trajectory_plot_function(exper_both, "cholera")
+trajectory_plot_function(exper_both, "ebola")
 ```
 
 ```{r ebola-exp2-both_cost, fig.show="hold", out.width = "50%"}
 # Measure the relative differences in each type of cost between unique and uniform
-relcost_plot_function(exper_u_only, "cholera")
+relcost_plot_function(exper_u_only, "ebola")
 # plot costs
-cost_plot_function(exper_both, "cholera")
+cost_plot_function(exper_both, "ebola")
 ```
 
 
@@ -1233,15 +1241,15 @@ Controls start at day `r response_time`.
 
 ```{r ebola-exp3-vacc_only_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
-trajectory_plot_function(exper_v_only, "cholera")
+trajectory_plot_function(exper_v_only, "ebola")
 ```
 
 ```{r ebola-exp3-vacc_only_cost, fig.show="hold", out.width = "50%"}
 # plot costs
-cost_plot_function(exper_v_only, "cholera")
+cost_plot_function(exper_v_only, "ebola")
 
 # Measure the relative differences in each type of cost between unique and uniform
-relcost_plot_function(exper_v_only, "cholera")
+relcost_plot_function(exper_v_only, "ebola")
 ```
 
 ### TBD Only
@@ -1251,15 +1259,15 @@ Controls start at day `r response_time``.
 
 ```{r ebola-exp3-TBD_only_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
-trajectory_plot_function(exper_u_only, "cholera")
+trajectory_plot_function(exper_u_only, "ebola")
 ```
 
 ```{r ebola-exp3-TBD_cost, fig.show="hold", out.width = "50%"}
 # Measure the relative differences in each type of cost between unique and uniform
-relcost_plot_function(exper_u_only, "cholera")
+relcost_plot_function(exper_u_only, "ebola")
 
 # plot costs
-cost_plot_function(exper_u_only, "cholera")
+cost_plot_function(exper_u_only, "ebola")
 ```
 
 ### Both Vaccination and TBD
@@ -1270,14 +1278,14 @@ Controls start at day `r response_time`.
 
 ```{r ebola-exp3-both_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
-trajectory_plot_function(exper_both, "cholera")
+trajectory_plot_function(exper_both, "ebola")
 ```
 
 ```{r ebola-exp3-both_cost, fig.show="hold", out.width = "50%"}
 # Measure the relative differences in each type of cost between unique and uniform
-relcost_plot_function(exper_u_only, "cholera")
+relcost_plot_function(exper_u_only, "ebola")
 # plot costs
-cost_plot_function(exper_both, "cholera")
+cost_plot_function(exper_both, "ebola")
 ```
 
 
@@ -1334,15 +1342,15 @@ Controls start at day `r response_time`.
 
 ```{r ebola-exp4-vacc_only_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
-trajectory_plot_function(exper_v_only, "cholera")
+trajectory_plot_function(exper_v_only, "ebola")
 ```
 
 ```{r ebola-exp4-vacc_only_cost, fig.show="hold", out.width = "50%"}
 # plot costs
-cost_plot_function(exper_v_only, "cholera")
+cost_plot_function(exper_v_only, "ebola")
 
 # Measure the relative differences in each type of cost between unique and uniform
-relcost_plot_function(exper_v_only, "cholera")
+relcost_plot_function(exper_v_only, "ebola")
 ```
 
 ### TBD Only
@@ -1352,15 +1360,15 @@ Controls start at day `r response_time``.
 
 ```{r ebola-exp4-TBD_only_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
-trajectory_plot_function(exper_u_only, "cholera")
+trajectory_plot_function(exper_u_only, "ebola")
 ```
 
 ```{r ebola-exp4-TBD_cost, fig.show="hold", out.width = "50%"}
 # Measure the relative differences in each type of cost between unique and uniform
-relcost_plot_function(exper_u_only, "cholera")
+relcost_plot_function(exper_u_only, "ebola")
 
 # plot costs
-cost_plot_function(exper_u_only, "cholera")
+cost_plot_function(exper_u_only, "ebola")
 ```
 
 ### Both Vaccination and TBD
@@ -1371,12 +1379,12 @@ Controls start at day `r response_time`.
 
 ```{r ebola-exp4-both_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
-trajectory_plot_function(exper_both, "cholera")
+trajectory_plot_function(exper_both, "ebola")
 ```
 
 ```{r ebola-exp4-both_cost, fig.show="hold", out.width = "50%"}
 # Measure the relative differences in each type of cost between unique and uniform
-relcost_plot_function(exper_u_only, "cholera")
+relcost_plot_function(exper_u_only, "ebola")
 # plot costs
-cost_plot_function(exper_both, "cholera")
+cost_plot_function(exper_both, "ebola")
 ```
