@@ -171,7 +171,9 @@ setup_model <- function(model){
     # initial guesses
     controls = list(
       v1 = guess_v1, 
-      v2 = guess_v2), 
+      v2 = guess_v2, 
+      u1 = guess_u1,
+      u2 = guess_u2), 
     x = matrix(0, nrow = length(get(paste0("times_",model))), ncol = n_states+1),
     lambda = matrix(0, nrow = length(get(paste0("times_",model))), ncol = n_states+1),
     # ICs for ode solver #EH: some of these variable names are confusing

@@ -29,17 +29,24 @@ params_ebola <- data.frame(
   n2=0,
   b1=1,
   b2=1,
-  C1=.01,
-  C2=.01,
-  epsilon1=5e4,  #5e7
-  epsilon2=5e4, #5e7 for 2  #1e4 for 1  
+  Cv1=.01,
+  Cv2=.01,
+  epsilonV1=5e4,  #5e7
+  epsilonV2=5e4, #5e7 for 2  #1e4 for 1  
+  Cu1=.01,
+  Cu2=.01,
+  epsilonU1=5e4,
+  epsilonU2=5e4,
   # for baseline control_type
   control_type = "uniform",
   tol= 0.01, # optimization tolerance
   v1 = 0, v2 = 0, # baseline vaccination rate
+  u1 = 0, u2 = 0, # baseline sanitation rate
   ### optimal control bounds
   v1_min = 0, v1_max = 0.015, 
-  v2_min = 0, v2_max = 0.015
+  v2_min = 0, v2_max = 0.015,
+  u1_min = 0, u1_max = 0.015, 
+  u2_min = 0, u2_max = 0.015
 )
 
 #Calculate betas based on R0
