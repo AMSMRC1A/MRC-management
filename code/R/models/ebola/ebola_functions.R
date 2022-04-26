@@ -224,8 +224,8 @@ calc_j_ebola <- function(times, optim_states, params) {
     j_case2 = trapz(x, j_vals[[2]]),
     j_vacc1 = trapz(x, j_vals[[3]]),
     j_vacc2 = trapz(x, j_vals[[4]]),
-    j_sani1 = trapz(x, j_vals[[3]]),
-    j_sani2 = trapz(x, j_vals[[4]])
+    j_sani1 = trapz(x, j_vals[[5]]),
+    j_sani2 = trapz(x, j_vals[[6]])
   ))
 }
 
