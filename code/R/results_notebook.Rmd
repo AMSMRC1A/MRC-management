@@ -106,7 +106,7 @@ no_control_plot_function <- function(df, model) {
 trajectory_plot_function <- function(df, model) {
   if (model == "ebola") {
     level_codes <- c("S", "E", "I", "H", "D", "R", "v", "u")
-    compartment_names <- c("Susceptible", "Exposed", "Infected", "Hospitalized", "Dead", "Recovered", "Vaccinated", "TBD")
+    compartment_names <- c("Susceptible", "Exposed", "Infected", "Hospitalized", "Dead", "Recovered", "Vaccinated", "Hospitalization")
   } else {
     level_codes <- c("S", "I", "R", "W", "v", "u")
     compartment_names <- c("Susceptible", "Infected", "Recovered", "Water", "Vaccinated", "Sanitation")
@@ -149,10 +149,10 @@ cost_plot_function <- function(df, model) {
       "j_sani2"
     )
     cost_names <- c(
-      "P1: cases", "P1: vaccination", "P1: ?",
-      "P2: cases", "P2: vaccination", "P2: ?"
+      "P1: cases", "P1: vaccination", "P1: hospitalization",
+      "P2: cases", "P2: vaccination", "P2: hospitalization"
     )
-    clrs <- cost_colors6[c(1:2,4:5)]
+    clrs <- cost_colors6
   } else {
     cost_levels <- c(
       "j_case1", "j_vacc1", "j_sani1", "j_case2", "j_vacc2",
@@ -207,9 +207,10 @@ relcost_plot_function <- function(df, model) {
                             "Vaccinations in patch 1", "Vaccinations in patch 2",
                             "Sanitation in patch 1", "Sanitation in patch 2")
   } else {
-    change_vars <- c("j", "j_case1", "j_case2", "j_vacc1", "j_vacc2")
+    change_vars <- c("j", "j_case1", "j_case2", "j_vacc1", "j_vacc2", "j_sani1", "j_sani2")
     names(change_vars) <- c("Total cost", "Cases in patch 1", "Cases in patch 2", 
-                            "Vaccinations in patch 1", "Vaccinations in patch 2")
+                            "Vaccinations in patch 1", "Vaccinations in patch 2",
+                            "Hospitalization in patch 1", "Hospitalization in patch 2")
   }
   
   rel_costs <- df %>%
@@ -841,13 +842,13 @@ cost_plot_function(exper_both, "cholera")
 # names of each compartment/control
 compartment_names <- c(
   "Susceptible", "Exposed", "Infected", "Hospitalized", "Dead", "Recovered",
-  "Vaccination", "TBD"
+  "Vaccination", "Hospitalization"
 )
 names(compartment_names) <- c("S", "E", "I", "H", "D", "R", "v", "u")
 # names of each aspect of cost function
 cost_names <- c(
-  "P1: cases", "P1: vaccination", "P1: TBD",
-  "P2: cases", "P2: vaccination", "P2: TBD"
+  "P1: cases", "P1: vaccination", "P1: hospitalization",
+  "P2: cases", "P2: vaccination", "P2: hospitalization"
 )
 names(cost_names) <- c(
   "j_case1", "j_vacc1", "j_sani1",
@@ -872,15 +873,16 @@ IC_table <- as.data.frame(t(ebola_IC))
 ```
 
 ```{r ebola-calculate}
+ebola_m_test <- c(0, 0.005, .05)
 # setup all parameter sets to test
 test_params <- expand.grid(
   control_type = c("unique", "uniform"),
-  m1 = c(0, .05, .1),
-  m2 = c(0, .05, .1),
-  u1_max = c(0, 0.4),
-  u2_max = c(0, 0.4),
-  v1_max = c(0, 0.015),
-  v2_max = c(0, 0.015)
+  m1 = ebola_m_test,
+  m2 = ebola_m_test,
+  u1_max = c(0, params_ebola$u1_max),
+  u2_max = c(0, params_ebola$u2_max),
+  v1_max = c(0, params_ebola$v1_max),
+  v2_max = c(0, params_ebola$v2_max)
 ) %>% 
   as.data.frame() %>% 
   filter_(~u1_max == u2_max) %>% 
@@ -894,16 +896,16 @@ We show similar results instead employing  the Ebola model.
 ## Experiment 0 (no movement between patches) {.tabset}
 ```{r ebola-exp0}
 ebola_exp0_df <- filter(ebola_optim_full,
-                       m1 == 0,
-                       m2 == 0)
+                       m1 == ebola_m_test[2][1],
+                       m2 == ebola_m_test[2][1])
 # Vaccination only
 exper_v_only <- filter(ebola_exp0_df,
                        u1_max == 0,
                        v1_max == params_ebola$v1_max
 )
-# TBD only
+# hospitalization only
 exper_u_only <- filter(ebola_exp0_df,
-                       u1_max == 0,
+                       u1_max == params_ebola$u1_max,
                        v1_max == 0
 )
 # Both controls
@@ -937,7 +939,7 @@ no_control_plot_function(uncontrolled_epi, "ebola")
 ```
 
 ### Vaccination Only
-We consider the case with only vaccination (no TBD).
+We consider the case with only vaccination (no hospitalization).
 
 Controls start at day `r response_time`.
 
@@ -954,17 +956,17 @@ cost_plot_function(exper_v_only, "ebola")
 relcost_plot_function(exper_v_only, "ebola")
 ```
 
-### TBD Only
-We also consider the case with only TBD (no vaccination).
+### Hospitalization Only
+We also consider the case with only hospitalization (no vaccination).
 
 Controls start at day `r response_time``.
 
-```{r ebola-exp0-TBD_only_trajectories, fig.show="hold", out.width = "100%"}
+```{r ebola-exp0-hosp_only_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
 trajectory_plot_function(exper_u_only, "ebola")
 ```
 
-```{r ebola-exp0-TBD_cost, fig.show="hold", out.width = "50%"}
+```{r ebola-exp0-hosp_cost, fig.show="hold", out.width = "50%"}
 # Measure the relative differences in each type of cost between unique and uniform
 relcost_plot_function(exper_u_only, "ebola")
 
@@ -972,7 +974,7 @@ relcost_plot_function(exper_u_only, "ebola")
 cost_plot_function(exper_u_only, "ebola")
 ```
 
-### Both Vaccination and TBD
+### Both Vaccination and Hospitalization
 
 Lastly, we show how results change if we optimize both controls.
 
@@ -990,24 +992,24 @@ relcost_plot_function(exper_u_only, "ebola")
 cost_plot_function(exper_both, "ebola")
 ```
 
-## Experiment 1 (symmetric, m1=m2=0.05) {.tabset}
+## Experiment 1 (symmetric, m1=m2=`r ebola_m_test[2]`) {.tabset}
 ```{r ebola-exp1}
 ebola_exp1_df <- filter(ebola_optim_full,
-                       m1 == 0.05,
-                       m2 == 0.05)
+                       m1 == ebola_m_test[2],
+                       m2 == ebola_m_test[2])
 # Vaccination only
 exper_v_only <- filter(ebola_exp1_df,
                        u1_max == 0,
                        v1_max == params_ebola$v1_max
 )
-# TBD only
+# hospitalization only
 exper_u_only <- filter(ebola_exp1_df,
-                       u1_max == 0,
+                       u1_max == params_ebola$u1_max,
                        v1_max == 0
 )
 # Both controls
 exper_both <- filter(ebola_exp1_df,
-                       u1_max == 0,
+                       u1_max == params_ebola$u1_max,
                        v1_max == params_ebola$v1_max
 )
 ```
@@ -1036,7 +1038,7 @@ no_control_plot_function(uncontrolled_epi, "ebola")
 ```
 
 ### Vaccination Only
-We consider the case with only vaccination (no TBD).
+We consider the case with only vaccination (no hospitalization).
 
 Controls start at day `r response_time`.
 
@@ -1053,17 +1055,17 @@ cost_plot_function(exper_v_only, "ebola")
 relcost_plot_function(exper_v_only, "ebola")
 ```
 
-### TBD Only
-We also consider the case with only TBD (no vaccination).
+### Hospitalization Only
+We also consider the case with only hospitalization (no vaccination).
 
 Controls start at day `r response_time``.
 
-```{r ebola-exp1-TBD_only_trajectories, fig.show="hold", out.width = "100%"}
+```{r ebola-exp1-hosp_only_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
 trajectory_plot_function(exper_u_only, "ebola")
 ```
 
-```{r ebola-exp1-TBD_cost, fig.show="hold", out.width = "50%"}
+```{r ebola-exp1-hosp_cost, fig.show="hold", out.width = "50%"}
 # Measure the relative differences in each type of cost between unique and uniform
 relcost_plot_function(exper_u_only, "ebola")
 
@@ -1071,7 +1073,7 @@ relcost_plot_function(exper_u_only, "ebola")
 cost_plot_function(exper_u_only, "ebola")
 ```
 
-### Both Vaccination and TBD
+### Both Vaccination and Hospitalization
 
 Lastly, we show how results change if we optimize both controls.
 
@@ -1089,24 +1091,24 @@ relcost_plot_function(exper_u_only, "ebola")
 cost_plot_function(exper_both, "ebola")
 ```
 
-## Experiment 2 (symmetric, m1=m2=0.1) {.tabset}
+## Experiment 2 (symmetric, m1=m2=`ebola_m_test[3]`) {.tabset}
 ```{r ebola-exp2}
 ebola_exp2_df <- filter(ebola_optim_full,
-                       m1 == 0.1,
-                       m2 == 0.1)
+                       m1 == ebola_m_test[3],
+                       m2 == ebola_m_test[3])
 # Vaccination only
 exper_v_only <- filter(ebola_exp2_df,
                        u1_max == 0,
                        v1_max == params_ebola$v1_max
 )
-# TBD only
+# hospitalization only
 exper_u_only <- filter(ebola_exp2_df,
-                       u1_max == 0,
+                       u1_max == params_ebola$u1_max,
                        v1_max == 0
 )
 # Both controls
 exper_both <- filter(ebola_exp2_df,
-                       u1_max == 0,
+                       u1_max == params_ebola$u1_max,
                        v1_max == params_ebola$v1_max
 )
 ```
@@ -1135,7 +1137,7 @@ no_control_plot_function(uncontrolled_epi, "ebola")
 ```
 
 ### Vaccination Only
-We consider the case with only vaccination (no TBD).
+We consider the case with only vaccination (no hospitalization).
 
 Controls start at day `r response_time`.
 
@@ -1152,17 +1154,17 @@ cost_plot_function(exper_v_only, "ebola")
 relcost_plot_function(exper_v_only, "ebola")
 ```
 
-### TBD Only
-We also consider the case with only TBD (no vaccination).
+### Hospitalization Only
+We also consider the case with only hospitalization (no vaccination).
 
 Controls start at day `r response_time``.
 
-```{r ebola-exp2-TBD_only_trajectories, fig.show="hold", out.width = "100%"}
+```{r ebola-exp2-hosp_only_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
 trajectory_plot_function(exper_u_only, "ebola")
 ```
 
-```{r ebola-exp2-TBD_cost, fig.show="hold", out.width = "50%"}
+```{r ebola-exp2-hosp_cost, fig.show="hold", out.width = "50%"}
 # Measure the relative differences in each type of cost between unique and uniform
 relcost_plot_function(exper_u_only, "ebola")
 
@@ -1170,7 +1172,7 @@ relcost_plot_function(exper_u_only, "ebola")
 cost_plot_function(exper_u_only, "ebola")
 ```
 
-### Both Vaccination and TBD
+### Both Vaccination and Hospitalization
 
 Lastly, we show how results change if we optimize both controls.
 
@@ -1189,24 +1191,24 @@ cost_plot_function(exper_both, "ebola")
 ```
 
 
-## Experiment 3 (asymmetric, m1=.05, m2=0.1) {.tabset}
+## Experiment 3 (asymmetric, m1=`r ebola_m_test[2]`, m2=`r ebola_m_test[3]`) {.tabset}
 ```{r ebola-exp3}
 ebola_exp3_df <- filter(ebola_optim_full,
-                       m1 == 0.05,
-                       m2 == 0.1)
+                       m1 == ebola_m_test[2],
+                       m2 == ebola_m_test[3])
 # Vaccination only
 exper_v_only <- filter(ebola_exp3_df,
                        u1_max == 0,
                        v1_max == params_ebola$v1_max
 )
-# TBD only
+# hospitalization only
 exper_u_only <- filter(ebola_exp3_df,
-                       u1_max == 0,
+                       u1_max == params_ebola$u1_max,
                        v1_max == 0
 )
 # Both controls
 exper_both <- filter(ebola_exp3_df,
-                       u1_max == 0,
+                       u1_max == params_ebola$u1_max,
                        v1_max == params_ebola$v1_max
 )
 ```
@@ -1235,7 +1237,7 @@ no_control_plot_function(uncontrolled_epi, "ebola")
 ```
 
 ### Vaccination Only
-We consider the case with only vaccination (no TBD).
+We consider the case with only vaccination (no hospitalization).
 
 Controls start at day `r response_time`.
 
@@ -1252,17 +1254,17 @@ cost_plot_function(exper_v_only, "ebola")
 relcost_plot_function(exper_v_only, "ebola")
 ```
 
-### TBD Only
-We also consider the case with only TBD (no vaccination).
+### Hospitalization Only
+We also consider the case with only hospitalization (no vaccination).
 
 Controls start at day `r response_time``.
 
-```{r ebola-exp3-TBD_only_trajectories, fig.show="hold", out.width = "100%"}
+```{r ebola-exp3-hosp_only_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
 trajectory_plot_function(exper_u_only, "ebola")
 ```
 
-```{r ebola-exp3-TBD_cost, fig.show="hold", out.width = "50%"}
+```{r ebola-exp3-hosp_cost, fig.show="hold", out.width = "50%"}
 # Measure the relative differences in each type of cost between unique and uniform
 relcost_plot_function(exper_u_only, "ebola")
 
@@ -1270,7 +1272,7 @@ relcost_plot_function(exper_u_only, "ebola")
 cost_plot_function(exper_u_only, "ebola")
 ```
 
-### Both Vaccination and TBD
+### Both Vaccination and Hospitalization
 
 Lastly, we show how results change if we optimize both controls.
 
@@ -1290,24 +1292,24 @@ cost_plot_function(exper_both, "ebola")
 
 
 
-## Experiment 4 (asymmetric, m1=.1, m2=0.05) {.tabset}
+## Experiment 4 (asymmetric, m1=`r ebola_m_test[3]`, m2=`ebola_m_test[2]`) {.tabset}
 ```{r ebola-exp4}
 ebola_exp4_df <- filter(ebola_optim_full,
-                       m1 == 0.1,
-                       m2 == 0.05)
+                       m1 == ebola_m_test[3],
+                       m2 == ebola_m_test[2])
 # Vaccination only
 exper_v_only <- filter(ebola_exp4_df,
                        u1_max == 0,
                        v1_max == params_ebola$v1_max
 )
-# TBD only
+# hospitalization only
 exper_u_only <- filter(ebola_exp4_df,
-                       u1_max == 0,
+                       u1_max == params_ebola$u1_max,
                        v1_max == 0
 )
 # Both controls
 exper_both <- filter(ebola_exp4_df,
-                       u1_max == 0,
+                       u1_max == params_ebola$u1_max,
                        v1_max == params_ebola$v1_max
 )
 ```
@@ -1336,7 +1338,7 @@ no_control_plot_function(uncontrolled_epi, "ebola")
 ```
 
 ### Vaccination Only
-We consider the case with only vaccination (no TBD).
+We consider the case with only vaccination (no hospitalization).
 
 Controls start at day `r response_time`.
 
@@ -1353,17 +1355,17 @@ cost_plot_function(exper_v_only, "ebola")
 relcost_plot_function(exper_v_only, "ebola")
 ```
 
-### TBD Only
-We also consider the case with only TBD (no vaccination).
+### Hospitalization Only
+We also consider the case with only hospitalization (no vaccination).
 
 Controls start at day `r response_time``.
 
-```{r ebola-exp4-TBD_only_trajectories, fig.show="hold", out.width = "100%"}
+```{r ebola-exp4-hosp_only_trajectories, fig.show="hold", out.width = "100%"}
 # plot states
 trajectory_plot_function(exper_u_only, "ebola")
 ```
 
-```{r ebola-exp4-TBD_cost, fig.show="hold", out.width = "50%"}
+```{r ebola-exp4-hosp_cost, fig.show="hold", out.width = "50%"}
 # Measure the relative differences in each type of cost between unique and uniform
 relcost_plot_function(exper_u_only, "ebola")
 
@@ -1371,7 +1373,7 @@ relcost_plot_function(exper_u_only, "ebola")
 cost_plot_function(exper_u_only, "ebola")
 ```
 
-### Both Vaccination and TBD
+### Both Vaccination and Hospitalization
 
 Lastly, we show how results change if we optimize both controls.
 
