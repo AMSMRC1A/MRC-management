@@ -15,7 +15,7 @@ oc_optim <- function(model, change_params = NA) {
   setup <- setup_model(model)
   with(setup, {
     # update parameters if !is.na(change_params)
-    if(!is.na(change_params)){
+    if(!any(is.na(change_params))){
       params <- param_changer(change_params, params)
     }
     counter <- 1
