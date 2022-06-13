@@ -8,20 +8,29 @@ Overview
 --------
 
     project
-    |- doc/            # documentation for the study
-    |  +- paper/       # manuscript(s), whether generated or not
+    |- doc/                # documentation for the study
+    |  +- paper/           # manuscript(s), whether generated or not
     |
-    |- data            # raw and primary data, are not changed once created
-    |  |- raw/         # raw data, will not be altered
-    |  +- clean/       # cleaned data, will not be altered once created
+    |- data                # raw and primary data, are not changed once created
+    |  |- raw/             # raw data, will not be altered
+    |  +- clean/           # cleaned data, will not be altered once created
     |
-    |- code/           # any programmatic code
-    |- results         # all output from workflows and analyses
-    |  |- figures/     # graphs, likely designated for manuscript figures
-    |  +- pictures/    # diagrams, images, and other non-graph graphics
+    |- code/               # any programmatic code
+    |  |- R                # all R code
+    |    |- models         # model specific scripts
+    |       |- Cholera
+    |       |- Ebola
+    |    |+ implementation # code to implement optimal control analyses across all models
+    |  |+ matlab           # all matlab code
+    |       |- Cholera
+    |       |- Ebola
+    | 
+    |- results             # all output from workflows and analyses
+    |  |- figures/         # graphs, likely designated for manuscript figures
+    |  +- pictures/        # diagrams, images, and other non-graph graphics
     |
-    |- scratch/        # temporary files that can be safely deleted or lost
-    |- README          # the top level description of content
+    |- scratch/            # temporary files that can be safely deleted or lost
+    |- README              # the top level description of content
 
 
 Acknowledgements
