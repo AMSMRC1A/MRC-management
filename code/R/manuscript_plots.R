@@ -15,6 +15,18 @@ registerDoParallel(detectCores() - 2) # update this if you want to use more core
 # load optimal control files
 source("implementation/optimal_control_functions.R")
 
+#### OUTLINE -------------------------------------------------------------------
+# group comments
+# show infectious classes, show no control case somewhere
+# relative change plot: include only cases, deaths, total cost
+# Figure out why ebola no movement scenario has cases in patch 2
+
+# plan
+# Figures 1/2: model diagrams
+# Figure 3: 
+# Figure 4: 
+# ...
+
 #### RUN OC --------------------------------------------------------------------
 #ebola_m_test <- c(0, 0.005, .05)
 test_params <- expand.grid(
