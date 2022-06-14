@@ -23,9 +23,23 @@ source("implementation/optimal_control_functions.R")
 
 # plan
 # Figures 1/2: model diagrams
-# Figure 3: 
-# Figure 4: 
-# ...
+# Figure 3: cholera infectious classes no control, unique, uniform (one panel per patch)
+#           cholera control over time unique/uniform (one panel per patch) - both controls 
+#           (check not worth showing single control)
+# Figure 4: repeat for ebola
+# Figure 5: relative change (cases, deaths, total cost)  (one panel per model)
+# Figure 6: relative change + movement (no movement, symmetric movement, asymmetric movement)
+#           play around with faceting
+#           decide names of costs
+#
+# supplementary
+# all classes  no control 
+# single control cases
+#
+# theme
+# theme_minimal (cowplot)
+# colors: colorbrewer - patches
+# linetype: no control, unique, uniform
 
 #### RUN OC --------------------------------------------------------------------
 #ebola_m_test <- c(0, 0.005, .05)
