@@ -135,7 +135,7 @@ plot_timeseries <- function(plot_df, patch_colors, facet_type, facet_labs,
   return(p)
 }
 
-full_timeseries_plot <- function(model_name, states, patch_cholors,
+create_multipanel_ts_plot <- function(model_name, states, patch_cholors,
                                  I_labs, control_labs){
   # plot infectious class
   p_Istates <- states %>%
@@ -161,18 +161,18 @@ full_timeseries_plot <- function(model_name, states, patch_cholors,
                     leg_pos = "bottom")
   # put together
   p <- plot_grid(p_Istates, p_controls, 
-                    rel_widths = c(0.35,0.65), 
+                    rel_widths = c(0.3,0.7), 
                     align = "h", 
                     axis = "b")
   return(p)
 }
 
 #### FIGURE 3 ------------------------------------------------------------------
-fig3 <- full_timeseries_plot(model_name = "cholera", 
-                             states = states, 
-                             patch_cholors = patch_cholors, 
-                             I_labs = chol_I_labs, 
-                             control_labs = chol_control_labs)
+fig3 <- create_multipanel_ts_plot(model_name = "cholera", 
+                                  states = states, 
+                                  patch_cholors = patch_cholors, 
+                                  I_labs = chol_I_labs, 
+                                  control_labs = chol_control_labs)
 ggsave("results/figures/Figure3.pdf", width = 6, height = 3, scale = 1.5)
 
 
