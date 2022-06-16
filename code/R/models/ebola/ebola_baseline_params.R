@@ -6,7 +6,7 @@ N2<-1e5
 params_ebola <- data.frame(
   mu1=5.5e-5, #Change average lifespan to 50 years from 27
   alpha1=.1,
-  gammaI1=1/15,
+  gammaI1=1/10, #1/15,
   gammaH1=.028,
   phi1=.236,
   deltaI1=.024,
@@ -18,7 +18,7 @@ params_ebola <- data.frame(
   #Patch 2
   mu2=5.5e-5, #Change average lifespan to 50 years from 27
   alpha2=.1,
-  gammaI2=1/15,
+  gammaI2=1/10, #1/15,
   gammaH2=.028,
   phi2=.236,
   deltaI2=.024,
@@ -33,10 +33,10 @@ params_ebola <- data.frame(
   Cv2=.01,
   epsilonV1=5e4,  #5e7
   epsilonV2=5e4, #5e7 for 2  #1e4 for 1  
-  Cu1=.001,
-  Cu2=.001,
-  epsilonU1=5e3,
-  epsilonU2=5e3,
+  Cu1=0.1, #.001,
+  Cu2=0.1, #.001,
+  epsilonU1=5e3, #5e4, 5e5?
+  epsilonU2=5e3, #5e4, 5e5?
   # for baseline control_type
   control_type = "uniform",
   tol= 0.01, # optimization tolerance
@@ -52,6 +52,13 @@ params_ebola <- data.frame(
 #Calculate betas based on R0
 R0 <- 1.7
 p <- 10  #scale betaI for transmission from D to get betaD
+
+#patch1
+#betaI1 <- R0/(N1*(alpha1/(alpha1+mu1))*(1/(gammaI1+phi1+deltaI1+mu1)) + p*N1*(alpha1/(alpha1+mu1))*(deltaI1/(gammaI1+phi1+deltaI1+mu1))*(1/xi1))
+#betaD1 <- p*betaI1
+#patch2
+#betaI2 <- betaI1
+#betaD2 <- betaD1
 
 #patch 1
 betaI1 <- .006/N1*1.8 #Burton
