@@ -13,7 +13,7 @@ library(foreach)
 registerDoParallel(detectCores() - 2) # update this if you want to use more cores
 
 # load optimal control files
-source("implementation/optimal_control_functions.R")
+source("code/R/implementation/optimal_control_functions.R")
 
 #### OUTLINE -------------------------------------------------------------------
 # group comments
@@ -95,30 +95,27 @@ states <- states %>%
 ## colors
 patch_colors <- c("#1b9e77", "#d95f02")
 #cost_colors6 <- c(rev(brewer.pal(3, "Reds")), rev(brewer.pal(3, "Blues")))
-## labels
-# cholera control
-chol_control_labs <- c("Vaccination", "Sanitation")
-names(chol_control_labs) <- c("v", "u")
-# cholera states
-chol_I_labs <- c("infections in patch 1", "infections in patch 2")
-names(chol_I_labs) <- 1:2
 
-#### TIME SERIES PLOTS ---------------------------------------------------------
+
+#### TIME SERIES PLOT FUNCTIONS ------------------------------------------------
 
 # plot_df should have columns for time, value, patch, control_type
-plot_timeseries <- function(plot_df, patch_colors, 
-                                    facet_type,
-                                     facet_labs, y_lab, leg_pos){
+plot_timeseries <- function(plot_df, patch_colors, facet_type, facet_labs,
+                            y_lab, leg_pos){
   p <-   ggplot(data = plot_df, 
                 aes(x = time, y = value, 
                     color = patch, linetype = control_type)) +
     geom_line(size = 1) +
     scale_color_manual(values = patch_colors) +
     scale_linetype_manual(values = c("solid", "dashed")) +
-    labs(x = "time since start of control (days)", y = y_lab) +
+    labs(x = "time since start of control (days)", 
+         y = y_lab, 
+         linetype = "control type") +
     theme_minimal() +
     theme(
       legend.position = leg_pos, 
+      legend.key.width = unit(1, "cm"),
+      panel.grid.minor = element_blank(),
       strip.placement = "outside"
     )
   if(facet_type == "states"){
@@ -131,45 +128,56 @@ plot_timeseries <- function(plot_df, patch_colors,
   else if(facet_type == "patch"){
     p <- p + 
       facet_wrap(vars(patch), 
-                 labeller = labeller(variable = facet_labs), 
+                 labeller = labeller(patch = facet_labs), 
                  nrow = 2,
                  strip.position = "left")
   }
   return(p)
 }
 
+full_timeseries_plot <- function(model_name, states, patch_cholors,
+                                 I_labs, control_labs){
+  # plot infectious class
+  p_Istates <- states %>%
+    filter(model == model_name, 
+           m1 == 0, 
+           m2 == 0,
+           variable == "I") %>%
+    plot_timeseries(patch_colors = patch_colors, 
+                    facet_labs = I_labs, 
+                    facet_type = "patch",
+                    y_lab = "", 
+                    leg_pos = "none")
+  # plot controls
+  p_controls <- states %>%
+    filter(model == model_name, 
+           m1 == 0, 
+           m2 == 0,
+           variable %in% c("v", "u")) %>%
+    plot_timeseries(patch_colors = patch_colors, 
+                    facet_labs = control_labs, 
+                    facet_type = "states",
+                    y_lab = "", 
+                    leg_pos = "bottom")
+  # put together
+  p <- plot_grid(p_Istates, p_controls, 
+                    rel_widths = c(0.35,0.65), 
+                    align = "h", 
+                    axis = "b")
+  return(p)
+}
 
 #### FIGURE 3 ------------------------------------------------------------------
-p_chol_controls <- states %>%
-  filter(model == "cholera", 
-         m1 == 0, 
-         m2 == 0,
-         variable %in% c("v", "u")) %>%
-  plot_timeseries(patch_colors = patch_colors, 
-                  facet_labs = chol_control_labs, 
-                  facet_type = "states",
-                  y_lab = "", 
-                  leg_pos = "bottom")
-p_chol_controls
+fig3 <- full_timeseries_plot(model_name = "cholera", 
+                             states = states, 
+                             patch_cholors = patch_cholors, 
+                             I_labs = chol_I_labs, 
+                             control_labs = chol_control_labs)
+ggsave("results/figures/Figure3.pdf", width = 6, height = 3, scale = 1.5)
 
 
-p_chol_Istates <- states %>%
-  filter(model == "cholera", 
-         m1 == 0, 
-         m2 == 0,
-         variable == "I") %>%
-  plot_timeseries(patch_colors = patch_colors, 
-                  facet_labs = chol_I_labs, 
-                  facet_type = "patch",
-                  y_lab = "", 
-                  leg_pos = "none")
-p_chol_Istates
-
-plot_grid(p_chol_Istates, p_chol_controls, 
-          rel_widths = c(0.3,0.7), 
-          align = "h", 
-          axis = "b")
-
+#### FIGURE 4 ------------------------------------------------------------------
+#repeat for ebola
 
 
 # relative costs
