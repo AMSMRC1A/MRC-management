@@ -208,13 +208,22 @@ calc_test_ebola <- function(tol, controls, x, lambda, old_vals) {
 #' sanitation in patches 1 and 2)
 calc_j_ebola <- function(times, optim_states, params) {
   x <- times
-  j_ints <- list(
-    case1 = expression(b1*(betaI1*S1 + betaD1*S1*D1)),
-    case2 = expression(b2*(betaI2*S2*I2 + betaD2*S2*D2)),
-    vacc1 = expression(Cv1*v1*(S1+E1) + epsilonV1*(v1^2)),
-    vacc2 = expression(Cv2*v2*(S1+E1) + epsilonV2*(v2^2)),
-    sani1 = expression(Cu1*u1*phi1*I1 + epsilonU1*(u1^2)),
-    sani2 = expression(Cu2*u2*phi2*I2 + epsilonU2*(u2^2))
+  ints <- list(
+    # calculate cost components
+    j_case1 = expression(b1*(betaI1*S1 + betaD1*S1*D1)),
+    j_case2 = expression(b2*(betaI2*S2*I2 + betaD2*S2*D2)),
+    j_vacc1 = expression(Cv1*v1*(S1+E1) + epsilonV1*(v1^2)),
+    j_vacc2 = expression(Cv2*v2*(S1+E1) + epsilonV2*(v2^2)),
+    j_sani1 = expression(Cu1*u1*phi1*I1 + epsilonU1*(u1^2)),
+    j_sani2 = expression(Cu2*u2*phi2*I2 + epsilonU2*(u2^2)),
+    # calculate epi outcomes
+    epi_case1 = expression((betaI1*S1 + betaD1*S1*D1)), 
+    epi_case2 = expression((betaI2*S2*I2 + betaD2*S2*D2)),
+    # calculate resource distribution
+    res_vacc1 = expression(v1**(S1+E1)), 
+    res_vacc2 = expression(v2*(S2+E2)), 
+    res_sani1 = expression(u1*phi1*I1), 
+    res_sani2 = expression(u2*phi2*I2)
   )
   j_vals <- lapply(j_ints, function(x) {
     apply(optim_states, 1, eval_j_integrand, params = params, integrand = x)
@@ -225,7 +234,13 @@ calc_j_ebola <- function(times, optim_states, params) {
     j_vacc1 = trapz(x, j_vals[[3]]),
     j_vacc2 = trapz(x, j_vals[[4]]),
     j_sani1 = trapz(x, j_vals[[5]]),
-    j_sani2 = trapz(x, j_vals[[6]])
+    j_sani2 = trapz(x, j_vals[[6]]), 
+    epi_case1 = trapz(x, j_vals[[7]]),
+    epi_case2 = trapz(x, j_vals[[8]]),
+    res_vacc1 = trapz(x, j_vals[[9]]),
+    res_vacc2 = trapz(x, j_vals[[10]]),
+    res_sani1 = trapz(x, j_vals[[11]]),
+    res_sani2 = trapz(x, j_vals[[12]])
   ))
 }
 

@@ -193,15 +193,24 @@ calc_test_cholera <- function(tol, controls, x, lambda, old_vals) {
 #' sanitation in patches 1 and 2)
 calc_j_cholera <- function(times, optim_states, params) {
   x <- times
-  j_ints <- list(
-    case1 = expression(b1 * (beta_I1 * S1 * I1 + (1 - u1) * beta_W1 * S1 * W1)),
-    case2 = expression(b2 * (beta_I2 * S2 * I2 + (1 - u2) * beta_W2 * S2 * W2)),
-    vacc1 = expression(C1 * v1 * S1 + epsilon1 * (v1^2)),
-    vacc2 = expression(C2 * v2 * S2 + epsilon2 * (v2^2)),
-    sani1 = expression(D1 * u1 + eta1 * u1^2),
-    sani2 = expression(D2 * u2 + eta2 * u2^2)
+  ints <- list(
+    # calculate cost components
+    j_case1 = expression(b1 * (beta_I1 * S1 * I1 + (1 - u1) * beta_W1 * S1 * W1)),
+    j_case2 = expression(b2 * (beta_I2 * S2 * I2 + (1 - u2) * beta_W2 * S2 * W2)),
+    j_vacc1 = expression(C1 * v1 * S1 + epsilon1 * (v1^2)),
+    j_vacc2 = expression(C2 * v2 * S2 + epsilon2 * (v2^2)),
+    j_sani1 = expression(D1 * u1 + eta1 * u1^2),
+    j_sani2 = expression(D2 * u2 + eta2 * u2^2),
+    # calculate epi outcomes
+    epi_case1 = expression((beta_I1 * S1 * I1 + (1 - u1) * beta_W1 * S1 * W1)), 
+    epi_case2 = expression((beta_I2 * S2 * I2 + (1 - u2) * beta_W2 * S2 * W2)),
+    # calculate resource distribution
+    res_vacc1 = expression(v1*S1), 
+    res_vacc2 = expression(v2*S2), 
+    res_sani1 = expression(u1), 
+    res_sani2 = expression(u2)
   )
-  j_vals <- lapply(j_ints, function(x) {
+  j_vals <- lapply(ints, function(x) {
     apply(optim_states, 1, eval_j_integrand, params = params, integrand = x)
   })
   return(data.frame(
@@ -210,7 +219,13 @@ calc_j_cholera <- function(times, optim_states, params) {
     j_vacc1 = trapz(x, j_vals[[3]]),
     j_vacc2 = trapz(x, j_vals[[4]]),
     j_sani1 = trapz(x, j_vals[[5]]),
-    j_sani2 = trapz(x, j_vals[[6]])
+    j_sani2 = trapz(x, j_vals[[6]]), 
+    epi_case1 = trapz(x, j_vals[[7]]),
+    epi_case2 = trapz(x, j_vals[[8]]),
+    res_vacc1 = trapz(x, j_vals[[9]]),
+    res_vacc2 = trapz(x, j_vals[[10]]),
+    res_sani1 = trapz(x, j_vals[[11]]),
+    res_sani2 = trapz(x, j_vals[[12]])
   ))
 }
 

@@ -5,14 +5,17 @@
 #' @param model string to indicate which model is being run
 #' either \code{"uniform"} for the same control being applied in both patches 
 #' or \code{"unique"} where control can vary across patches 
+#' @param filepath string specifying relative path location of model specific code
+#' (i.e., "cholera" or "ebola" folder). Defaults to "models" folder 
+#' (assumes MRC-management/code/R) is working directory
 #' @param change_params data frame with parameter values to change from baseline
 #' 
 #' #' @return list containing \code{trajectories}, a data.frame with all 
 #' time-varying values (state variables, controls, and adjoints), and 
 #' \code{j}, a double of the total cost
-oc_optim <- function(model, change_params = NA) {
+oc_optim <- function(model, filepath = "models/", change_params = NA) {
   # load baseline objects
-  setup <- setup_model(model)
+  setup <- setup_model(model, filepath)
   with(setup, {
     # update parameters if !is.na(change_params)
     if(!any(is.na(change_params))){
@@ -154,13 +157,16 @@ run_no_optim <- function(model, control_type) {
 #' input all model-specific variables for optimal control analysis
 #' 
 #' @param model string to indicate which values to indicate which model to input
+#' @param filepath string specifying relative path location of model specific code
+#' (i.e., "cholera" or "ebola" folder). 
+#' Defaults to "models" folder (assumes MRC-management/code/R) is working directory
 #' 
 #' @return list of initial guesses, initial conditions, optimal control and model
 #' settings, and ode and adjoint functions
-setup_model <- function(model){
+setup_model <- function(model, filepath = "models/"){
   # source files where model-specific information is stored
-  source(file.path(paste0("models/",model,"/",model,"_baseline_params.R")))
-  source(file.path(paste0("models/",model,"/",model,"_functions.R")))
+  source(file.path(paste0(filepath,model,"/",model,"_baseline_params.R")))
+  source(file.path(paste0(filepath,model,"/",model,"_functions.R")))
   # define "dictionary" for model setup
   n_states = length(get(paste0("IC_",model)))
   # final time adjoints
@@ -190,36 +196,36 @@ setup_model <- function(model){
     params =get(paste0("params_",model))
   )
   # add sanitation controls for cholera
-  if(model == "cholera"){
-    source("models/cholera/cholera_baseline_params.R")
-    source("models/cholera/cholera_functions.R")
-    # create list of all model-specific objects to load
-    setup <- list(
-      # initial guesses
-      controls = list(
-        v1 = guess_v1, 
-        v2 = guess_v2, 
-        u1 = guess_u1, 
-        u2 = guess_u2), 
-      x = matrix(0, nrow = length(times_cholera), ncol = 9),
-      lambda = matrix(0, nrow = length(times_cholera), ncol = 9),
-      # ICs for ode solver #EH: some of these variable names are confusing
-      init_x = IC_cholera, 
-      lambda_init = lambda_init, 
-      # functions
-      # KD: could we do this algorithmically since we're just replacing "fn" with "cholera" for the most part?
-      ode_fn = ode_cholera, 
-      adj_fn = adjoint_cholera,
-      optimal_control_fn = optimal_controls_cholera,
-      calc_test_fn = calc_test_cholera,
-      calc_j = calc_j_cholera,
-      # model settings
-      times = times_cholera, 
-      params = params_cholera
-    )
-    setup$controls$u1 = guess_u1
-    setup$controls$u2 = guess_u2
-  }
+  # if(model == "cholera"){
+  #   source("models/cholera/cholera_baseline_params.R")
+  #   source("models/cholera/cholera_functions.R")
+  #   # create list of all model-specific objects to load
+  #   setup <- list(
+  #     # initial guesses
+  #     controls = list(
+  #       v1 = guess_v1, 
+  #       v2 = guess_v2, 
+  #       u1 = guess_u1, 
+  #       u2 = guess_u2), 
+  #     x = matrix(0, nrow = length(times_cholera), ncol = 9),
+  #     lambda = matrix(0, nrow = length(times_cholera), ncol = 9),
+  #     # ICs for ode solver #EH: some of these variable names are confusing
+  #     init_x = IC_cholera, 
+  #     lambda_init = lambda_init, 
+  #     # functions
+  #     # KD: could we do this algorithmically since we're just replacing "fn" with "cholera" for the most part?
+  #     ode_fn = ode_cholera, 
+  #     adj_fn = adjoint_cholera,
+  #     optimal_control_fn = optimal_controls_cholera,
+  #     calc_test_fn = calc_test_cholera,
+  #     calc_j = calc_j_cholera,
+  #     # model settings
+  #     times = times_cholera, 
+  #     params = params_cholera
+  #   )
+  #   setup$controls$u1 = guess_u1
+  #   setup$controls$u2 = guess_u2
+  # }
   return(setup)
 }
 
