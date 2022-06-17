@@ -53,25 +53,22 @@ test_params <- expand.grid(
   m2 = c(0, .005), 
   model = c("cholera", "ebola")
 )
-
 ## add no control scenario
 # add min/max control bounds to test_params
-test_params$v1_max <- ifelse(test_params$model == "cholera", 
-                             chol_mod_details$params["v1_max"], 
-                             ebol_mod_details$params["v1_max"])
-test_params$v2_max <- ifelse(test_params$model == "cholera", 
-                             chol_mod_details$params["v2_max"], 
-                             ebol_mod_details$params["v2_max"])
-test_params$u1_max <- ifelse(test_params$model == "cholera", 
-                             chol_mod_details$params["u1_max"], 
-                             ebol_mod_details$params["u1_max"])
-test_params$u2_max <- ifelse(test_params$model == "cholera", 
-                             chol_mod_details$params["u2_max"], 
-                             ebol_mod_details$params["u2_max"])
+for(i in c("v1_max","v2_max", "u1_max", "u2_max")){
+  test_params[i] <- ifelse(test_params$model == "cholera", 
+                           unlist(chol_mod_details$params[i]), 
+                           unlist(ebol_mod_details$params[i]))
+}
 # only use no movement scenario for now 
 test_params <- bind_rows(test_params, 
-                         data.frame(control_type = "none", 
-                         ))
+                         expand.grid(control_type = "uniform", # name uniform for now so code will run, fix this later
+                                     m1 = c(0,0.005),m2 = c(0,0.005), # optimal_controls_cholera() requires "unique" or "uniform"
+                                     model = c("cholera","ebola"), 
+                                     v1_max = 0, v2_max = 0, 
+                                     u1_max = 0, u2_max = 0)
+)
+test_params <- as.data.frame(test_params)
 
 
 # iterate over each parameter set in test_params
@@ -86,9 +83,14 @@ test2 <- foreach(
 ) %dopar% {
   oc_optim(
     model = test_params[i,4],
-    change_params = test_params[i, 1:3]
+    change_params = test_params[i, c(1:3,5:8)]
   )
 }
+
+# change test_params control_type to none where necessary -- can remove when update code (see comment above)
+test_params$control_type <- ifelse(test_params$v1_max== 0, 
+                                        "none", as.character(test_params$control_type))
+
 test_params$test_case <- 1:nrow(test_params)
 
 # KD: the following makes the output from the above "nice"
@@ -108,7 +110,7 @@ states <- states %>%
     variable = substr(variable, 1, 1)
   ) %>%
   mutate(
-    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform")
+    plot_var = ifelse(control_type == "unique", paste("patch", patch), control_type)
 ) 
 
 ### SETUP PLOTTING -------------------------------------------------------------
@@ -124,13 +126,15 @@ plot_timeseries <- function(plot_df, patch_colors, facet_type, facet_labs,
                             y_lab, leg_pos){
   p <-   ggplot(data = plot_df, 
                 aes(x = time, y = value, 
-                    color = patch, linetype = control_type)) +
-    geom_line(size = 1) +
+                    color = patch, linetype = control_type, size = control_type)) +
+    geom_line() +
     scale_color_manual(values = patch_colors) +
-    scale_linetype_manual(values = c("solid", "dashed")) +
+    scale_linetype_manual(values = c("dotted","solid", "dashed")) +
+    scale_size_manual(values =c(0.6,0.9,0.9))+
     labs(x = "time since start of control (days)", 
          y = y_lab, 
-         linetype = "control type") +
+         linetype = "control type", 
+         size = "control type") +
     theme_minimal() +
     theme(
       legend.position = leg_pos, 
@@ -188,7 +192,14 @@ create_multipanel_ts_plot <- function(model_name, states, patch_cholors,
 }
 
 #### FIGURE 3 ------------------------------------------------------------------
+# define labels
+chol_control_labs <- c("Vaccination", "Sanitation")
+names(chol_control_labs) <- c("v", "u")
+# cholera states
+chol_I_labs <- c("infections in patch 1", "infections in patch 2")
+names(chol_I_labs) <- 1:2
 
+# plot figure
 fig3 <- create_multipanel_ts_plot(model_name = "cholera", 
                                   states = states, 
                                   patch_cholors = patch_cholors, 
@@ -196,9 +207,26 @@ fig3 <- create_multipanel_ts_plot(model_name = "cholera",
                                   control_labs = chol_control_labs)
 #ggsave("results/figures/Figure3.pdf", width = 6, height = 3, scale = 1.5)
 
-
 #### FIGURE 4 ------------------------------------------------------------------
 #repeat for ebola
+
+#### FIGURE A1 -----------------------------------------------------------------
+chol_all_states_labs <- c("Susceptible", "Infected", "Recovered", "Water")
+names(chol_all_states_labs) <- c("S", "I", "R", "W")
+  
+states %>% 
+  filter(model == "cholera", 
+         variable %in% c("S", "I", "R", "W"),
+         m1 == 0, 
+         m2 == 0, 
+         control_type == "none") %>%
+  mutate(variable = factor(variable, levels = c("S", "I", "R", "W","u", "v"))) %>%
+  plot_timeseries(patch_colors = patch_colors, 
+                  facet_type = "states", 
+                  facet_labs = chol_all_states_labs,
+                  y_lab = "", 
+                  leg_pos = "bottom")
+# ggsave("results/figures/appendix_cholera_no control.pdf", width = 6, height = 2, scale = 1.5)
 
 #### COST PLOT FUNCTIONS -------------------------------------------------------
 
