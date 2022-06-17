@@ -188,6 +188,7 @@ create_multipanel_ts_plot <- function(model_name, states, patch_cholors,
 }
 
 #### FIGURE 3 ------------------------------------------------------------------
+
 fig3 <- create_multipanel_ts_plot(model_name = "cholera", 
                                   states = states, 
                                   patch_cholors = patch_cholors, 
