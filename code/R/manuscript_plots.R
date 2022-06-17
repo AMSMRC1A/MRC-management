@@ -13,7 +13,7 @@ library(foreach)
 registerDoParallel(detectCores() - 2) # update this if you want to use more cores
 
 # load optimal control files
-source("code/R/implementation/optimal_control_functions.R")
+source("implementation/optimal_control_functions.R")
 
 #### OUTLINE -------------------------------------------------------------------
 # group comments
@@ -168,6 +168,7 @@ create_multipanel_ts_plot <- function(model_name, states, patch_cholors,
 }
 
 #### FIGURE 3 ------------------------------------------------------------------
+
 fig3 <- create_multipanel_ts_plot(model_name = "cholera", 
                                   states = states, 
                                   patch_cholors = patch_cholors, 

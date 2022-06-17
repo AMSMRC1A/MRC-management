@@ -1,0 +1,1392 @@
+---
+title: "Optimal Control Results"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+# markdown settings
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+# required packages
+library(ggplot2)
+library(deSolve)
+library(reshape2)
+library(tidyverse)
+library(cowplot)
+library(pracma)
+library(RColorBrewer)
+
+# to paralellize
+library(doParallel)
+library(foreach)
+registerDoParallel(detectCores() - 2) # update this if you want to use more cores
+```
+
+```{r oc_setup}
+# load optimal control files
+source("implementation/optimal_control_functions.R")
+# source("run_optimal_control.R")
+
+# initial guesses - controls
+guess_v1 <- rep(0, length(times))
+guess_v2 <- rep(0, length(times))
+guess_u1 <- rep(0, length(times))
+guess_u2 <- rep(0, length(times))
+
+# setup baseline optimal control parameters
+tol <- .01 # tolerance parameter for optimization
+oc_params <- c(
+  b1 = 1, b2 = 1, # cost of cases
+  C1 = 0.125, C2 = 0.125, # cost of vaccinations
+  epsilon1 = 10000, epsilon2 = 10000, # non-linearity for vacc
+  D1 = 0.0125, D2 = 0.0125, # cost of sanitation
+  eta1 = 1000, eta2 = 1000
+) # non-linearity for sanitation
+```
+
+```{r model_setup}
+# Load setup
+cholera_setup <- setup_model("cholera")
+ebola_setup <- setup_model("ebola")
+# Initial conditions
+cholera_IC <- cholera_setup$init_x
+ebola_IC <- ebola_setup$init_x
+# Parameters
+cholera_params <- cholera_setup$params
+ebola_params <- ebola_setup$params
+```
+
+```{r plot_setup}
+# define color palettes used in plots
+patch_colors2 <- c("#DE2D26", "#3182BD")
+cost_colors6 <- c(rev(brewer.pal(3, "Reds")), rev(brewer.pal(3, "Blues")))
+
+# Define functions for plotting
+
+# Plot trajectories with NO CONTROLS
+no_control_plot_function <- function(df, model) {
+  if (model == "ebola") {
+    level_codes <- c("S", "E", "I", "H", "D", "R")
+    compartment_names <- c("Susceptible", "Exposed", "Infected", "Hospitalized",
+                           "Dead", "Recovered")
+  } else {
+    level_codes <- c("S", "I", "R", "W")
+    compartment_names <- c("Susceptible", "Infected", "Recovered", "Water")
+  }
+  names(compartment_names) <- level_codes
+  
+  df %>%
+    select(-v1, -v2, -u1, -u2) %>%
+    # melt from wide to long format
+    melt(c("time")) %>%
+    # use variable names to distinguish compartment and patch
+    mutate(
+      compartment = substr(variable, 1, 1),
+      compartment = factor(compartment, levels = level_codes),
+      patch = substr(variable, 2, 2)
+    ) %>%
+    # plot time series
+    ggplot(aes(x = time, y = value, color = patch)) +
+    geom_line(size = 1) +
+    facet_wrap(vars(compartment), scales = "free", 
+               labeller = labeller(variable = compartment_names)) +
+    scale_color_manual(values = patch_colors2) +
+    theme_bw() +
+    theme(
+      axis.title.y = element_blank(),
+      legend.position = "bottom",
+      panel.grid = element_blank()
+    )
+  
+}
+
+# Plot trajectories of each compartment including controls
+trajectory_plot_function <- function(df, model) {
+  if (model == "ebola") {
+    level_codes <- c("S", "E", "I", "H", "D", "R", "v", "u")
+    compartment_names <- c("Susceptible", "Exposed", "Infected", "Hospitalized", "Dead", "Recovered", "Vaccinated", "Hospitalization")
+  } else {
+    level_codes <- c("S", "I", "R", "W", "v", "u")
+    compartment_names <- c("Susceptible", "Infected", "Recovered", "Water", "Vaccinated", "Sanitation")
+  }
+  names(compartment_names) <- level_codes
+  
+  plot <- df %>%
+    select(-c(m1, m2, u1_max, u2_max, v1_max, v2_max, test_case,
+              j_case1, j_case2)) %>% 
+    melt(c("control_type", "time")) %>%
+    mutate(
+      patch = substr(variable, 2, 2),
+      variable = substr(variable, 1, 1)
+    ) %>%
+    filter(control_type %in% c("uniform", "unique")) %>%
+    mutate(
+      plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform"),
+      variable = factor(variable, levels = level_codes)
+    ) %>%
+    filter(!is.na(variable)) %>%
+    ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
+    geom_line(size = 1) +
+    facet_wrap(vars(variable), scales = "free", labeller = labeller(variable = compartment_names)) +
+    scale_color_manual(values = patch_colors2) +
+    scale_linetype_manual(values = c("dotted", "solid")) +
+    theme_bw() +
+    ggtitle("Trajectory comparisons") +
+    theme(
+      legend.position = "bottom",
+      panel.grid = element_blank()
+    )
+  return(plot)
+}
+
+# Plot bar graph of costs
+cost_plot_function <- function(df, model) {
+  if (model == "ebola") {
+    cost_levels <- c(
+      "j_case1", "j_vacc1", "j_sani1", "j_case2", "j_vacc2",
+      "j_sani2"
+    )
+    cost_names <- c(
+      "P1: cases", "P1: vaccination", "P1: hospitalization",
+      "P2: cases", "P2: vaccination", "P2: hospitalization"
+    )
+    clrs <- cost_colors6
+  } else {
+    cost_levels <- c(
+      "j_case1", "j_vacc1", "j_sani1", "j_case2", "j_vacc2",
+      "j_sani2"
+    )
+    cost_names <- c(
+      "P1: cases", "P1: vaccination", "P1: sanitation",
+      "P2: cases", "P2: vaccination", "P2: sanitation"
+    )
+    clrs <- cost_colors6
+  }
+  names(cost_names) <- cost_levels
+  
+  plt <- df %>%
+    select(test_case, control_type, contains("j")) %>% 
+    melt(c("control_type", "test_case")) %>%
+    filter(variable != "j") %>%
+    mutate(variable = factor(variable, levels = cost_levels)) %>%
+    unique()
+  ggplot(data = plt, aes(x = control_type)) +
+    geom_bar(aes(y = value, fill = variable),
+             stat = "identity", position = "stack"
+    ) +
+    geom_text(aes(y = value, label = round(value), group = variable),
+              position = position_stack(vjust = 0.5)
+    ) +
+    geom_text(
+      data = plt %>% group_by(control_type) %>% summarise(value = sum(value)),
+      aes(y = value, label = paste0("Total cost: ", round(value))),
+      vjust = 0
+    ) +
+    guides(fill = guide_legend(nrow = length(clrs)/2)) +
+    scale_fill_manual(values = clrs, labels = cost_names) +
+    labs(y = "cost") +
+    scale_x_discrete(expand = c(0, 0)) +
+    theme_bw() +
+    ggtitle("Cost breakdown") +
+    theme(
+      axis.title.x = element_blank(),
+      legend.position = "bottom",
+      legend.title = element_blank(),
+      panel.grid = element_blank()
+    )
+}
+
+
+# Plot costs of uniform case relative to unique
+relcost_plot_function <- function(df, model) { 
+  if (model == "cholera") {
+    change_vars <- c("j", "j_case1", "j_case2", "j_vacc1", "j_vacc2", "j_sani1", "j_sani2")
+    names(change_vars) <- c("Total cost", "Cases in patch 1", "Cases in patch 2", 
+                            "Vaccinations in patch 1", "Vaccinations in patch 2",
+                            "Sanitation in patch 1", "Sanitation in patch 2")
+  } else {
+    change_vars <- c("j", "j_case1", "j_case2", "j_vacc1", "j_vacc2", "j_sani1", "j_sani2")
+    names(change_vars) <- c("Total cost", "Cases in patch 1", "Cases in patch 2", 
+                            "Vaccinations in patch 1", "Vaccinations in patch 2",
+                            "Hospitalization in patch 1", "Hospitalization in patch 2")
+  }
+  
+  rel_costs <- df %>%
+    select(control_type, change_vars) %>%
+    unique() %>%
+    melt(id.var = "control_type") %>% 
+    dcast(variable ~ control_type) %>%
+    mutate(rel_change = (unique - uniform)/uniform,
+           variable = factor(variable, levels = names(change_vars)))
+  
+  # rel_costs <- df %>%
+  #   select(test_case, control_type, contains("j")) %>% 
+  #   mutate(total_cases1 = j_case1 / params$b1) %>%
+  #   mutate(total_cases2 = j_case2 / params$b2) %>%
+  #   mutate(total_vacc1 = j_vacc1 / params$C1) %>%
+  #   mutate(total_vacc2 = j_vacc2 / params$C2) %>%
+  #   # mutate(total_sani1 = j_sani1 / params$D1) %>%
+  #   # mutate(total_sani2 = j_sani2 / params$D2) %>%
+  #   mutate(case_diff = total_cases1 - total_cases2) %>%
+  #   mutate(vacc_diff = total_vacc1 - total_vacc2) %>%
+  #   # mutate(sani_diff = total_sani1 - total_sani2) %>%
+  #   mutate(`Total cost` = 100 * (j - j[control_type == "uniform"]) / j[control_type == "uniform"]) %>%
+  #   mutate(`Cases in patch 1` = 100 * (total_cases1 - total_cases1[control_type == "uniform"]) /
+  #            total_cases1[control_type == "uniform"]) %>%
+  #   mutate(`Cases in patch 2` = 100 * (total_cases2 - total_cases2[control_type == "uniform"]) /
+  #            total_cases2[control_type == "uniform"]) %>%
+  #   mutate(`Vaccinations in patch 1` = 100 * (total_vacc1 - total_vacc1[control_type == "uniform"]) /
+  #            total_vacc1[control_type == "uniform"]) %>%
+  #   mutate(`Vaccinations in patch 2` = 100 * (total_vacc2 - total_vacc2[control_type == "uniform"]) /
+  #            total_vacc2[control_type == "uniform"]) %>%
+  #   filter(control_type == "unique")
+  
+  rel_costs %>%
+    ggplot(aes(x = variable, y = rel_change)) +
+    geom_col() +
+    ggtitle("Relative changes due to switching from Uniform to Unique") +
+    labs(y = "% change", x = "") + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+```
+
+# Cholera {.tabset}
+```{r cholera-plot_setup}
+# define labels to make plots more interpretable
+# names of each compartment/control
+compartment_names <- c(
+  "Susceptible", "Infected", "Recovered", "Water",
+  "vaccination", "sanitation"
+)
+names(compartment_names) <- c("S", "I", "R", "W", "v", "u")
+# names of each aspect of cost function
+cost_names <- c(
+  "P1: cases", "P1: vaccination", "P1: sanitation",
+  "P2: cases", "P2: vaccination", "P2: sanitation"
+)
+names(cost_names) <- c(
+  "j_case1", "j_vacc1", "j_sani1",
+  "j_case2", "j_vacc2", "j_sani2"
+)
+
+
+# make parameter tables look nice
+# KD: this is a temporary fix to make things look nice.
+#     I think the way I reconfigured on my branch will allow us to avoid doing this
+params_table <- matrix(as.list(cholera_params), 1, length(as.list(cholera_params)))
+colnames(params_table) <- names(as.list(cholera_params))
+params_table <- as.data.frame(params_table)
+
+IC_table <- as.data.frame(t(cholera_IC))
+
+# Calculate R0
+choleraR0 <- R0_cholera(cholera_params, sum(IC_table[c(1, 3, 5)]), sum(IC_table[c(2, 4, 6)]))
+```
+
+```{r cholera-calculate}
+# setup all parameter sets to test
+test_params <- expand.grid(
+  control_type = c("unique", "uniform"),
+  m1 = c(0, .05, .1),
+  m2 = c(0, .05, .1),
+  u1_max = c(0, 0.4),
+  u2_max = c(0, 0.4),
+  v1_max = c(0, 0.015),
+  v2_max = c(0, 0.015)
+) %>% 
+  as.data.frame() %>% 
+  filter_(~u1_max == u2_max) %>% 
+  filter_(~v1_max == v2_max)
+
+# calculate all trajectories and costs
+cholera_optim_full <- mult_oc_optim("cholera", test_params)
+```
+
+Here we keep the results of various numerical experiments of optimal control outcomes in the Cholera model. Specifically, we focus on the difference between the optimal strategy, when control is customized to each patch versus the "one size fits all strategy" where both patches are forced to be given the same control.
+
+## Experiment 0 (no movement between patches) {.tabset}
+
+```{r cholera-exp0}
+cholera_exp0_df <- filter(cholera_optim_full,
+                       m1 == 0,
+                       m2 == 0)
+# Vaccination only
+exper_v_only <- filter(cholera_exp0_df,
+                       u1_max == 0,
+                       v1_max == params_cholera$v1_max
+)
+# Sanitation only
+exper_u_only <- filter(cholera_exp0_df,
+                       u1_max == params_cholera$u1_max,
+                       v1_max == 0
+)
+# Both controls
+exper_both <- filter(cholera_exp0_df,
+                       u1_max == params_cholera$u1_max,
+                       v1_max == params_cholera$v1_max
+)
+```
+
+### Parameters 
+The following experiments use these  parameters and initial conditions.
+
+Parameters: `r knitr::kable(params_table %>% select(mu1 : gamma2), format="markdown")`
+`r knitr::kable(params_table %>% select(delta1 : rho2), format="markdown")`
+
+Initial conditions: `r knitr::kable(IC_table, format =  "markdown", digits = 0, align = 'l')`
+
+Optimal control parameters: `r knitr::kable(params_table %>% select(b1 : control_type), format="markdown")`
+`r knitr::kable(params_table %>% select(v1_min : u2_max), format="markdown")`
+
+With these parameters, the system has an R0 of about `r choleraR0`.
+
+### No control
+Time 0 corresponds to `r response_time` days since the start of the outbreak.
+```{r cholera-exp0-no-control, fig.show="hold", out.width = "100%"}
+# read in csv with solution to ode without control
+uncontrolled_epi <- run_no_optim("cholera", "none")$trajectories # KD: needs to be changed to allow varying parameters like movement
+
+# plot the time series in each compartment by patch
+no_control_plot_function(uncontrolled_epi, "cholera")
+```
+
+
+### Vaccination Only
+We consider the case with only vaccination (no sanitation).
+
+Controls start at day `r response_time`.
+
+```{r cholera-exp0-vacc_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_v_only, "cholera")
+```
+
+```{r cholera-exp0-vacc_only_cost, fig.show="hold", out.width = "50%"}
+# plot costs
+cost_plot_function(exper_v_only, "cholera")
+
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_v_only, "cholera")
+```
+
+### Sanitation Only
+We also consider the case with only sanitation (no vaccination).
+
+Controls start at day `r response_time``.
+
+```{r cholera-exp0-sani_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_u_only, "cholera")
+```
+
+```{r cholera-exp0-sani_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "cholera")
+
+# plot costs
+cost_plot_function(exper_u_only, "cholera")
+```
+
+### Both Vaccination and Sanitation
+
+Lastly, we show how results change if we optimize both controls.
+
+Controls start at day `r response_time`.
+
+```{r cholera-exp0-both_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_both, "cholera")
+```
+
+```{r cholera-exp0-both_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "cholera")
+# plot costs
+cost_plot_function(exper_both, "cholera")
+```
+
+## Experiment 1 (symmetric, m1=m2=0.05) {.tabset}
+```{r cholera-exp1}
+cholera_exp1_df <- filter(cholera_optim_full,
+                       m1 == 0.05,
+                       m2 == 0.05)
+
+# Vaccination only
+exper_v_only <- filter(cholera_exp1_df,
+                       u1_max == 0,
+                       v1_max == params_cholera$v1_max
+)
+# Sanitation only
+exper_u_only <- filter(cholera_exp1_df,
+                       u1_max == params_cholera$u1_max,
+                       v1_max == 0
+)
+# Both controls
+exper_both <- filter(cholera_exp1_df,
+                       u1_max == params_cholera$u1_max,
+                       v1_max == params_cholera$v1_max
+)
+```
+### Parameters 
+```{r cholera-exp1-parameters}
+exp1_params <- cholera_params
+exp1_params$m1 <- 0.05
+exp1_params$m2 <- 0.05
+
+choleraR0 <- R0_cholera(exp1_params, sum(IC_table[c(1, 3, 5)]), sum(IC_table[c(2, 4, 6)]))
+```
+The following experiments use these  parameters and initial conditions.
+
+Parameters: `r knitr::kable(exp1_params %>% select(mu1 : gamma2), format="markdown")`
+`r knitr::kable(exp1_params %>% select(delta1 : rho2), format="markdown")`
+
+Initial conditions: **need to re-calculate initial conditions with movement** `r knitr::kable(IC_table, format =  "markdown", digits = 0, align = 'l')`
+
+Optimal control parameters: `r knitr::kable(exp1_params %>% select(b1 : control_type), format="markdown")`
+`r knitr::kable(exp1_params %>% select(v1_min : u2_max), format="markdown")`
+
+With these parameters, the system has an R0 of about `r choleraR0`.
+
+### No control
+Time 0 corresponds to `r response_time` days since the start of the outbreak.
+**This is currently incorrect. It’s not taking into account movement**
+```{r cholera-exp1-no-control, fig.show="hold", out.width = "100%"}
+# read in csv with solution to ode without control
+uncontrolled_epi <- run_no_optim("cholera", "none")$trajectories # KD: needs to be changed to allow varying parameters like movement
+
+# plot the time series in each compartment by patch
+no_control_plot_function(uncontrolled_epi, "cholera")
+```
+
+### Vaccination Only
+We consider the case with only vaccination (no sanitation).
+
+Controls start at day `r response_time`.
+
+```{r cholera-exp1-vacc_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_v_only, "cholera")
+```
+
+```{r cholera-exp1-vacc_only_cost, fig.show="hold", out.width = "50%"}
+# plot costs
+cost_plot_function(exper_v_only, "cholera")
+
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_v_only, "cholera")
+```
+
+### Sanitation Only
+We also consider the case with only sanitation (no vaccination).
+
+Controls start at day `r response_time``.
+
+```{r cholera-exp1-sani_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_u_only, "cholera")
+```
+
+```{r cholera-exp1-sani_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "cholera")
+
+# plot costs
+cost_plot_function(exper_u_only, "cholera")
+```
+
+### Both Vaccination and Sanitation
+
+Lastly, we show how results change if we optimize both controls.
+
+Controls start at day `r response_time`.
+
+```{r cholera-exp1-both_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_both, "cholera")
+```
+
+```{r cholera-exp1-both_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "cholera")
+# plot costs
+cost_plot_function(exper_both, "cholera")
+```
+
+## Experiment 2 (symmetric movement, m1=m2=0.1) {.tabset}
+```{r cholera-exp2}
+cholera_exp2_df <- filter(cholera_optim_full,
+                       m1 == 0.1,
+                       m2 == 0.1)
+
+# Vaccination only
+exper_v_only <- filter(cholera_exp2_df,
+                       u1_max == 0,
+                       v1_max == params_cholera$v1_max
+)
+# Sanitation only
+exper_u_only <- filter(cholera_exp2_df,
+                       u1_max == params_cholera$u1_max,
+                       v1_max == 0
+)
+# Both controls
+exper_both <- filter(cholera_exp2_df,
+                       u1_max == params_cholera$u1_max,
+                       v1_max == params_cholera$v1_max
+)
+```
+### Parameters 
+```{r cholera-exp2-parameters}
+exp2_params <- cholera_params
+exp2_params$m1 <- 0.1
+exp2_params$m2 <- 0.1
+
+choleraR0 <- R0_cholera(exp2_params, sum(IC_table[c(1, 3, 5)]), sum(IC_table[c(2, 4, 6)]))
+```
+The following experiments use these  parameters and initial conditions.
+
+Parameters: `r knitr::kable(exp2_params %>% select(mu1 : gamma2), format="markdown")`
+`r knitr::kable(exp2_params %>% select(delta1 : rho2), format="markdown")`
+
+Initial conditions: **need to re-calculate initial conditions with movement ** `r knitr::kable(IC_table, format =  "markdown", digits = 0, align = 'l')`
+
+Optimal control parameters: `r knitr::kable(exp2_params %>% select(b1 : control_type), format="markdown")`
+`r knitr::kable(exp2_params %>% select(v1_min : u2_max), format="markdown")`
+
+With these parameters, the system has an R0 of about `r choleraR0`.
+
+### No control
+Time 0 corresponds to `r response_time` days since the start of the outbreak.
+**This is currently incorrect. It’s not taking into account movement**
+```{r cholera-exp2-no-control, fig.show="hold", out.width = "100%"}
+# read in csv with solution to ode without control
+uncontrolled_epi <- run_no_optim("cholera", "none")$trajectories # KD: needs to be changed to allow varying parameters like movement
+
+# plot the time series in each compartment by patch
+no_control_plot_function(uncontrolled_epi, "cholera")
+```
+
+### Vaccination Only
+We consider the case with only vaccination (no sanitation).
+
+Controls start at day `r response_time`.
+
+```{r cholera-exp2-vacc_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_v_only, "cholera")
+```
+
+```{r cholera-exp2-vacc_only_cost, fig.show="hold", out.width = "50%"}
+# plot costs
+cost_plot_function(exper_v_only, "cholera")
+
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_v_only, "cholera")
+```
+
+### Sanitation Only
+We also consider the case with only sanitation (no vaccination).
+
+Controls start at day `r response_time``.
+
+```{r cholera-exp2-sani_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_u_only, "cholera")
+```
+
+```{r cholera-exp2-sani_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "cholera")
+
+# plot costs
+cost_plot_function(exper_u_only, "cholera")
+```
+
+### Both Vaccination and Sanitation
+
+Lastly, we show how results change if we optimize both controls.
+
+Controls start at day `r response_time`.
+
+```{r cholera-exp2-both_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_both, "cholera")
+```
+
+```{r cholera-exp2-both_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "cholera")
+# plot costs
+cost_plot_function(exper_both, "cholera")
+```
+
+## Experiment 3 (asymmetric movement, m1=0.05, m2=0.1) {.tabset}
+```{r cholera-exp3}
+cholera_exp3_df <- filter(cholera_optim_full,
+                       m1 == 0.05,
+                       m2 == 0.1)
+
+# Vaccination only
+exper_v_only <- filter(cholera_exp3_df,
+                       u1_max == 0,
+                       v1_max == params_cholera$v1_max
+)
+# Sanitation only
+exper_u_only <- filter(cholera_exp3_df,
+                       u1_max == params_cholera$u1_max,
+                       v1_max == 0
+)
+# Both controls
+exper_both <- filter(cholera_exp3_df,
+                       u1_max == params_cholera$u1_max,
+                       v1_max == params_cholera$v1_max
+)
+```
+### Parameters 
+```{r cholera-exp3-parameters}
+exp3_params <- cholera_params
+exp3_params$m1 <- 0.05
+exp3_params$m2 <- 0.1
+
+choleraR0 <- R0_cholera(exp3_params, sum(IC_table[c(1, 3, 5)]), sum(IC_table[c(2, 4, 6)]))
+```
+The following experiments use these  parameters and initial conditions.
+
+Parameters: `r knitr::kable(exp3_params %>% select(mu1 : gamma2), format="markdown")`
+`r knitr::kable(exp3_params %>% select(delta1 : rho2), format="markdown")`
+
+Initial conditions: **need to re-calculate initial conditions with movement ** `r knitr::kable(IC_table, format =  "markdown", digits = 0, align = 'l')`
+
+Optimal control parameters: `r knitr::kable(exp3_params %>% select(b1 : control_type), format="markdown")`
+`r knitr::kable(exp3_params %>% select(v1_min : u2_max), format="markdown")`
+
+With these parameters, the system has an R0 of about `r choleraR0`.
+
+### No control
+Time 0 corresponds to `r response_time` days since the start of the outbreak.
+**This is currently incorrect. It’s not taking into account movement**
+```{r cholera-exp3-no-control, fig.show="hold", out.width = "100%"}
+# read in csv with solution to ode without control
+uncontrolled_epi <- run_no_optim("cholera", "none")$trajectories # KD: needs to be changed to allow varying parameters like movement
+
+# plot the time series in each compartment by patch
+no_control_plot_function(uncontrolled_epi, "cholera")
+```
+
+### Vaccination Only
+We consider the case with only vaccination (no sanitation).
+
+Controls start at day `r response_time`.
+
+```{r cholera-exp3-vacc_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_v_only, "cholera")
+```
+
+```{r cholera-exp3-vacc_only_cost, fig.show="hold", out.width = "50%"}
+# plot costs
+cost_plot_function(exper_v_only, "cholera")
+
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_v_only, "cholera")
+```
+
+### Sanitation Only
+We also consider the case with only sanitation (no vaccination).
+
+Controls start at day `r response_time``.
+
+```{r cholera-exp3-sani_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_u_only, "cholera")
+```
+
+```{r cholera-exp3-sani_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "cholera")
+
+# plot costs
+cost_plot_function(exper_u_only, "cholera")
+```
+
+### Both Vaccination and Sanitation
+
+Lastly, we show how results change if we optimize both controls.
+
+Controls start at day `r response_time`.
+
+```{r cholera-exp3-both_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_both, "cholera")
+```
+
+```{r cholera-exp3-both_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "cholera")
+# plot costs
+cost_plot_function(exper_both, "cholera")
+```
+
+## Experiment 4 (asymmetric movement, m1=0.1, m2 =0.05) {.tabset}
+```{r cholera-exp4}
+cholera_exp4_df <- filter(cholera_optim_full,
+                       m1 == 0.1,
+                       m2 == 0.05)
+
+# Vaccination only
+exper_v_only <- filter(cholera_exp4_df,
+                       u1_max == 0,
+                       v1_max == params_cholera$v1_max
+)
+# Sanitation only
+exper_u_only <- filter(cholera_exp4_df,
+                       u1_max == params_cholera$u1_max,
+                       v1_max == 0
+)
+# Both controls
+exper_both <- filter(cholera_exp4_df,
+                       u1_max == params_cholera$u1_max,
+                       v1_max == params_cholera$v1_max
+)
+```
+### Parameters 
+```{r cholera-exp4-parameters}
+exp4_params <- cholera_params
+exp4_params$m1 <- 0.05
+exp4_params$m2 <- 0.1
+
+choleraR0 <- R0_cholera(exp4_params, sum(IC_table[c(1, 3, 5)]), sum(IC_table[c(2, 4, 6)]))
+```
+The following experiments use these  parameters and initial conditions.
+
+Parameters: `r knitr::kable(exp4_params %>% select(mu1 : gamma2), format="markdown")`
+`r knitr::kable(exp4_params %>% select(delta1 : rho2), format="markdown")`
+
+Initial conditions: **need to re-calculate initial conditions with movement ** `r knitr::kable(IC_table, format =  "markdown", digits = 0, align = 'l')`
+
+Optimal control parameters: `r knitr::kable(exp4_params %>% select(b1 : control_type), format="markdown")`
+`r knitr::kable(exp4_params %>% select(v1_min : u2_max), format="markdown")`
+
+With these parameters, the system has an R0 of about `r choleraR0`.
+
+### No control
+Time 0 corresponds to `r response_time` days since the start of the outbreak.
+**This is currently incorrect. It’s not taking into account movement**
+```{r cholera-exp4-no-control, fig.show="hold", out.width = "100%"}
+# read in csv with solution to ode without control
+uncontrolled_epi <- run_no_optim("cholera", "none")$trajectories # KD: needs to be changed to allow varying parameters like movement
+
+# plot the time series in each compartment by patch
+no_control_plot_function(uncontrolled_epi, "cholera")
+```
+
+### Vaccination Only
+We consider the case with only vaccination (no sanitation).
+
+Controls start at day `r response_time`.
+
+```{r cholera-exp4-vacc_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_v_only, "cholera")
+```
+
+```{r cholera-exp4-vacc_only_cost, fig.show="hold", out.width = "50%"}
+# plot costs
+cost_plot_function(exper_v_only, "cholera")
+
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_v_only, "cholera")
+```
+
+### Sanitation Only
+We also consider the case with only sanitation (no vaccination).
+
+Controls start at day `r response_time``.
+
+```{r cholera-exp4-sani_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_u_only, "cholera")
+```
+
+```{r cholera-exp4-sani_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "cholera")
+
+# plot costs
+cost_plot_function(exper_u_only, "cholera")
+```
+
+### Both Vaccination and Sanitation
+
+Lastly, we show how results change if we optimize both controls.
+
+Controls start at day `r response_time`.
+
+```{r cholera-exp4-both_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_both, "cholera")
+```
+
+```{r cholera-exp4-both_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "cholera")
+# plot costs
+cost_plot_function(exper_both, "cholera")
+```
+
+# Ebola {.tabset}
+
+```{r ebola-plot_setup}
+# define labels to make plots more interpretable
+# names of each compartment/control
+compartment_names <- c(
+  "Susceptible", "Exposed", "Infected", "Hospitalized", "Dead", "Recovered",
+  "Vaccination", "Hospitalization"
+)
+names(compartment_names) <- c("S", "E", "I", "H", "D", "R", "v", "u")
+# names of each aspect of cost function
+cost_names <- c(
+  "P1: cases", "P1: vaccination", "P1: hospitalization",
+  "P2: cases", "P2: vaccination", "P2: hospitalization"
+)
+names(cost_names) <- c(
+  "j_case1", "j_vacc1", "j_sani1",
+  "j_case2", "j_vacc2", "j_sani2"
+)
+
+# define color palettes for plots
+patch_colors2 <- c("#DE2D26", "#3182BD")
+cost_colors6 <- c(rev(brewer.pal(3, "Reds")), rev(brewer.pal(3, "Blues")))
+
+
+# make parameter tables look nice
+# KD: this is a temporary fix to make things look nice.
+#     I think the way I reconfigured on my branch will allow us to avoid doing this
+params_table <- matrix(as.list(ebola_params), 1, length(as.list(ebola_params)))
+colnames(params_table) <- names(as.list(ebola_params))
+params_table <- as.data.frame(ebola_params)
+
+IC_table <- as.data.frame(t(ebola_IC))
+# Calculate R0
+#ebolaR0 <- R0_ebola(ebola_params, sum(IC_table[c(1, 3, 5)]), sum(IC_table[c(2, 4, 6)]))
+```
+
+```{r ebola-calculate}
+ebola_m_test <- c(0, 0.005, .05)
+# setup all parameter sets to test
+test_params <- expand.grid(
+  control_type = c("unique", "uniform"),
+  m1 = ebola_m_test,
+  m2 = ebola_m_test,
+  u1_max = c(0, params_ebola$u1_max),
+  u2_max = c(0, params_ebola$u2_max),
+  v1_max = c(0, params_ebola$v1_max),
+  v2_max = c(0, params_ebola$v2_max)
+) %>% 
+  as.data.frame() %>% 
+  filter_(~u1_max == u2_max) %>% 
+  filter_(~v1_max == v2_max)
+
+# calculate all trajectories and costs
+ebola_optim_full <- mult_oc_optim("ebola", test_params)
+```
+We show similar results instead employing  the Ebola model.
+
+## Experiment 0 (no movement between patches) {.tabset}
+```{r ebola-exp0}
+ebola_exp0_df <- filter(ebola_optim_full,
+                       m1 == ebola_m_test[2][1],
+                       m2 == ebola_m_test[2][1])
+# Vaccination only
+exper_v_only <- filter(ebola_exp0_df,
+                       u1_max == 0,
+                       v1_max == params_ebola$v1_max
+)
+# hospitalization only
+exper_u_only <- filter(ebola_exp0_df,
+                       u1_max == params_ebola$u1_max,
+                       v1_max == 0
+)
+# Both controls
+exper_both <- filter(ebola_exp0_df,
+                       u1_max == 0,
+                       v1_max == params_ebola$v1_max
+)
+```
+### Parameters
+The following experiments use these  parameters and initial conditions.
+
+Parameters: `r knitr::kable(params_table %>% select(mu1 : n1), format="markdown", align = 'l')`
+`r knitr::kable(params_table %>% select(mu2 : n2), format="markdown", align = 'l')`
+
+Initial conditions: `r knitr::kable(IC_table, format =  "markdown", digits = 0, align = 'l')`
+
+Optimal control parameters: `r knitr::kable(params_table %>% select(b1 : v2), format="markdown", align = 'l')`
+`r knitr::kable(params_table %>% select(v1_min : N2), format="markdown", align = 'l')`
+
+*Need to add Ebola R0 calculation*
+
+### No control
+Time 0 corresponds to `r response_time` days since the start of the outbreak.
+**This is currently incorrect. It’s not taking into account movement**
+```{r ebola-exp0-no-control, fig.show="hold", out.width = "100%"}
+# read in csv with solution to ode without control
+uncontrolled_epi <- run_no_optim("ebola", "none")$trajectories # KD: needs to be changed to allow varying parameters like movement
+
+# plot the time series in each compartment by patch
+no_control_plot_function(uncontrolled_epi, "ebola")
+```
+
+### Vaccination Only
+We consider the case with only vaccination (no hospitalization).
+
+Controls start at day `r response_time`.
+
+```{r ebola-exp0-vacc_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_v_only, "ebola")
+```
+
+```{r ebola-exp0-vacc_only_cost, fig.show="hold", out.width = "50%"}
+# plot costs
+cost_plot_function(exper_v_only, "ebola")
+
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_v_only, "ebola")
+```
+
+### Hospitalization Only
+We also consider the case with only hospitalization (no vaccination).
+
+Controls start at day `r response_time``.
+
+```{r ebola-exp0-hosp_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_u_only, "ebola")
+```
+
+```{r ebola-exp0-hosp_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "ebola")
+
+# plot costs
+cost_plot_function(exper_u_only, "ebola")
+```
+
+### Both Vaccination and Hospitalization
+
+Lastly, we show how results change if we optimize both controls.
+
+Controls start at day `r response_time`.
+
+```{r ebola-exp0-both_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_both, "ebola")
+```
+
+```{r ebola-exp0-both_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "ebola")
+# plot costs
+cost_plot_function(exper_both, "ebola")
+```
+
+## Experiment 1 (symmetric, m1=m2=`r ebola_m_test[2]`) {.tabset}
+```{r ebola-exp1}
+ebola_exp1_df <- filter(ebola_optim_full,
+                       m1 == ebola_m_test[2],
+                       m2 == ebola_m_test[2])
+# Vaccination only
+exper_v_only <- filter(ebola_exp1_df,
+                       u1_max == 0,
+                       v1_max == params_ebola$v1_max
+)
+# hospitalization only
+exper_u_only <- filter(ebola_exp1_df,
+                       u1_max == params_ebola$u1_max,
+                       v1_max == 0
+)
+# Both controls
+exper_both <- filter(ebola_exp1_df,
+                       u1_max == params_ebola$u1_max,
+                       v1_max == params_ebola$v1_max
+)
+```
+### Parameters
+The following experiments use these  parameters and initial conditions.
+
+Parameters: `r knitr::kable(params_table %>% select(mu1 : n1), format="markdown", align = 'l')`
+`r knitr::kable(params_table %>% select(mu2 : n2), format="markdown", align = 'l')`
+
+Initial conditions: `r knitr::kable(IC_table, format =  "markdown", digits = 0, align = 'l')`
+
+Optimal control parameters: `r knitr::kable(params_table %>% select(b1 : v2), format="markdown", align = 'l')`
+`r knitr::kable(params_table %>% select(v1_min : N2), format="markdown", align = 'l')`
+
+*Need to add Ebola R0 calculation*
+
+### No control
+Time 0 corresponds to `r response_time` days since the start of the outbreak.
+**This is currently incorrect. It’s not taking into account movement**
+```{r ebola-exp1-no-control, fig.show="hold", out.width = "100%"}
+# read in csv with solution to ode without control
+uncontrolled_epi <- run_no_optim("ebola", "none")$trajectories # KD: needs to be changed to allow varying parameters like movement
+
+# plot the time series in each compartment by patch
+no_control_plot_function(uncontrolled_epi, "ebola")
+```
+
+### Vaccination Only
+We consider the case with only vaccination (no hospitalization).
+
+Controls start at day `r response_time`.
+
+```{r ebola-exp1-vacc_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_v_only, "ebola")
+```
+
+```{r ebola-exp1-vacc_only_cost, fig.show="hold", out.width = "50%"}
+# plot costs
+cost_plot_function(exper_v_only, "ebola")
+
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_v_only, "ebola")
+```
+
+### Hospitalization Only
+We also consider the case with only hospitalization (no vaccination).
+
+Controls start at day `r response_time``.
+
+```{r ebola-exp1-hosp_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_u_only, "ebola")
+```
+
+```{r ebola-exp1-hosp_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "ebola")
+
+# plot costs
+cost_plot_function(exper_u_only, "ebola")
+```
+
+### Both Vaccination and Hospitalization
+
+Lastly, we show how results change if we optimize both controls.
+
+Controls start at day `r response_time`.
+
+```{r ebola-exp1-both_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_both, "ebola")
+```
+
+```{r ebola-exp1-both_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "ebola")
+# plot costs
+cost_plot_function(exper_both, "ebola")
+```
+
+## Experiment 2 (symmetric, m1=m2=`ebola_m_test[3]`) {.tabset}
+```{r ebola-exp2}
+ebola_exp2_df <- filter(ebola_optim_full,
+                       m1 == ebola_m_test[3],
+                       m2 == ebola_m_test[3])
+# Vaccination only
+exper_v_only <- filter(ebola_exp2_df,
+                       u1_max == 0,
+                       v1_max == params_ebola$v1_max
+)
+# hospitalization only
+exper_u_only <- filter(ebola_exp2_df,
+                       u1_max == params_ebola$u1_max,
+                       v1_max == 0
+)
+# Both controls
+exper_both <- filter(ebola_exp2_df,
+                       u1_max == params_ebola$u1_max,
+                       v1_max == params_ebola$v1_max
+)
+```
+### Parameters
+The following experiments use these  parameters and initial conditions.
+
+Parameters: `r knitr::kable(params_table %>% select(mu1 : n1), format="markdown", align = 'l')`
+`r knitr::kable(params_table %>% select(mu2 : n2), format="markdown", align = 'l')`
+
+Initial conditions: `r knitr::kable(IC_table, format =  "markdown", digits = 0, align = 'l')`
+
+Optimal control parameters: `r knitr::kable(params_table %>% select(b1 : v2), format="markdown", align = 'l')`
+`r knitr::kable(params_table %>% select(v1_min : N2), format="markdown", align = 'l')`
+
+*Need to add Ebola R0 calculation*
+
+### No control
+Time 0 corresponds to `r response_time` days since the start of the outbreak.
+**This is currently incorrect. It’s not taking into account movement**
+```{r ebola-exp2-no-control, fig.show="hold", out.width = "100%"}
+# read in csv with solution to ode without control
+uncontrolled_epi <- run_no_optim("ebola", "none")$trajectories # KD: needs to be changed to allow varying parameters like movement
+
+# plot the time series in each compartment by patch
+no_control_plot_function(uncontrolled_epi, "ebola")
+```
+
+### Vaccination Only
+We consider the case with only vaccination (no hospitalization).
+
+Controls start at day `r response_time`.
+
+```{r ebola-exp2-vacc_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_v_only, "ebola")
+```
+
+```{r ebola-exp2-vacc_only_cost, fig.show="hold", out.width = "50%"}
+# plot costs
+cost_plot_function(exper_v_only, "ebola")
+
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_v_only, "ebola")
+```
+
+### Hospitalization Only
+We also consider the case with only hospitalization (no vaccination).
+
+Controls start at day `r response_time``.
+
+```{r ebola-exp2-hosp_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_u_only, "ebola")
+```
+
+```{r ebola-exp2-hosp_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "ebola")
+
+# plot costs
+cost_plot_function(exper_u_only, "ebola")
+```
+
+### Both Vaccination and Hospitalization
+
+Lastly, we show how results change if we optimize both controls.
+
+Controls start at day `r response_time`.
+
+```{r ebola-exp2-both_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_both, "ebola")
+```
+
+```{r ebola-exp2-both_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "ebola")
+# plot costs
+cost_plot_function(exper_both, "ebola")
+```
+
+
+## Experiment 3 (asymmetric, m1=`r ebola_m_test[2]`, m2=`r ebola_m_test[3]`) {.tabset}
+```{r ebola-exp3}
+ebola_exp3_df <- filter(ebola_optim_full,
+                       m1 == ebola_m_test[2],
+                       m2 == ebola_m_test[3])
+# Vaccination only
+exper_v_only <- filter(ebola_exp3_df,
+                       u1_max == 0,
+                       v1_max == params_ebola$v1_max
+)
+# hospitalization only
+exper_u_only <- filter(ebola_exp3_df,
+                       u1_max == params_ebola$u1_max,
+                       v1_max == 0
+)
+# Both controls
+exper_both <- filter(ebola_exp3_df,
+                       u1_max == params_ebola$u1_max,
+                       v1_max == params_ebola$v1_max
+)
+```
+### Parameters
+The following experiments use these  parameters and initial conditions.
+
+Parameters: `r knitr::kable(params_table %>% select(mu1 : n1), format="markdown", align = 'l')`
+`r knitr::kable(params_table %>% select(mu2 : n2), format="markdown", align = 'l')`
+
+Initial conditions: `r knitr::kable(IC_table, format =  "markdown", digits = 0, align = 'l')`
+
+Optimal control parameters: `r knitr::kable(params_table %>% select(b1 : v2), format="markdown", align = 'l')`
+`r knitr::kable(params_table %>% select(v1_min : N2), format="markdown", align = 'l')`
+
+*Need to add Ebola R0 calculation*
+
+### No control
+Time 0 corresponds to `r response_time` days since the start of the outbreak.
+**This is currently incorrect. It’s not taking into account movement**
+```{r ebola-exp3-no-control, fig.show="hold", out.width = "100%"}
+# read in csv with solution to ode without control
+uncontrolled_epi <- run_no_optim("ebola", "none")$trajectories # KD: needs to be changed to allow varying parameters like movement
+
+# plot the time series in each compartment by patch
+no_control_plot_function(uncontrolled_epi, "ebola")
+```
+
+### Vaccination Only
+We consider the case with only vaccination (no hospitalization).
+
+Controls start at day `r response_time`.
+
+```{r ebola-exp3-vacc_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_v_only, "ebola")
+```
+
+```{r ebola-exp3-vacc_only_cost, fig.show="hold", out.width = "50%"}
+# plot costs
+cost_plot_function(exper_v_only, "ebola")
+
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_v_only, "ebola")
+```
+
+### Hospitalization Only
+We also consider the case with only hospitalization (no vaccination).
+
+Controls start at day `r response_time``.
+
+```{r ebola-exp3-hosp_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_u_only, "ebola")
+```
+
+```{r ebola-exp3-hosp_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "ebola")
+
+# plot costs
+cost_plot_function(exper_u_only, "ebola")
+```
+
+### Both Vaccination and Hospitalization
+
+Lastly, we show how results change if we optimize both controls.
+
+Controls start at day `r response_time`.
+
+```{r ebola-exp3-both_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_both, "ebola")
+```
+
+```{r ebola-exp3-both_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "ebola")
+# plot costs
+cost_plot_function(exper_both, "ebola")
+```
+
+
+
+## Experiment 4 (asymmetric, m1=`r ebola_m_test[3]`, m2=`ebola_m_test[2]`) {.tabset}
+```{r ebola-exp4}
+ebola_exp4_df <- filter(ebola_optim_full,
+                       m1 == ebola_m_test[3],
+                       m2 == ebola_m_test[2])
+# Vaccination only
+exper_v_only <- filter(ebola_exp4_df,
+                       u1_max == 0,
+                       v1_max == params_ebola$v1_max
+)
+# hospitalization only
+exper_u_only <- filter(ebola_exp4_df,
+                       u1_max == params_ebola$u1_max,
+                       v1_max == 0
+)
+# Both controls
+exper_both <- filter(ebola_exp4_df,
+                       u1_max == params_ebola$u1_max,
+                       v1_max == params_ebola$v1_max
+)
+```
+### Parameters
+The following experiments use these  parameters and initial conditions.
+
+Parameters: `r knitr::kable(params_table %>% select(mu1 : n1), format="markdown", align = 'l')`
+`r knitr::kable(params_table %>% select(mu2 : n2), format="markdown", align = 'l')`
+
+Initial conditions: `r knitr::kable(IC_table, format =  "markdown", digits = 0, align = 'l')`
+
+Optimal control parameters: `r knitr::kable(params_table %>% select(b1 : v2), format="markdown", align = 'l')`
+`r knitr::kable(params_table %>% select(v1_min : N2), format="markdown", align = 'l')`
+
+*Need to add Ebola R0 calculation*
+
+### No control
+Time 0 corresponds to `r response_time` days since the start of the outbreak.
+**This is currently incorrect. It’s not taking into account movement**
+```{r ebola-exp4-no-control, fig.show="hold", out.width = "100%"}
+# read in csv with solution to ode without control
+uncontrolled_epi <- run_no_optim("ebola", "none")$trajectories # KD: needs to be changed to allow varying parameters like movement
+
+# plot the time series in each compartment by patch
+no_control_plot_function(uncontrolled_epi, "ebola")
+```
+
+### Vaccination Only
+We consider the case with only vaccination (no hospitalization).
+
+Controls start at day `r response_time`.
+
+```{r ebola-exp4-vacc_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_v_only, "ebola")
+```
+
+```{r ebola-exp4-vacc_only_cost, fig.show="hold", out.width = "50%"}
+# plot costs
+cost_plot_function(exper_v_only, "ebola")
+
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_v_only, "ebola")
+```
+
+### Hospitalization Only
+We also consider the case with only hospitalization (no vaccination).
+
+Controls start at day `r response_time``.
+
+```{r ebola-exp4-hosp_only_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_u_only, "ebola")
+```
+
+```{r ebola-exp4-hosp_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "ebola")
+
+# plot costs
+cost_plot_function(exper_u_only, "ebola")
+```
+
+### Both Vaccination and Hospitalization
+
+Lastly, we show how results change if we optimize both controls.
+
+Controls start at day `r response_time`.
+
+```{r ebola-exp4-both_trajectories, fig.show="hold", out.width = "100%"}
+# plot states
+trajectory_plot_function(exper_both, "ebola")
+```
+
+```{r ebola-exp4-both_cost, fig.show="hold", out.width = "50%"}
+# Measure the relative differences in each type of cost between unique and uniform
+relcost_plot_function(exper_u_only, "ebola")
+# plot costs
+cost_plot_function(exper_both, "ebola")
+```
