@@ -225,7 +225,7 @@ calc_j_ebola <- function(times, optim_states, params) {
     res_sani1 = expression(u1*phi1*I1), 
     res_sani2 = expression(u2*phi2*I2)
   )
-  j_vals <- lapply(j_ints, function(x) {
+  j_vals <- lapply(ints, function(x) {
     apply(optim_states, 1, eval_j_integrand, params = params, integrand = x)
   })
   return(data.frame(
