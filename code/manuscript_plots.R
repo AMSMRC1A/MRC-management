@@ -6,6 +6,7 @@ library(tidyverse)
 library(cowplot)
 library(pracma)
 library(RColorBrewer)
+library(scales)
 
 # to paralellize
 library(doParallel)
@@ -52,6 +53,25 @@ test_params <- expand.grid(
   m2 = c(0, .005), 
   model = c("cholera", "ebola")
 )
+
+## add no control scenario
+# add min/max control bounds to test_params
+test_params$v1_max <- ifelse(test_params$model == "cholera", 
+                             chol_mod_details$params["v1_max"], 
+                             ebol_mod_details$params["v1_max"])
+test_params$v2_max <- ifelse(test_params$model == "cholera", 
+                             chol_mod_details$params["v2_max"], 
+                             ebol_mod_details$params["v2_max"])
+test_params$u1_max <- ifelse(test_params$model == "cholera", 
+                             chol_mod_details$params["u1_max"], 
+                             ebol_mod_details$params["u1_max"])
+test_params$u2_max <- ifelse(test_params$model == "cholera", 
+                             chol_mod_details$params["u2_max"], 
+                             ebol_mod_details$params["u2_max"])
+# only use no movement scenario for now 
+test_params <- bind_rows(test_params, 
+                         data.frame(control_type = "none", 
+                         ))
 
 
 # iterate over each parameter set in test_params
@@ -168,36 +188,69 @@ create_multipanel_ts_plot <- function(model_name, states, patch_cholors,
 }
 
 #### FIGURE 3 ------------------------------------------------------------------
+
 fig3 <- create_multipanel_ts_plot(model_name = "cholera", 
                                   states = states, 
                                   patch_cholors = patch_cholors, 
                                   I_labs = chol_I_labs, 
                                   control_labs = chol_control_labs)
-ggsave("results/figures/Figure3.pdf", width = 6, height = 3, scale = 1.5)
+#ggsave("results/figures/Figure3.pdf", width = 6, height = 3, scale = 1.5)
 
 
 #### FIGURE 4 ------------------------------------------------------------------
 #repeat for ebola
 
+#### COST PLOT FUNCTIONS -------------------------------------------------------
+
 
 # relative costs
-j_vals <- lapply(1:nrow(test_params), function(i) {
-  return(data.frame(test_case = i, test2[[i]][["j"]]))
+j_vals <- lapply(1:nrow(test_params), 
+                 function(i) {j = test2[[i]][["j"]];
+                 j = c(j, j_tot = sum(j[substr(names(j),1,1) == "j"]));
+  return(data.frame(test_case = i, melt(j)))
 })
 j_vals <- as.data.frame(do.call(rbind, j_vals))
-j_vals <- left_join(test_params, j_vals)
-j_vals$j <- apply(j_vals[, c("j_case1", "j_case2", "j_vacc1", "j_vacc2")], 1, sum)
+j_vals <- left_join(test_params, j_vals, by = "test_case") %>%
+  rename(variable = L1)
+
+patch_labs <- c("patch 1", "patch 2", "total")
+names(patch_labs) <- c('1',"2","t")
+
+var_labs <- c("vaccination", "sanitation", "cases", "total cost")
+names(var_labs) <- c("vacc", "sani", "case", 'to')
 
 j_vals %>%
-  unique() %>%
   select(-test_case) %>%
-  melt(c("control_type","m1", "m2", "model")) %>% 
   dcast(variable + m1 + m2 + model ~ control_type) %>%
-  mutate(rel_change = (unique - uniform)/uniform) %>%
-  ggplot(aes(x = variable, y = rel_change)) +
-  geom_col() +
-  facet_grid(cols = vars(paste(m1, m2)), rows = vars(paste(model)), scales = "free") +
-  labs(y = "% change", x = "") + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  mutate(type = ifelse(substr(variable, 1,1) == "j", "cost", 
+                       ifelse(substr(variable, 1,1)== "e", "epi", "res")),
+         patch =substr(variable, nchar(variable), nchar(variable)),
+         variable_short = substr(variable, unlist(gregexpr("_", variable)) + 1, nchar(variable) - 1),
+         rel_change = log(uniform/unique)) %>%
+  filter(m1 == 0, 
+         m2 == 0, 
+         model == "cholera",
+         !(variable %in% paste0("j_", c("case1", "case2", "vacc1", "vacc2", "sani1", "sani2")))) %>%
+  mutate(variable_short = factor(variable_short, levels = c("vacc", "sani", "case", "to"))) %>%
+  ggplot(aes(x = variable_short, y = rel_change)) +
+  geom_col(position = "dodge", color = "black") +
+  geom_hline(yintercept = 0) +
+  facet_grid(cols = vars(patch), 
+             labeller = labeller(patch = patch_labs),
+             scales = "free",
+             space = "free_x") +
+  labs( x = "", 
+        y = "% change (log scale)\nlog(unique/uniform)", 
+        title = "Cholera model") +
+  #scale_fill_brewer(palette = "Greys", ) + 
+  scale_x_discrete(labels = var_labs) +
+  scale_y_continuous(labels = percent) +
+  theme_minimal() +
+  theme(legend.position = "bottom", 
+        panel.border = element_rect(color = "lightgrey", fill = NA), 
+        panel.grid.major.x = element_blank(), 
+        panel.spacing = unit(0, "cm"))
+#ggsave("results/figures/Figure5.pdf", width = 6, height = 3, scale = 1.5)
+  
 
 
