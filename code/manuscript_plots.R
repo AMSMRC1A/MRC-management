@@ -359,8 +359,8 @@ fig6 <- j_vals %>%
     rel_change = (uniform / unique)-1 # this treats "unique" as the before and "uniform" as the after
   ) %>%
   filter(
-    m1 == 0,
-    m2 == 0,
+    m1 == 5E-4,
+    m2 == 5E-4,
     model == "ebola",
     !(variable %in% paste0("j_", c("case1", "case2", "vacc1", "vacc2", "sani1", "sani2")))
   ) %>%
