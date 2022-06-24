@@ -13,7 +13,7 @@ params_ebola <- data.frame(
   deltaH1=.01,
   xi1=0.222,
   #m1=0,
-  m1=5e-3, #movement
+  m1=5e-4, #movement
   n1=0,
   #Patch 2
   mu2=5.5e-5, #Change average lifespan to 50 years from 27
@@ -25,7 +25,7 @@ params_ebola <- data.frame(
   deltaH2=.01,
   xi2=0.222,
   #m2=0,
-  m2=5e-3,  #movement
+  m2=5e-4,  #movement
   n2=0,
   b1=1,
   b2=1,
@@ -35,8 +35,8 @@ params_ebola <- data.frame(
   epsilonV2=5e4, #5e7 for 2  #1e4 for 1  
   Cu1=0.1, #.001,
   Cu2=0.1, #.001,
-  epsilonU1=5e2, #5e4, 5e5?
-  epsilonU2=5e2, #5e4, 5e5?
+  epsilonU1=5E1, #5e4, 5e5?
+  epsilonU2=5E1, #5e4, 5e5?
   # for baseline control_type
   control_type = "uniform",
   tol= 0.01, # optimization tolerance
@@ -45,8 +45,8 @@ params_ebola <- data.frame(
   ### optimal control bounds
   v1_min = 0, v1_max = 0.015, 
   v2_min = 0, v2_max = 0.015,
-  u1_min = 0, u1_max = .236, #phi1 
-  u2_min = 0, u2_max = .236  #phi2
+  u1_min = 0, u1_max = 0.5, #phi1 
+  u2_min = 0, u2_max = 0.5  #phi2
 )
 
 #Calculate betas based on R0
@@ -124,7 +124,9 @@ names(IC_ebola) <- colnames(uncontrolled[, -1])
 
 # as.data.frame(uncontrolled) %>%
 #   reshape2::melt(id = c("time")) %>%
-#   ggplot(aes(x = time, y =value)) + 
-#   geom_line() + 
-#   facet_wrap(vars(variable), scales = "free")
+#   mutate(patch = substr(variable, 2,2), 
+#          comp = substr(variable,1,1)) %>%
+#   ggplot(aes(x = time, y =value,color = patch)) +
+#   geom_line() +
+#   facet_wrap(vars(comp), scales = "free")
 

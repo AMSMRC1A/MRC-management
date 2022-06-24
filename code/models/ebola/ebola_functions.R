@@ -220,7 +220,7 @@ calc_j_ebola <- function(times, optim_states, params) {
     epi_case1 = expression((betaI1*S1 + betaD1*S1*D1)), 
     epi_case2 = expression((betaI2*S2*I2 + betaD2*S2*D2)),
     # calculate resource distribution
-    res_vacc1 = expression(v1**(S1+E1)), 
+    res_vacc1 = expression(v1*(S1+E1)), 
     res_vacc2 = expression(v2*(S2+E2)), 
     res_sani1 = expression(u1*phi1*I1), 
     res_sani2 = expression(u2*phi2*I2)
