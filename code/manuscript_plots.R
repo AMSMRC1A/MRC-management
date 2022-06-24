@@ -49,8 +49,8 @@ ebol_mod_details <- setup_model("ebola")
 # ebola_m_test <- c(0, 0.005, .05)
 test_params <- expand.grid(
   control_type = c("unique", "uniform"),
-  m1 = c(0, .005),
-  m2 = c(0, .005),
+  m1 = c(0, 5E-4),
+  m2 = c(0, 5E-4),
   model = c("cholera", "ebola")
 )
 ## add no control scenario
@@ -184,8 +184,6 @@ create_multipanel_ts_plot <- function(model_name, states, patch_colors,
   p_Istates <- states %>%
     filter(
       model == model_name,
-      m1 == 0,
-      m2 == 0,
       variable == "I"
     ) %>%
     plot_timeseries(
@@ -199,8 +197,6 @@ create_multipanel_ts_plot <- function(model_name, states, patch_colors,
   p_controls <- states %>%
     filter(
       model == model_name,
-      m1 == 0,
-      m2 == 0,
       variable %in% c("v", "u")
     ) %>%
     plot_timeseries(
@@ -230,7 +226,9 @@ names(chol_I_labs) <- 1:2
 # plot figure
 fig3 <- create_multipanel_ts_plot(
   model_name = "cholera",
-  states = states,
+  states = states %>% 
+    filter(m1 == 0, 
+           m2 ==0),
   patch_colors = patch_colors,
   I_labs = chol_I_labs,
   control_labs = chol_control_labs
@@ -249,7 +247,8 @@ names(ebola_I_labs) <- 1:2
 # plot figure
 fig4 <- create_multipanel_ts_plot(
   model_name = "ebola",
-  states = states,
+  states = states %>% filter(m1 == 5E-4,
+                             m2 == 5E-4,),
   patch_colors = patch_colors,
   I_labs = ebola_I_labs,
   control_labs = ebola_control_labs
@@ -391,3 +390,4 @@ fig6 <- j_vals %>%
     panel.spacing = unit(0, "cm")
   )
 ggsave("../results/figures/Figure6.pdf", width = 6, height = 3, scale = 1.5)
+
