@@ -219,25 +219,7 @@ create_multipanel_ts_plot <- function(model_name, states, patch_colors,
   return(p)
 }
 
-#### FIGURE 3 ------------------------------------------------------------------
-# define labels
-chol_control_labs <- c("Vaccination effort", "Sanitation effort")
-names(chol_control_labs) <- c("v", "u")
-# cholera states
-chol_I_labs <- c("Infections in Patch 1", "Infections in Patch 2")
-names(chol_I_labs) <- 1:2
-
-# plot figure
-fig3 <- create_multipanel_ts_plot(
-  model_name = "cholera",
-  states = states,
-  patch_colors = patch_colors,
-  I_labs = chol_I_labs,
-  control_labs = chol_control_labs
-)
-ggsave("../results/figures/Figure3.pdf", width = 6, height = 3, scale = 1.5)
-
-#### FIGURE 4 ------------------------------------------------------------------
+#### FIGURE 3: Ebola infection trajectories + control effort -------------------
 # repeat for ebola
 # define labels
 ebola_control_labs <- c("Vaccination effort", "Hospitalization effort")
@@ -247,18 +229,34 @@ ebola_I_labs <- c("Infections in Patch 1", "Infections in Patch 2")
 names(ebola_I_labs) <- 1:2
 
 # plot figure
-fig4 <- create_multipanel_ts_plot(
+fig3 <- create_multipanel_ts_plot(
   model_name = "ebola",
   states = states,
   patch_colors = patch_colors,
   I_labs = ebola_I_labs,
   control_labs = ebola_control_labs
 )
-ggsave("../results/figures/Figure4.pdf", width = 6, height = 3, scale = 1.5)
+ggsave("../results/figures/Ebola_trajectories_control.pdf", width = 6, height = 3, scale = 2)
 
+#### FIGURE 4: Cholera infection trajectories + control effort -----------------
+# define labels
+chol_control_labs <- c("Vaccination effort", "Sanitation effort")
+names(chol_control_labs) <- c("v", "u")
+# cholera states
+chol_I_labs <- c("Infections in Patch 1", "Infections in Patch 2")
+names(chol_I_labs) <- 1:2
 
+# plot figure
+fig4 <- create_multipanel_ts_plot(
+  model_name = "cholera",
+  states = states,
+  patch_colors = patch_colors,
+  I_labs = chol_I_labs,
+  control_labs = chol_control_labs
+)
+ggsave("../results/figures/Cholera_trajectories_control.pdf", width = 6, height = 3, scale = 2)
 
-#### FIGURE A1 -----------------------------------------------------------------
+#### FIGURE A1: Cholera compartments time series -------------------------------
 chol_all_states_labs <- c("Susceptible", "Infected", "Recovered", "Water")
 names(chol_all_states_labs) <- c("S", "I", "R", "W")
 
@@ -278,7 +276,7 @@ figA1 <- states %>%
     y_lab = "",
     leg_pos = "bottom"
   )
-ggsave("../results/figures/appendix_cholera_no control.pdf", width = 6, height = 2, scale = 1.5)
+ggsave("../results/figures/Appendix_cholera_no control.pdf", width = 6, height = 2, scale = 2)
 
 #### COST PLOT FUNCTIONS -------------------------------------------------------
 
@@ -302,53 +300,10 @@ names(patch_labs) <- c("1", "2", "t")
 var_labs <- c("Vaccination", "Sanitation", "Cases", "Total cost")
 names(var_labs) <- c("vacc", "sani", "case", "to")
 
-fig5 <- j_vals %>%
-  select(-test_case) %>%
-  dcast(variable + m1 + m2 + model ~ control_type) %>%
-  mutate(
-    type = ifelse(substr(variable, 1, 1) == "j", "cost",
-      ifelse(substr(variable, 1, 1) == "e", "epi", "res")
-    ),
-    patch = substr(variable, nchar(variable), nchar(variable)),
-    variable_short = substr(variable, unlist(gregexpr("_", variable)) + 1, nchar(variable) - 1),
-    rel_change = (uniform / unique)-1 # this treats "unique" as the before and "uniform" as the after
-  ) %>%
-  filter(
-    m1 == 0,
-    m2 == 0,
-    model == "cholera",
-    !(variable %in% paste0("j_", c("case1", "case2", "vacc1", "vacc2", "sani1", "sani2")))
-  ) %>%
-  mutate(variable_short = factor(variable_short, levels = c("vacc", "sani", "case", "to"))) %>%
-  ggplot(aes(x = variable_short, y = rel_change)) +
-  geom_col(position = "dodge", color = "black") +
-  geom_hline(yintercept = 0) +
-  facet_grid(
-    cols = vars(patch),
-    labeller = labeller(patch = patch_labs),
-    scales = "free",
-    space = "free_x"
-  ) +
-  labs(
-    x = "",
-    y = "% change: unique -> uniform",
-    title = "Cholera model"
-  ) +
-  # scale_fill_brewer(palette = "Greys", ) +
-  scale_x_discrete(labels = var_labs) +
-  scale_y_continuous(labels = percent) +
-  theme_minimal() +
-  theme(
-    legend.position = "bottom",
-    panel.border = element_rect(color = "lightgrey", fill = NA),
-    panel.grid.major.x = element_blank(),
-    panel.spacing = unit(0, "cm")
-  )
-ggsave("../results/figures/Figure5.pdf", width = 6, height = 3, scale = 1.5)
-
+#### FIGURE 5: Ebola relative costs ---------------------------------------------
 var_labs <- c("Vaccination", "Hospitalization", "Cases", "Total cost")
 names(var_labs) <- c("vacc", "sani", "case", "to")
-fig6 <- j_vals %>%
+fig5 <- j_vals %>%
   select(-test_case) %>%
   dcast(variable + m1 + m2 + model ~ control_type) %>%
   mutate(
@@ -390,4 +345,49 @@ fig6 <- j_vals %>%
     panel.grid.major.x = element_blank(),
     panel.spacing = unit(0, "cm")
   )
-ggsave("../results/figures/Figure6.pdf", width = 6, height = 3, scale = 1.5)
+ggsave("../results/figures/Ebola_relative_costs.pdf", width = 6, height = 3, scale = 2)
+
+#### FIGURE 6: Cholera relative costs ------------------------------------------
+fig6 <- j_vals %>%
+  select(-test_case) %>%
+  dcast(variable + m1 + m2 + model ~ control_type) %>%
+  mutate(
+    type = ifelse(substr(variable, 1, 1) == "j", "cost",
+      ifelse(substr(variable, 1, 1) == "e", "epi", "res")
+    ),
+    patch = substr(variable, nchar(variable), nchar(variable)),
+    variable_short = substr(variable, unlist(gregexpr("_", variable)) + 1, nchar(variable) - 1),
+    rel_change = (uniform / unique)-1 # this treats "unique" as the before and "uniform" as the after
+  ) %>%
+  filter(
+    m1 == 0,
+    m2 == 0,
+    model == "cholera",
+    !(variable %in% paste0("j_", c("case1", "case2", "vacc1", "vacc2", "sani1", "sani2")))
+  ) %>%
+  mutate(variable_short = factor(variable_short, levels = c("vacc", "sani", "case", "to"))) %>%
+  ggplot(aes(x = variable_short, y = rel_change)) +
+  geom_col(position = "dodge", color = "black") +
+  geom_hline(yintercept = 0) +
+  facet_grid(
+    cols = vars(patch),
+    labeller = labeller(patch = patch_labs),
+    scales = "free",
+    space = "free_x"
+  ) +
+  labs(
+    x = "",
+    y = "% change: unique -> uniform",
+    title = "Cholera model"
+  ) +
+  # scale_fill_brewer(palette = "Greys", ) +
+  scale_x_discrete(labels = var_labs) +
+  scale_y_continuous(labels = percent) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    panel.border = element_rect(color = "lightgrey", fill = NA),
+    panel.grid.major.x = element_blank(),
+    panel.spacing = unit(0, "cm")
+  )
+ggsave("../results/figures/Cholera_relative_costs.pdf", width = 6, height = 3, scale = 2)
