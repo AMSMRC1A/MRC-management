@@ -66,7 +66,7 @@ test_params <- bind_rows(
   test_params,
   expand.grid(
     control_type = "uniform", # name uniform for now so code will run, fix this later
-    m1 = c(0, 0.005), m2 = c(0, 0.005), # optimal_controls_cholera() requires "unique" or "uniform"
+    m1 = c(0, 5E-4), m2 = c(0, 5E-4), # optimal_controls_cholera() requires "unique" or "uniform"
     model = c("cholera", "ebola"),
     v1_max = 0, v2_max = 0,
     u1_max = 0, u2_max = 0
@@ -215,27 +215,7 @@ create_multipanel_ts_plot <- function(model_name, states, patch_colors,
   return(p)
 }
 
-#### FIGURE 3 ------------------------------------------------------------------
-# define labels
-chol_control_labs <- c("Vaccination effort", "Sanitation effort")
-names(chol_control_labs) <- c("v", "u")
-# cholera states
-chol_I_labs <- c("Infections in Patch 1", "Infections in Patch 2")
-names(chol_I_labs) <- 1:2
-
-# plot figure
-fig3 <- create_multipanel_ts_plot(
-  model_name = "cholera",
-  states = states %>%
-    filter(m1 == 0,
-           m2 ==0),
-  patch_colors = patch_colors,
-  I_labs = chol_I_labs,
-  control_labs = chol_control_labs
-)
-ggsave("../results/figures/Figure3.pdf", width = 6, height = 3, scale = 1.5)
-
-#### FIGURE 4 ------------------------------------------------------------------
+#### FIGURE 3: Ebola infection trajectories + control effort -------------------
 # repeat for ebola
 # define labels
 ebola_control_labs <- c("Vaccination effort", "Hospitalization effort")
@@ -244,11 +224,14 @@ names(ebola_control_labs) <- c("v", "u")
 ebola_I_labs <- c("Infections in Patch 1", "Infections in Patch 2")
 names(ebola_I_labs) <- 1:2
 
+ebola_states <- states %>% filter(m1 == 5E-4,
+                                  m2 == 5E-4)
+
 # plot figure
 fig3 <- create_multipanel_ts_plot(
   model_name = "ebola",
   states = states %>% filter(m1 == 5E-4,
-                             m2 == 5E-4,),
+                             m2 == 5E-4),
   patch_colors = patch_colors,
   I_labs = ebola_I_labs,
   control_labs = ebola_control_labs
@@ -264,9 +247,11 @@ chol_I_labs <- c("Infections in Patch 1", "Infections in Patch 2")
 names(chol_I_labs) <- 1:2
 
 # plot figure
-fig4 <- create_multipanel_ts_plot(
+fig3 <- create_multipanel_ts_plot(
   model_name = "cholera",
-  states = states,
+  states = states %>%
+    filter(m1 == 0,
+           m2 == 0),
   patch_colors = patch_colors,
   I_labs = chol_I_labs,
   control_labs = chol_control_labs
