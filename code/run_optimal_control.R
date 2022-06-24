@@ -13,37 +13,15 @@ registerDoParallel(detectCores() - 2) # decrease for less aggressive core use
 
 source("implementation/optimal_control_functions.R")
 
-# implement single optimal control analysis using baseline parameters ----------
-test <- oc_optim(model = "cholera") # or change to "ebola"
-
-# plot state variables and controls over time in each patch
-test$trajectories %>%
-  reshape2::melt(c("time")) %>%
-  mutate(
-    patch = substr(variable, 2, 2),
-    variable = substr(variable, 1, 1)
-  ) %>%
-  mutate(
-    variable = factor(variable, levels = c("S", "I", "R", "W", "v", "u"))
-  ) %>%
-  ggplot(aes(x = time, y = value, color = patch)) +
-  geom_line(size = 1) +
-  facet_wrap(vars(variable), scales = "free") +
-  #scale_color_manual(values = patch_colors2) +
-  scale_linetype_manual(values = c("dotted", "solid")) +
-  theme_bw() +
-  theme(
-    legend.position = "bottom",
-    panel.grid = element_blank()
-  )
-
-
 
 # implement across multiple optimal control parameters -------------------------
 # define baseline parameters to change
-test_params <- expand.grid(
-  control_type = c("unique", "uniform")
+test_params <- data.frame(
+  control_type = c("unique", "uniform"), 
+  m1 = 5E-4,
+  m2 = 5E-4
 )
+
 
 # iterate over each parameter set in test_params
 # EH Note: is there a more efficient way to do this?
@@ -57,41 +35,43 @@ test2 <- foreach(
 ) %dopar% {
   oc_optim(
     model = "ebola",
-    change_params = test_params[i, ]
+    change_params = test_params[i, 1:3]
   )
 }
 test_params$test_case <- 1:nrow(test_params)
 
-# KD: the following makes the output from the above "nice"
-#     could/should this be built into the oc_optim function?
-states <- lapply(1:nrow(test_params), function(i) {
-  return(data.frame(test_case = i, test2[[i]]$trajectories))
-})
+
+# reformat for plotting
+states <- lapply(
+  1:nrow(test_params),
+  function(i) { # browser();
+    return(data.frame(
+      test_case = i,
+      reshape2::melt(test2[[i]]$trajectories, "time")
+    ))
+  }
+)
 states <- as.data.frame(do.call(rbind, states))
 states <- left_join(test_params, states)
-j_vals <- lapply(1:nrow(test_params), function(i) {
-  return(data.frame(test_case = i, test2[[i]][["j"]]))
-})
-j_vals <- as.data.frame(do.call(rbind, j_vals))
-j_vals <- left_join(test_params, j_vals)
-j_vals$j <- apply(j_vals[, c("j_case1", "j_case2", "j_vacc1", "j_vacc2")], 1, sum)
-
-# plot state variables and controls over time in each patch
-states %>%
+# reformat for easy plotting
+states <- states %>%
   select(-test_case) %>%
-  reshape2::melt(c("time", "control_type")) %>%
   mutate(
     patch = substr(variable, 2, 2),
     variable = substr(variable, 1, 1)
   ) %>%
   mutate(
-    variable = factor(variable, levels = c("S", "E", "I", "R", "H", "D", "v"))
+    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform")
+  )
+
+# plot state variables and controls over time in each patch
+states %>%
+  mutate(
+    variable = factor(variable, levels = c("S", "E", "I", "R", "H", "D", "v", "u"))
   ) %>%
   ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
-  geom_line(size = 1, alpha = 0.5) +
+  geom_line(size = 1) +
   facet_wrap(vars(variable), scales = "free") +
-  #scale_color_manual(values = patch_colors2) +
-  scale_linetype_manual(values = c("dotted", "solid")) +
   theme_bw() +
   theme(
     legend.position = "bottom",
