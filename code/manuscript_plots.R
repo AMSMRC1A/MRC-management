@@ -221,7 +221,7 @@ create_multipanel_ts_plot <- function(model_name, states, patch_colors,
 ebola_control_labs <- c("Vaccination effort", "Hospitalization effort")
 names(ebola_control_labs) <- c("v", "u")
 # ebola states
-ebola_I_labs <- c("Infections in Patch 1", "Infections in Patch 2")
+ebola_I_labs <- c("Infectives in Patch 1", "Infectives in Patch 2")
 names(ebola_I_labs) <- 1:2
 
 ebola_states <- states %>% filter(m1 == 5E-4,
@@ -243,7 +243,7 @@ ggsave("../results/figures/Ebola_trajectories_control.pdf", width = 6, height = 
 chol_control_labs <- c("Vaccination effort", "Sanitation effort")
 names(chol_control_labs) <- c("v", "u")
 # cholera states
-chol_I_labs <- c("Infections in Patch 1", "Infections in Patch 2")
+chol_I_labs <- c("Infectives in Patch 1", "Infectives in Patch 2")
 names(chol_I_labs) <- 1:2
 
 # plot figure
