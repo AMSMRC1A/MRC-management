@@ -18,7 +18,7 @@ params_cholera <- data.frame(
   C1 = 0.125, C2 = 0.125, # cost of vaccinations
   epsilon1 = 10000, epsilon2 = 10000, # non-linearity for vacc
   D1 = 0.0125, D2 = 0.0125, # cost of sanitation
-  eta1 = 1000, eta2 = 1000, # non-linearity for sanitation
+  eta1 = 100, eta2 = 100, # non-linearity for sanitation
   tol = 0.01, # optimization tolerance
   control_type = "unique",
   ### optimal control bounds
@@ -46,8 +46,8 @@ response_time <- 21 # define time of outbreak response in days
 
 # use initially uncontrolled outbreak to determine initial conditions
 IC_init <- c(
-  S1 = 100000 - 1, S2 = 100000, # consider doubling population of Patch 1
-  I1 = 1, I2 = 0,
+  S1 = 100000 - 100, S2 = 100000, # consider doubling population of Patch 1
+  I1 = 100, I2 = 0,
   R1 = 0, R2 = 0,
   W1 = 0, W2 = 0
 )
