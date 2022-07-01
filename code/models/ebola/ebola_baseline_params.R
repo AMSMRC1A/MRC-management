@@ -1,6 +1,6 @@
 # define parameters --------------------------------------------------------
 # population sizes
-N1<-1e5
+N1<-1e5 # = 100,000
 N2<-1e5
 
 params_ebola <- data.frame(

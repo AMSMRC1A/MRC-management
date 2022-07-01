@@ -299,8 +299,6 @@ j_vals <- left_join(test_params, j_vals, by = "test_case") %>%
 patch_labs <- c("Patch 1", "Patch 2", "Total")
 names(patch_labs) <- c("1", "2", "t")
 
-var_labs <- c("Vaccination", "Sanitation", "Cases", "Total cost")
-names(var_labs) <- c("vacc", "sani", "case", "to")
 
 #### FIGURE 5: Ebola relative costs ---------------------------------------------
 var_labs <- c("Vaccination", "Hospitalization", "Cases", "Total cost")
@@ -350,6 +348,7 @@ fig5 <- j_vals %>%
 ggsave("../results/figures/Ebola_relative_costs.pdf", width = 6, height = 3, scale = 2)
 
 #### FIGURE 6: Cholera relative costs ------------------------------------------
+var_labs <- c("Vaccination", "Sanitation", "Cases", "Total cost")
 fig6 <- j_vals %>%
   select(-test_case) %>%
   dcast(variable + m1 + m2 + model ~ control_type) %>%

@@ -21,10 +21,11 @@ oc_optim <- function(model, filepath = "models/", change_params = NA) {
     if(!any(is.na(change_params))){
       params <- param_changer(change_params, params)
     }
+    counter_max <- 50 # maximum number of iterations
     counter <- 1
     test <- -1
     test_vals <- list() # list to store test
-    while (test < 0 & counter < 50) {
+    while (test < 0 & counter < counter_max) {
       # set previous control, state, and adjoint
       old_vals <- set_old_variables(c(controls,
                           list(x = x,lambda = lambda)))
@@ -59,6 +60,10 @@ oc_optim <- function(model, filepath = "models/", change_params = NA) {
       test_vals[[counter]] <- test
       counter <- counter + 1
     }
+    # if counter = counter_max, then throw an error
+    # if (counter == counter_max) {
+    #   break
+    # }
     trajectories <- cbind(x_df, do.call(cbind, controls))
     j_vals <- calc_j(times, 
                      cbind(as.data.frame(x), 
@@ -183,7 +188,7 @@ setup_model <- function(model, filepath = "models/"){
     x = matrix(0, nrow = length(get(paste0("times_",model))), ncol = n_states+1),
     lambda = matrix(0, nrow = length(get(paste0("times_",model))), ncol = n_states+1),
     # ICs for ode solver #EH: some of these variable names are confusing
-    init_x = get(paste0("IC_",model)), 
+    init_x = get(paste0("IC_",model)),
     lambda_init = lambda_init, 
     # functions
     ode_fn = get(paste0("ode_",model)), 
