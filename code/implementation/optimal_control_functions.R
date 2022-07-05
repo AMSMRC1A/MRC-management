@@ -200,37 +200,6 @@ setup_model <- function(model, filepath = "models/"){
     times = get(paste0("times_",model)), 
     params =get(paste0("params_",model))
   )
-  # add sanitation controls for cholera
-  # if(model == "cholera"){
-  #   source("models/cholera/cholera_baseline_params.R")
-  #   source("models/cholera/cholera_functions.R")
-  #   # create list of all model-specific objects to load
-  #   setup <- list(
-  #     # initial guesses
-  #     controls = list(
-  #       v1 = guess_v1, 
-  #       v2 = guess_v2, 
-  #       u1 = guess_u1, 
-  #       u2 = guess_u2), 
-  #     x = matrix(0, nrow = length(times_cholera), ncol = 9),
-  #     lambda = matrix(0, nrow = length(times_cholera), ncol = 9),
-  #     # ICs for ode solver #EH: some of these variable names are confusing
-  #     init_x = IC_cholera, 
-  #     lambda_init = lambda_init, 
-  #     # functions
-  #     # KD: could we do this algorithmically since we're just replacing "fn" with "cholera" for the most part?
-  #     ode_fn = ode_cholera, 
-  #     adj_fn = adjoint_cholera,
-  #     optimal_control_fn = optimal_controls_cholera,
-  #     calc_test_fn = calc_test_cholera,
-  #     calc_j = calc_j_cholera,
-  #     # model settings
-  #     times = times_cholera, 
-  #     params = params_cholera
-  #   )
-  #   setup$controls$u1 = guess_u1
-  #   setup$controls$u2 = guess_u2
-  # }
   return(setup)
 }
 
@@ -305,7 +274,7 @@ update_optimal_solution <- function(params, lambda, x,
 #' Update the \code{params} data frame with the parameter values listed in the
 #' \code{change_params} data frame
 #' 
-#' @param change_parmas data frame containing new parameter values
+#' @param change_params data frame containing new parameter values
 #' @param params data frame containing original parameter values
 #' 
 #' @return new_params data frame with updated parameter values
