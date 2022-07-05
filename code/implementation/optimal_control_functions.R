@@ -20,6 +20,11 @@ oc_optim <- function(model, filepath = "models/", change_params = NA) {
     # update parameters if !is.na(change_params)
     if(!any(is.na(change_params))){
       params <- param_changer(change_params, params)
+      IC <- IC_setup(params = params,
+                         model_ODE = ode_fn, 
+                         IC_init = init_x_uncontrol, 
+                         response_time = response_time)
+      init_x <- IC$IC
     }
     counter_max <- 50 # maximum number of iterations
     counter <- 1
@@ -72,6 +77,7 @@ oc_optim <- function(model, filepath = "models/", change_params = NA) {
     return(list(
       trajectories = trajectories,
       j = j_vals, 
+      uncontrolled = IC$uncontrolled,
       test_vals = unlist(test_vals), 
       n_iterations = counter
     ))
@@ -173,7 +179,7 @@ setup_model <- function(model, filepath = "models/"){
   source(file.path(paste0(filepath,model,"/",model,"_baseline_params.R")))
   source(file.path(paste0(filepath,model,"/",model,"_functions.R")))
   # define "dictionary" for model setup
-  n_states = length(get(paste0("IC_",model)))
+  n_states = length(get(paste0("IC_",model,"_uncontrol")))
   # final time adjoints
   lambda_init <- rep(0, n_states)
   names(lambda_init) <- paste0("lambda", 1:n_states)
@@ -187,8 +193,9 @@ setup_model <- function(model, filepath = "models/"){
       u2 = guess_u2), 
     x = matrix(0, nrow = length(get(paste0("times_",model))), ncol = n_states+1),
     lambda = matrix(0, nrow = length(get(paste0("times_",model))), ncol = n_states+1),
-    # ICs for ode solver #EH: some of these variable names are confusing
-    init_x = get(paste0("IC_",model)),
+    # ICs for uncontrolled ode
+    init_x_uncontrol = get(paste0("IC_",model,"_uncontrol")),
+    response_time = get(paste0("response_time_", model)),
     lambda_init = lambda_init, 
     # functions
     ode_fn = get(paste0("ode_",model)), 
@@ -283,4 +290,29 @@ param_changer <- function(change_params, params) {
   p_loc <- match(names(change_params), names(new_params))
   new_params[p_loc[!is.na(p_loc)]] <- change_params[!is.na(p_loc)]
   return(new_params)
+}
+
+#' Helper function 'IC_setup'
+#' 
+#' Determine initial conditions for optimal control by running model 
+#' uncontrolled for a given number of days 
+#' 
+#' @param params vector of parameters to pass into ODE
+#' @param model ODE function for given model
+#' @param IC_init initial conditions for uncontrolled ODE
+#' @param stepsize double indicating time increments for ODE
+#' @param response_time time after which to start optimal control
+#' 
+#' @return vector of optimal control initial conditions
+IC_setup <- function(params, model_ODE, IC_init, stepsize = 0.1, response_time){
+  uncontrolled <- ode(
+    y = IC_init,
+    times = seq(1,response_time, stepsize),
+    func = model_ODE,
+    parms = params
+  )
+  # set IC based on response_time
+  IC <- as.double(uncontrolled[uncontrolled[, "time"] == response_time, -1])
+  names(IC) <- colnames(uncontrolled[, -1])
+  return(list(uncontrolled = uncontrolled, IC = IC))
 }

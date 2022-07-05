@@ -95,9 +95,9 @@ guess_u2 <- rep(0, length(times_ebola))
 # run uncontrolled outbreak (beginning with ) for response time days, 
 # use the states on this day
 
-response_time <- 150 # define time of outbreak response in days
+response_time_ebola <- 150 # define time of outbreak response in days
 # use initially uncontrolled outbreak to determine initial conditions
-IC_init <- c(
+IC_ebola_uncontrol <- c(
   S1 = N1 - 10,
   E1 = 0,
   I1 = 10,
@@ -111,22 +111,3 @@ IC_init <- c(
   D2 = 0,
   R2 = 0
 )
-
-source("models/ebola/ebola_functions.R")
-# solve ODE
-uncontrolled <- ode(y = IC_init,
-                    times = times_ebola,
-                    func = ode_ebola,
-                    parms = params_ebola)
-# set IC based on response_time
-IC_ebola <- as.double(uncontrolled[uncontrolled[,"time"] == response_time, -1])
-names(IC_ebola) <- colnames(uncontrolled[, -1])
-
-# as.data.frame(uncontrolled) %>%
-#   reshape2::melt(id = c("time")) %>%
-#   mutate(patch = substr(variable, 2,2), 
-#          comp = substr(variable,1,1)) %>%
-#   ggplot(aes(x = time, y =value,color = patch)) +
-#   geom_line() +
-#   facet_wrap(vars(comp), scales = "free")
-
