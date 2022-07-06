@@ -9,11 +9,13 @@
 #' (i.e., "cholera" or "ebola" folder). Defaults to "models" folder 
 #' (assumes MRC-management/code/R) is working directory
 #' @param change_params data frame with parameter values to change from baseline
+#' @param counter_max integer maximum number of iterations for optimization
 #' 
 #' #' @return list containing \code{trajectories}, a data.frame with all 
 #' time-varying values (state variables, controls, and adjoints), and 
 #' \code{j}, a double of the total cost
-oc_optim <- function(model, filepath = "models/", change_params = NA) {
+oc_optim <- function(model, filepath = "models/", 
+                     change_params = NA, counter_max = 50) {
   # load baseline objects
   setup <- setup_model(model, filepath)
   with(setup, {
@@ -26,7 +28,6 @@ oc_optim <- function(model, filepath = "models/", change_params = NA) {
                          response_time = response_time)
       init_x <- IC$IC
     }
-    counter_max <- 50 # maximum number of iterations
     counter <- 1
     test <- -1
     test_vals <- list() # list to store test
@@ -74,13 +75,24 @@ oc_optim <- function(model, filepath = "models/", change_params = NA) {
                      cbind(as.data.frame(x), 
                            do.call(cbind, controls)),
                      params)
-    return(list(
-      trajectories = trajectories,
-      j = j_vals, 
-      uncontrolled = IC$uncontrolled,
-      test_vals = unlist(test_vals), 
-      n_iterations = counter
-    ))
+    if(counter == counter_max){
+      return(list(
+        trajectories = NA,
+        j = NA, 
+        uncontrolled = IC$uncontrolled,
+        test_vals = unlist(test_vals), 
+        n_iterations = counter
+      ))
+    }
+    else{
+      return(list(
+        trajectories = trajectories,
+        j = j_vals, 
+        uncontrolled = IC$uncontrolled,
+        test_vals = unlist(test_vals), 
+        n_iterations = counter
+      ))
+    }
   })
 }
 
