@@ -52,6 +52,19 @@ states <- lapply(
   }
 )
 states <- as.data.frame(do.call(rbind, states))
+# initial conditions
+ICs <- lapply(
+  1:nrow(test_params),
+  function(i) { # browser();
+    return(data.frame(
+      test_case = i,
+      reshape2::melt(as.data.frame(test2[[i]]$uncontrolled), "time")
+    ))
+  }
+)
+ICs <- as.data.frame(do.call(rbind, ICs))
+ICs$time = ICs$time - max(ICs$time)
+states <- bind_rows(states, ICs)
 states <- left_join(test_params, states)
 # reformat for easy plotting
 states <- states %>%
@@ -63,6 +76,7 @@ states <- states %>%
   mutate(
     plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform")
   )
+rm(ICs)
 
 # plot state variables and controls over time in each patch
 states %>%
