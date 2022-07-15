@@ -12,7 +12,7 @@ params_cholera <- data.frame(
   delta1 = 5E-4, delta2 = 5E-4, # disease induced mortality
   xi1 = 7.56E-3, xi2 = 7.56E-3, # pathogen survival rate in water
   nu1 = 7.56E-3, nu2 = 7.56E-3, # pathogen clearance rate in water
-  rho1 = 0.00125, rho2 = 0.00125, # pathogen movement rate in water (consider decreasing by half)
+  rho1 = 0.0125, rho2 = 0.0125, # pathogen movement rate in water (consider decreasing by half)
   ### optimal control parameters
   b1 = 1, b2 = 1, # cost of cases
   C1 = 0.125, C2 = 0.125, # cost of vaccinations
@@ -42,7 +42,7 @@ guess_u2 <- rep(0, length(times_cholera))
 # run uncontrolled outbreak (beginning with ) for response time days,
 # use the states on this day
 
-response_time_cholera <- 21 # define time of outbreak response in days
+response_time_cholera <- 60 # define time of outbreak response in days
 
 # use initially uncontrolled outbreak to determine initial conditions
 IC_cholera_uncontrol <- c(
