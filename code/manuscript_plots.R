@@ -49,8 +49,6 @@ ebol_mod_details <- setup_model("ebola")
 # ebola_m_test <- c(0, 0.005, .05)
 test_params <- expand.grid(
   control_type = c("unique", "uniform"),
-  m1 = c(0, 5E-4),
-  m2 = c(0, 5E-4),
   model = c("cholera", "ebola")
 )
 ## add no control scenario
@@ -66,7 +64,6 @@ test_params <- bind_rows(
   test_params,
   expand.grid(
     control_type = "uniform", # name uniform for now so code will run, fix this later
-    m1 = c(0, 5E-4), m2 = c(0, 5E-4), # optimal_controls_cholera() requires "unique" or "uniform"
     model = c("cholera", "ebola"),
     v1_max = 0, v2_max = 0,
     u1_max = 0, u2_max = 0
@@ -86,8 +83,8 @@ test2 <- foreach(
   .packages = c("deSolve", "tidyverse", "pracma")
 ) %dopar% {
   oc_optim(
-    model = test_params[i, 4],
-    change_params = test_params[i, c(1:3, 5:8)]
+    model = test_params[i, 2],
+    change_params = test_params[i, c(1, 3:5)]
   )
 }
 
@@ -97,6 +94,9 @@ test_params$control_type <- ifelse(test_params$v1_max == 0,
 )
 
 test_params$test_case <- 1:nrow(test_params)
+
+# print number of iterations for each run
+sapply(test2, function(i){i$n_iterations})
 
 # KD: the following makes the output from the above "nice"
 #     could/should this be built into the oc_optim function?
@@ -142,13 +142,23 @@ rm(ICs)
 ## colors
 patch_colors <- c("#1b9e77", "#d95f02")
 # cost_colors6 <- c(rev(brewer.pal(3, "Reds")), rev(brewer.pal(3, "Blues")))
-
+control_type_labs <- c("uniform", "non-uniform") # << change name of unique here
+names(control_type_labs) <- c("uniform", "unique")
 
 #### TIME SERIES PLOT FUNCTIONS ------------------------------------------------
 
 # plot_df should have columns for time, value, patch, control_type
 plot_timeseries <- function(plot_df, patch_colors, facet_type, facet_labs,
-                            y_lab, leg_pos) {
+                            lty_lab, y_lab, leg_pos) {
+  # define linetype and size by control type
+  ltys = c("longdash", "solid", "dotted")
+  names(ltys) = c("none", "uniform", "unique")
+  szs = c(0.6, 0.9, 0.9)
+  names(szs) = c("none", "uniform", "unique")
+  # filter to only those in plot_df
+  ltys = ltys[names(ltys) %in% unique(plot_df$control_type)]
+  szs = szs[names(szs) %in% unique(plot_df$control_type)]
+  # plot
   p <- ggplot(
     data = plot_df,
     aes(
@@ -158,8 +168,8 @@ plot_timeseries <- function(plot_df, patch_colors, facet_type, facet_labs,
   ) +
     geom_line() +
     scale_color_manual(name = "Patch:", values = patch_colors) +
-    scale_linetype_manual(values = c("dotted", "solid", "dashed")) +
-    scale_size_manual(values = c(0.6, 0.9, 0.9)) +
+    scale_linetype_manual(values = ltys, labels = lty_lab) +
+    scale_size_manual(values = szs, labels = lty_lab) +
     scale_x_continuous( expand = expansion(mult = c(0,0.05))) +
     scale_y_continuous( expand = expansion(mult = c(0,0.05))) +
     labs(
@@ -188,6 +198,7 @@ plot_timeseries <- function(plot_df, patch_colors, facet_type, facet_labs,
       facet_wrap(vars(patch),
         labeller = labeller(patch = facet_labs),
         nrow = 2,
+        scales = "free",
         strip.position = "top"
       )
   }
@@ -195,7 +206,7 @@ plot_timeseries <- function(plot_df, patch_colors, facet_type, facet_labs,
 }
 
 create_multipanel_ts_plot <- function(model_name, states, patch_colors,
-                                      I_labs, control_labs) {
+                                      I_labs, control_labs, control_type_labs) {
   # plot infectious class
   p_Istates <- states %>%
     filter(
@@ -206,6 +217,7 @@ create_multipanel_ts_plot <- function(model_name, states, patch_colors,
       patch_colors = patch_colors,
       facet_labs = I_labs,
       facet_type = "Patch:",
+      lty_lab = control_type_labs,
       y_lab = "",
       leg_pos = "none"
     )
@@ -219,6 +231,7 @@ create_multipanel_ts_plot <- function(model_name, states, patch_colors,
       patch_colors = patch_colors,
       facet_labs = control_labs,
       facet_type = "states",
+      lty_lab = control_type_labs,
       y_lab = "",
       leg_pos = "bottom"
     )
@@ -240,15 +253,15 @@ names(ebola_control_labs) <- c("v", "u")
 ebola_I_labs <- c("Infectives in Patch 1", "Infectives in Patch 2")
 names(ebola_I_labs) <- 1:2
 
-ebola_states <- states %>% filter(m1 == 5E-4,
-                                  m2 == 5E-4)
-
 # plot figure
 fig3 <- create_multipanel_ts_plot(
   model_name = "ebola",
-  states = states %>% filter(m1 == 5E-4,
-                             m2 == 5E-4),
+  states = states %>% filter(# do not show before control
+                             time >= 0,
+                             # exclude no control
+                             v1_max != 0),
   patch_colors = patch_colors,
+  control_type_labs = control_type_labs,
   I_labs = ebola_I_labs,
   control_labs = ebola_control_labs
 )
@@ -266,9 +279,12 @@ names(chol_I_labs) <- 1:2
 fig3 <- create_multipanel_ts_plot(
   model_name = "cholera",
   states = states %>%
-    filter(m1 == 0,
-           m2 == 0),
+    filter(# do not show before control
+           time >= 0,
+           # exclude no control
+           v1_max != 0),
   patch_colors = patch_colors,
+  control_type_labs = control_type_labs,
   I_labs = chol_I_labs,
   control_labs = chol_control_labs
 )
