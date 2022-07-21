@@ -1,3 +1,21 @@
+# required packages
+library(ggplot2)
+library(deSolve)
+library(reshape2)
+library(tidyverse)
+library(cowplot)
+library(pracma)
+library(RColorBrewer)
+library(scales)
+
+# to paralellize
+library(doParallel)
+library(foreach)
+registerDoParallel(detectCores() - 2) # update this if you want to use more cores
+
+# load optimal control files
+source("implementation/optimal_control_functions.R")
+
 ## create multi-panel plot with control dynamics for a variety of cost params
 
 test_params <- expand.grid(
