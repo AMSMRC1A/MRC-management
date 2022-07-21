@@ -96,7 +96,7 @@ rm(ICs)
 
 
 # plot state variables over time in each patch
-states %>%
+states_plot <- states %>%
   mutate(
     variable = factor(variable, levels = c("S", "E", "I", "R", "H", "D", "v", "u"))
   ) %>%
@@ -127,13 +127,14 @@ p1 = states %>%
              labeller = label_both,
              scales = "free") +
   labs(y = "hosptialization", 
-       subtitle = "") +
+       subtitle = "Ebola: change Cu") +
   scale_linetype_manual(values = c("dotted", "solid"))+
   theme_bw() +
   theme(
     legend.position = "bottom",
     panel.grid = element_blank()
   )
+
 p1a = states %>%
   mutate(
     variable = factor(variable, levels = c("S", "E", "I", "R", "H", "D", "v", "u"))
@@ -187,7 +188,7 @@ p2a =  states %>%
              labeller = label_both,
              scales = "free") +
   labs(y = "hospitalization", 
-       subtitle = "") +
+       subtitle = "Ebola: change Cv") +
   scale_linetype_manual(values = c("dotted", "solid"))+
   theme_bw() +
   theme(
@@ -195,7 +196,7 @@ p2a =  states %>%
     panel.grid = element_blank()
   )
 
-plot_grid(plot_grid(p2, p2a, ncol = 1), plot_grid(p1a, p1, ncol = 1), nrow = 1)
+ebola_plots <- plot_grid(plot_grid(p2, p2a, ncol = 1), plot_grid(p1a, p1, ncol = 1), nrow = 1)
 
 
 
@@ -266,7 +267,7 @@ rm(ICs)
 
 
 # plot state variables over time in each patch
-states %>%
+states_plot2 <- states %>%
   mutate(
     variable = factor(variable, levels = c("S", "E", "I", "R", "H", "D", "v", "u"))
   ) %>%
@@ -376,7 +377,7 @@ p1 = states %>%
              labeller = label_both,
              scales = "free") +
   labs(y = "sanitation", 
-       subtitle = "") +
+       subtitle = "Cholera: change Cu") +
   scale_linetype_manual(values = c("dotted", "solid"))+
   theme_bw() +
   theme(
@@ -436,7 +437,7 @@ p2a =  states %>%
              labeller = label_both,
              scales = "free") +
   labs(y = "sanitation", 
-       subtitle = "") +
+       subtitle = "Cholera: change Cv") +
   scale_linetype_manual(values = c("dotted", "solid"))+
   theme_bw() +
   theme(
@@ -444,5 +445,5 @@ p2a =  states %>%
     panel.grid = element_blank()
   )
 
-plot_grid(plot_grid(p2, p2a, ncol = 1), plot_grid(p1a, p1, ncol = 1), nrow = 1)
+cholera_plots <- plot_grid(plot_grid(p2, p2a, ncol = 1), plot_grid(p1a, p1, ncol = 1), nrow = 1)
 
