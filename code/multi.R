@@ -25,6 +25,7 @@ test_params <- expand.grid(
   Cu1 = c(0.1,1), 
   Cu2 = c(0.1,1)
 )
+
 # filter out multiple changes
 test_params$rm_flag = with(test_params,ifelse(Cv2/Cv1 == 10 & Cu2/Cu1 == 10, 1, 0))
 test_params$rm_flag = with(test_params,ifelse(Cv1/Cv2 == 10 & Cu1/Cu2 == 10, 1, rm_flag))
@@ -84,14 +85,16 @@ states <- bind_rows(states, ICs)
 states <- left_join(test_params, states)
 # reformat for easy plotting
 states <- states %>%
-  select(-test_case) %>%
+  #select(-test_case) %>%
   mutate(
     patch = substr(variable, 2, 2),
     variable = substr(variable, 1, 1)
   ) %>%
   mutate(
     plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform")
-  )
+  ) %>%
+  mutate(control_type = ifelse(control_type == "unique", "non-uniform", "uniform"))
+  
 rm(ICs)
 
 
@@ -108,11 +111,13 @@ states_plot <- states %>%
                                 "\nCu1: ", Cu1, ", Cu2: ",Cu2)),
              scales = "free") +
   scale_linetype_manual(values = c("dotted", "solid"))+
-  theme_bw() +
+  theme_bw(12) +
   theme(
     legend.position = "bottom",
     panel.grid = element_blank()
   )
+
+######## Ebola plots ########
 
 # plot controls over time in each patch
 p1 = states %>%
@@ -126,10 +131,12 @@ p1 = states %>%
              rows = vars(Cu2),
              labeller = label_both,
              scales = "free") +
-  labs(y = "hosptialization", 
-       subtitle = "Ebola: change Cu") +
+  labs(y = "Hospitalization", 
+       subtitle = "",
+       linetype = "Control type:",
+       color = "Patch:") +
   scale_linetype_manual(values = c("dotted", "solid"))+
-  theme_bw() +
+  theme_bw(12) +
   theme(
     legend.position = "bottom",
     panel.grid = element_blank()
@@ -146,12 +153,12 @@ p1a = states %>%
              rows = vars(Cu2),
              labeller = label_both,
              scales = "free") +
-  labs(y = "vaccination", 
-       subtitle = "Ebola: change Cu") +
+  labs(y = "Vaccination", 
+       subtitle = "Ebola: Effect of changing the patch-specific cost of hospitalization") +
   scale_linetype_manual(values = c("dotted", "solid"))+
-  theme_bw() +
+  theme_bw(12) +
   theme(
-    legend.position = "bottom",
+    legend.position = "none",
     panel.grid = element_blank()
   )
 
@@ -168,12 +175,12 @@ p2 =  states %>%
              rows = vars(Cv2),
              labeller = label_both,
              scales = "free") +
-  labs(y = "vaccination", 
-       subtitle = "Ebola: change Cv") +
+  labs(y = "Vaccination", 
+       subtitle = "Ebola: Effect of changing the patch-specific cost of vaccination") +
   scale_linetype_manual(values = c("dotted", "solid"))+
-  theme_bw() +
+  theme_bw(12) +
   theme(
-    legend.position = "bottom",
+    legend.position = "none",
     panel.grid = element_blank()
   )
 p2a =  states %>%
@@ -186,15 +193,23 @@ p2a =  states %>%
   facet_grid(cols = vars(Cv1),
              rows = vars(Cv2),
              labeller = label_both,
-             scales = "free") +
-  labs(y = "hospitalization", 
-       subtitle = "Ebola: change Cv") +
-  scale_linetype_manual(values = c("dotted", "solid"))+
+             drop = TRUE, # KD: How can we stop the bottom-right panel from getting plotted? Looks ugly IMO
+             scales = "free"
+             ) +
+  labs(y = "Hospitalization", 
+       subtitle = "",
+       linetype = "Control type:",
+       color = "Patch:") +
+  scale_linetype_manual(values = c("dotted", "solid")) +
   theme_bw() +
   theme(
     legend.position = "bottom",
     panel.grid = element_blank()
   )
+
+ebola_plots_Cv <- plot_grid(p2, p2a, ncol = 1)
+  
+ebola_plots_Cu <- plot_grid(p1a, p1, ncol = 1)
 
 ebola_plots <- plot_grid(plot_grid(p2, p2a, ncol = 1), plot_grid(p1a, p1, ncol = 1), nrow = 1)
 
@@ -364,7 +379,9 @@ states <- states %>%
   )
 rm(ICs)
 
+######## Cholera plots ########
 
+## Create Cholera plots
 p1 = states %>%
   mutate(
     variable = factor(variable, levels = c("S", "E", "I", "R", "H", "D", "v", "u"))
@@ -376,10 +393,12 @@ p1 = states %>%
              rows = vars(D2),
              labeller = label_both,
              scales = "free") +
-  labs(y = "sanitation", 
-       subtitle = "Cholera: change Cu") +
+  labs(y = "Sanitation", 
+       subtitle = "",
+       linetype = "Control type:",
+       color = "Patch:") +
   scale_linetype_manual(values = c("dotted", "solid"))+
-  theme_bw() +
+  theme_bw(12) +
   theme(
     legend.position = "bottom",
     panel.grid = element_blank()
@@ -395,15 +414,14 @@ p1a = states %>%
              rows = vars(D2),
              labeller = label_both,
              scales = "free") +
-  labs(y = "vaccination", 
-       subtitle = "Cholera: change Cu") +
+  labs(y = "Vaccination", 
+       subtitle = "Cholera: Effect of changing the patch-specific cost of sanitation") +
   scale_linetype_manual(values = c("dotted", "solid"))+
-  theme_bw() +
+  theme_bw(12) +
   theme(
-    legend.position = "bottom",
+    legend.position = "none",
     panel.grid = element_blank()
   )
-
 
 # plot controls over time in each patch
 p2 =  states %>%
@@ -417,12 +435,12 @@ p2 =  states %>%
              rows = vars(C2),
              labeller = label_both,
              scales = "free") +
-  labs(y = "vaccination", 
-       subtitle = "Cholera: change Cv") +
+  labs(y = "Vaccination",
+       subtitle = "Cholera: Effect of changing the patch-specific cost of vaccination") +
   scale_linetype_manual(values = c("dotted", "solid"))+
-  theme_bw() +
+  theme_bw(12) +
   theme(
-    legend.position = "bottom",
+    legend.position = "none",
     panel.grid = element_blank()
   )
 p2a =  states %>%
@@ -436,14 +454,20 @@ p2a =  states %>%
              rows = vars(C2),
              labeller = label_both,
              scales = "free") +
-  labs(y = "sanitation", 
-       subtitle = "Cholera: change Cv") +
+  labs(y = "Sanitation", 
+       subtitle = "",
+       linetype = "Control type:",
+       color = "Patch:") +
   scale_linetype_manual(values = c("dotted", "solid"))+
-  theme_bw() +
+  theme_bw(12) +
   theme(
     legend.position = "bottom",
     panel.grid = element_blank()
   )
+
+cholera_plots_Cv <- plot_grid(p2, p2a, ncol = 1)
+
+cholera_plots_Cu <- plot_grid(p1a, p1, ncol = 1)
 
 cholera_plots <- plot_grid(plot_grid(p2, p2a, ncol = 1), plot_grid(p1a, p1, ncol = 1), nrow = 1)
 
