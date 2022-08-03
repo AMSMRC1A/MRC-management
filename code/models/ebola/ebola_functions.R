@@ -219,6 +219,10 @@ calc_j_ebola <- function(times, optim_states, params) {
     # calculate epi outcomes
     epi_case1 = expression((betaI1*S1 + betaD1*S1*D1)), 
     epi_case2 = expression((betaI2*S2*I2 + betaD2*S2*D2)),
+    epi_hosp1 = expression((1+u1)*phi1*I1), 
+    epi_hosp2 = expression((1+u2)*phi2*I2), 
+    epi_death1 = expression(deltaI1*I1 + deltaH1*H1), 
+    epi_death2 = expression(deltaI2*I2 + deltaH2*H2),
     # calculate resource distribution
     res_vacc1 = expression(v1*(S1+E1)), 
     res_vacc2 = expression(v2*(S2+E2)), 
@@ -237,10 +241,14 @@ calc_j_ebola <- function(times, optim_states, params) {
     j_sani2 = trapz(x, j_vals[[6]]), 
     epi_case1 = trapz(x, j_vals[[7]]),
     epi_case2 = trapz(x, j_vals[[8]]),
-    res_vacc1 = trapz(x, j_vals[[9]]),
-    res_vacc2 = trapz(x, j_vals[[10]]),
-    res_sani1 = trapz(x, j_vals[[11]]),
-    res_sani2 = trapz(x, j_vals[[12]])
+    epi_hosp1 = trapz(x, j_vals[[9]]),
+    epi_hosp2 = trapz(x, j_vals[[10]]),
+    epi_death1 = trapz(x, j_vals[[11]]),
+    epi_death2 = trapz(x, j_vals[[12]]),
+    res_vacc1 = trapz(x, j_vals[[13]]),
+    res_vacc2 = trapz(x, j_vals[[14]]),
+    res_sani1 = trapz(x, j_vals[[15]]),
+    res_sani2 = trapz(x, j_vals[[16]])
   ))
 }
 
