@@ -354,7 +354,7 @@ fig5 <- j_vals %>%
     ),
     patch = substr(variable, nchar(variable), nchar(variable)),
     variable_short = substr(variable, unlist(gregexpr("_", variable)) + 1, nchar(variable) - 1),
-    rel_change = (uniform / unique)-1 # this treats "unique" as the before and "uniform" as the after
+    rel_change = (unique / uniform)-1 # this treats "unique" as the before and "uniform" as the after
   ) %>%
   filter(
     model == "ebola",
@@ -375,7 +375,7 @@ fig5 <- j_vals %>%
   labs(
     x = "",
     y = "",
-    title = "Ebola: Percent change in cost from non-uniform to uniform policy"
+    title = "Ebola: Percent change from uniform to non-uniform policy"
   ) +
   # scale_fill_brewer(palette = "Greys", ) +
   scale_x_discrete(labels = var_labs) +
@@ -394,6 +394,7 @@ ggsave("../results/figures/Ebola_relative_costs.pdf",
 
 #### FIGURE 6: Cholera relative costs ------------------------------------------
 var_labs <- c("Vaccination", "Sanitation", "Cases", "Total cost")
+names(var_labs) <- c("vacc", "sani", "case", "to")
 fig6 <- j_vals %>%
   select(-test_case) %>%
   dcast(variable + model ~ control_type) %>%
@@ -403,7 +404,7 @@ fig6 <- j_vals %>%
     ),
     patch = substr(variable, nchar(variable), nchar(variable)),
     variable_short = substr(variable, unlist(gregexpr("_", variable)) + 1, nchar(variable) - 1),
-    rel_change = (uniform / unique)-1 # this treats "unique" as the before and "uniform" as the after
+    rel_change = (unique/uniform)-1 # this treats "unique" as the before and "uniform" as the after
   ) %>%
   filter(
     model == "cholera",
@@ -424,7 +425,7 @@ fig6 <- j_vals %>%
   labs(
     x = "",
     y = "",
-    title = "Cholera: Percent change in cost from non-uniform to uniform policy"
+    title = "Cholera: Percent change from uniform to non-uniform policy"
   ) +
   # scale_fill_brewer(palette = "Greys", ) +
   scale_x_discrete(labels = var_labs) +
