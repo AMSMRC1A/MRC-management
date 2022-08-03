@@ -360,9 +360,11 @@ fig5 <- j_vals %>%
     model == "ebola",
     !(variable %in% paste0("j_", c("case1", "case2", "vacc1", "vacc2", "sani1", "sani2")))
   ) %>%
-  mutate(variable_short = factor(variable_short, levels = c("vacc", "sani", "case", "to"))) %>%
+  mutate(variable_short = factor(variable_short, levels = c("vacc", "sani", "case", "to")),
+         text_pos = ifelse(rel_change < 0, 1, 0)) %>%
   ggplot(aes(x = variable_short, y = rel_change)) +
   geom_col(position = "dodge", color = "black") +
+  geom_text(aes(label = paste0(round(rel_change*100,1), "%"), vjust = text_pos)) +
   geom_hline(yintercept = 0) +
   facet_grid(
     cols = vars(patch),
@@ -407,9 +409,11 @@ fig6 <- j_vals %>%
     model == "cholera",
     !(variable %in% paste0("j_", c("case1", "case2", "vacc1", "vacc2", "sani1", "sani2")))
   ) %>%
-  mutate(variable_short = factor(variable_short, levels = c("vacc", "sani", "case", "to"))) %>%
+  mutate(variable_short = factor(variable_short, levels = c("vacc", "sani", "case", "to")),
+         text_pos = ifelse(rel_change < 0, 1, 0)) %>%
   ggplot(aes(x = variable_short, y = rel_change)) +
   geom_col(position = "dodge", color = "black") +
+  geom_text(aes(label = paste0(round(rel_change*100,1), "%"), vjust = text_pos)) +
   geom_hline(yintercept = 0) +
   facet_grid(
     cols = vars(patch),
