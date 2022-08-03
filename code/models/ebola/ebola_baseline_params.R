@@ -39,7 +39,7 @@ params_ebola <- data.frame(
   epsilonU2=5E1, #5e4, 5e5?
   # for baseline control_type
   control_type = "uniform",
-  tol= 0.01, # optimization tolerance
+  tol= 0.001, # optimization tolerance
   v1 = 0, v2 = 0, # baseline vaccination rate
   u1 = 0, u2 = 0, # baseline sanitation rate
   ### optimal control bounds

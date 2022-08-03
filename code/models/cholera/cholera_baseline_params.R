@@ -19,7 +19,7 @@ params_cholera <- data.frame(
   epsilon1 = 10000, epsilon2 = 10000, # non-linearity for vacc
   D1 = 0.0125, D2 = 0.0125, # cost of sanitation
   eta1 = 100, eta2 = 100, # non-linearity for sanitation
-  tol = 0.01, # optimization tolerance
+  tol = 0.001, # optimization tolerance
   control_type = "unique",
   ### optimal control bounds
   v1_min = 0, v1_max = 0.015,
