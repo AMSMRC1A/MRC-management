@@ -292,9 +292,44 @@ ggsave("../results/figures/Ebola_trajectories_control.pdf",
        plot = fig3,
        width = 6, height = 3, scale = 2)
 
-## values for text
+## values for text:
+# number vaccinated
+# number hospitalized/sanitized
+# number deaths
+# j values
+temp_df_unique <- states %>%
+  filter(time >= 0) %>% 
+  filter(model == "ebola") %>%
+  filter(control_type == "unique") %>%
+  select(-c(model, control_type,v1_max, v2_max, u1_max, u2_max, plot_var)) %>%
+  mutate(compartment = paste0(variable,patch)) %>%
+  select(-c(patch, variable)) %>%
+  relocate(value, .after = compartment) %>% 
+  unique() %>%
+  pivot_wider(names_from = compartment)
+  
+j_vals_unique <- calc_j_ebola(temp_df_unique$time,
+                              select(temp_df_unique,`S1`:`u2`),
+                              ebol_mod_details$params)
+
+temp_df_uniform <- states %>%
+  filter(time >= 0) %>% 
+  filter(model == "ebola") %>%
+  filter(control_type == "uniform") %>%
+  select(-c(model, control_type,v1_max, v2_max, u1_max, u2_max, plot_var)) %>%
+  mutate(compartment = paste0(variable,patch)) %>%
+  select(-c(patch, variable)) %>%
+  relocate(value, .after = compartment) %>% 
+  unique() %>%
+  pivot_wider(names_from = compartment)
+
+j_vals_uniform <- calc_j_ebola(temp_df_uniform$time,
+                              select(temp_df_uniform,`S1`:`u2`),
+                              ebol_mod_details$params)
+  
+
 # days hosp switches which higher
-states %>% 
+test <- states %>% 
   filter(# do not show before control
     time >= 0,
     # exclude no control
@@ -306,6 +341,8 @@ states %>%
   filter(flag ==1) %>%
   pull(time) %>%
   min()
+
+
 
 
 #### FIGURE 5: Cholera infection trajectories + control effort -----------------
@@ -332,6 +369,38 @@ fig5 <- create_multipanel_ts_plot(
 ggsave("../results/figures/Cholera_trajectories_control.pdf",
        plot = fig5,
        width = 6, height = 3, scale = 2)
+
+# Get data for tables
+temp_df_unique <- states %>%
+  filter(time >= 0) %>% 
+  filter(model == "cholera") %>%
+  filter(control_type == "unique") %>%
+  select(-c(model, control_type,v1_max, v2_max, u1_max, u2_max, plot_var)) %>%
+  mutate(compartment = paste0(variable,patch)) %>%
+  select(-c(patch, variable)) %>%
+  relocate(value, .after = compartment) %>% 
+  unique() %>%
+  pivot_wider(names_from = compartment)
+
+j_vals_unique <- calc_j_cholera(temp_df_unique$time,
+                              select(temp_df_unique,`S1`:`u2`),
+                              chol_mod_details$params)
+
+temp_df_uniform <- states %>%
+  filter(time >= 0) %>% 
+  filter(model == "cholera") %>%
+  filter(control_type == "uniform") %>%
+  select(-c(model, control_type,v1_max, v2_max, u1_max, u2_max, plot_var)) %>%
+  mutate(compartment = paste0(variable,patch)) %>%
+  select(-c(patch, variable)) %>%
+  relocate(value, .after = compartment) %>% 
+  unique() %>%
+  pivot_wider(names_from = compartment)
+
+j_vals_uniform <- calc_j_cholera(temp_df_uniform$time,
+                               select(temp_df_uniform,`S1`:`u2`),
+                               chol_mod_details$params)
+
 
 #### FIGURE A1: Cholera compartments time series -------------------------------
 chol_all_states_labs <- c("Susceptible", "Infected", "Recovered", "Water")
