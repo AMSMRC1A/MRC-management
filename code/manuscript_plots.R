@@ -269,6 +269,23 @@ ggsave("../results/figures/Ebola_trajectories_control.pdf",
        plot = fig3,
        width = 6, height = 3, scale = 2)
 
+
+## values for text
+# days hosp switches which higher
+states %>% 
+  filter(# do not show before control
+    time >= 0,
+    # exclude no control
+    v1_max != 0, 
+    model == "ebola", 
+    variable == "u") %>%
+  dcast(time ~ paste0(control_type,patch), value.var = "value") %>%
+  mutate(flag = ifelse(unique1 < uniform1, 1, 0)) %>%
+  filter(flag ==1) %>%
+  pull(time) %>%
+  min()
+  
+
 #### FIGURE 5: Cholera infection trajectories + control effort -----------------
 # define labels
 chol_control_labs <- c("Vaccination effort", "Sanitation effort")
@@ -358,7 +375,8 @@ fig5 <- j_vals %>%
   ) %>%
   filter(
     model == "ebola",
-    !(variable %in% paste0("j_", c("case1", "case2", "vacc1", "vacc2", "sani1", "sani2")))
+    !(variable %in% c(paste0("j_", c("case1", "case2", "vacc1", "vacc2", "sani1", "sani2")), 
+                      paste0("epi_", c("hosp1", "hosp2", "death1", "death2"))))
   ) %>%
   mutate(variable_short = factor(variable_short, levels = c("vacc", "sani", "case", "to")),
          text_pos = ifelse(rel_change < 0, 1, 0)) %>%
@@ -391,6 +409,13 @@ fig5 <- j_vals %>%
 ggsave("../results/figures/Ebola_relative_costs.pdf",
        plot = fig5,
        width = 6, height = 3, scale = 2)
+
+## values for text
+j_vals %>%
+  select(-test_case) %>%
+  dcast(variable + model ~ control_type) %>%
+  filter(model == "ebola", 
+         substr(variable, 1,3) == "epi")
 
 #### FIGURE 6: Cholera relative costs ------------------------------------------
 var_labs <- c("Vaccination", "Sanitation", "Cases", "Total cost")
