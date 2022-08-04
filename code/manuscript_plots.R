@@ -42,6 +42,29 @@ source("implementation/optimal_control_functions.R")
 # colors: colorbrewer - patches
 # linetype: no control, unique, uniform
 
+#### FUNCTIONS -----------------------------------------------------------------
+sens_analysis_setup <- function(change_params, 
+                                multiplier, 
+                                id_col = NA){
+  # create data.frame with parameters to change (start with baseline)
+  test_params <- data.frame(change_params)
+  # expand to have one row per parameter to change
+  test_params <- test_params[rep(1, times = length(change_params) + 1),]
+  # change each parameter by x-fold once
+  for(i in 1:length(change_params)){
+    test_params[i,i] = multiplier*test_params[i,i]
+  }
+  # create id column if desired
+  if(!any(is.na(id_col))){
+    test_params$id = id_col
+  }
+  # add rows for unique and uniform
+  test_params <- bind_rows(
+    test_params %>% mutate(control_type = "unique"),
+    test_params %>% mutate(control_type = "uniform")
+  )
+}
+
 #### RUN OC --------------------------------------------------------------------
 chol_mod_details <- setup_model("cholera")
 ebol_mod_details <- setup_model("ebola")
@@ -269,7 +292,6 @@ ggsave("../results/figures/Ebola_trajectories_control.pdf",
        plot = fig3,
        width = 6, height = 3, scale = 2)
 
-
 ## values for text
 # days hosp switches which higher
 states %>% 
@@ -284,7 +306,7 @@ states %>%
   filter(flag ==1) %>%
   pull(time) %>%
   min()
-  
+
 
 #### FIGURE 5: Cholera infection trajectories + control effort -----------------
 # define labels
@@ -295,7 +317,7 @@ chol_I_labs <- c("Infectives in Patch 1", "Infectives in Patch 2")
 names(chol_I_labs) <- 1:2
 
 # plot figure
-fig3 <- create_multipanel_ts_plot(
+fig5 <- create_multipanel_ts_plot(
   model_name = "cholera",
   states = states %>%
     filter(# do not show before control
@@ -308,7 +330,7 @@ fig3 <- create_multipanel_ts_plot(
   control_labs = chol_control_labs
 )
 ggsave("../results/figures/Cholera_trajectories_control.pdf",
-       plot = fig3,
+       plot = fig5,
        width = 6, height = 3, scale = 2)
 
 #### FIGURE A1: Cholera compartments time series -------------------------------
@@ -362,7 +384,8 @@ names(patch_labs) <- c("1", "2", "t")
 #### FIGURE 4: Ebola relative costs ---------------------------------------------
 var_labs <- c("Vaccination", "Hospitalization", "Cases", "Total cost")
 names(var_labs) <- c("vacc", "sani", "case", "to")
-fig5 <- j_vals %>%
+
+fig4 <- j_vals %>%
   select(-test_case) %>%
   dcast(variable + model ~ control_type) %>%
   mutate(
@@ -407,8 +430,9 @@ fig5 <- j_vals %>%
   )
 
 ggsave("../results/figures/Ebola_relative_costs.pdf",
-       plot = fig5,
+       plot = fig4,
        width = 6, height = 3, scale = 2)
+
 
 ## values for text
 j_vals %>%
@@ -466,40 +490,44 @@ ggsave("../results/figures/Cholera_relative_costs.pdf",
        plot = fig6,
        width = 6, height = 3, scale = 2)
 
+
+
 #### FIGURE 7: Ebola - Effect of varying patch cost of Ebola control------------
 ## Build test set for movement parameters
 ## create multi-panel plot with control dynamics for a variety of cost params
 
-test_params <- expand.grid(
-  control_type = c("unique", "uniform"),
-  Cv1 = c(0.01,0.1),
-  Cv2 = c(0.01,0.1),
-  Cu1 = c(0.1,1), 
-  Cu2 = c(0.1,1)
-)
+## colors
+patch_colors <- c("#1b9e77", "#d95f02")
+# cost_colors6 <- c(rev(brewer.pal(3, "Reds")), rev(brewer.pal(3, "Blues")))
+control_type_labs <- c("uniform", "non-uniform") # << change name of unique here
+names(control_type_labs) <- c("uniform", "unique")
+# labels
+ebola_control_labs <- c("Vaccination effort", "Hospitalization effort")
+names(ebola_control_labs) <- c("v", "u")
+cholera_control_labs <- c("Vaccination effort", "Sanitation effort")
+names(cholera_control_labs) <- c("v", "u")
 
-# filter out multiple changes
-test_params$rm_flag = with(test_params,ifelse(Cv2/Cv1 == 10 & Cu2/Cu1 == 10, 1, 0))
-test_params$rm_flag = with(test_params,ifelse(Cv1/Cv2 == 10 & Cu1/Cu2 == 10, 1, rm_flag))
-test_params$rm_flag = with(test_params,ifelse(Cv2/Cv1 == 10 & Cu1/Cu2 == 10, 1, rm_flag))
-test_params$rm_flag = with(test_params,ifelse(Cv1/Cv2 == 10 & Cu2/Cu1 == 10, 1, rm_flag))
-test_params$rm_flag = with(test_params, ifelse(Cv1 + Cv2 == 0.2, 1, rm_flag))
-test_params$rm_flag = with(test_params, ifelse(Cu1 + Cu2 == 2, 1, rm_flag))
-test_params <- test_params %>%
-  filter(rm_flag == 0) %>%
-  select(-rm_flag)
+# setup test parameters
+test_params <- sens_analysis_setup(change_params = ebol_mod_details$params[c("Cv1", "Cv2", "Cu1", "Cu2")],
+                                   multiplier = 10,
+                                   id_col = c("Cv1", "Cv2", "Cu1", "Cu2", "base"))
+test_params <- test_params[-c(2,7),1:6]
 
-## Obtain state data for each test parameter set
+# iterate over each parameter set in test_params
 test2 <- foreach(
   i = 1:nrow(test_params),
   .packages = c("deSolve", "tidyverse", "pracma")
 ) %dopar% {
   oc_optim(
     model = "ebola",
-    change_params = test_params[i, 1:5]
+    change_params = test_params[i, 1:6]
   )
 }
 test_params$test_case <- 1:nrow(test_params)
+
+# print number of iterations for each run
+sapply(test2, function(i){i$n_iterations})
+
 
 # reformat for plotting
 states <- lapply(
@@ -512,163 +540,92 @@ states <- lapply(
   }
 )
 states <- as.data.frame(do.call(rbind, states))
-# initial conditions
-ICs <- lapply(
-  1:nrow(test_params),
-  function(i) { # browser();
-    return(data.frame(
-      test_case = i,
-      reshape2::melt(as.data.frame(test2[[i]]$uncontrolled), "time")
-    ))
-  }
-)
-ICs <- as.data.frame(do.call(rbind, ICs))
-ICs$time = ICs$time - max(ICs$time)
-states <- bind_rows(states, ICs)
 states <- left_join(test_params, states)
+
+
 # reformat for easy plotting
 states <- states %>%
-  select(-test_case) %>%
+  #select(-test_case) %>%
   mutate(
     patch = substr(variable, 2, 2),
     variable = substr(variable, 1, 1)
   ) %>%
   mutate(
     plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform")
-  )
+  ) %>%
+  mutate(control_type = ifelse(control_type == "unique", "non-uniform", "uniform"))
+
+
+ebol_titles <- c("(a) increase cost of vaccination in patch 1", 
+                 #"(b) increase cost of vaccination in patch 2",
+                 "(c) increase cost of hospitalization in patch 1", 
+                 "(d) increase cost of hospitalization in patch 2")
+names(ebol_titles) <- c("Cv1",
+                        #"Cv2",
+                        "Cu1",
+                        "Cu2")
 
 # plot controls over time in each patch
-p1 = states %>%
-  mutate(
-    variable = factor(variable, levels = c("S", "E", "I", "R", "H", "D", "v", "u"))
-  ) %>%
-  filter(variable %in% c("u"), time >= 0, Cv1 == .01, Cv2 == .01) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
-  geom_line(size = 1) +
-  facet_grid(cols = vars(Cu1),
-             rows = vars(Cu2),
-             labeller = label_both,
-             scales = "free") +
-  labs(y = "Hospitalization", 
-       subtitle = "",
-       linetype = "Control type:",
-       color = "Patch:") +
-  scale_linetype_manual(values = c("dotted", "solid"))+
-  theme_bw(12) +
-  theme(
-    legend.position = "bottom",
-    panel.grid = element_blank()
-  )
-
-p1a = states %>%
-  mutate(
-    variable = factor(variable, levels = c("S", "E", "I", "R", "H", "D", "v", "u"))
-  ) %>%
-  filter(variable %in% c("v"), time >= 0, Cv1 == .01, Cv2 == .01) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
-  geom_line(size = 1) +
-  facet_grid(cols = vars(Cu1),
-             rows = vars(Cu2),
-             labeller = label_both,
-             scales = "free") +
-  labs(y = "Vaccination", 
-       subtitle = "Ebola: Effect of changing the patch-specific cost of hospitalization") +
-  scale_linetype_manual(values = c("dotted", "solid"))+
-  theme_bw(12) +
-  theme(
-    legend.position = "none",
-    panel.grid = element_blank()
-  )
+p<- list()
+for(i in 1:(nrow(test_params)/2 - 1)){
+  p[[i]] <- states %>%
+    filter(test_case %in% c(i, nrow(test_params)/2 + i), 
+           variable %in% c("v", "u")) %>%
+    ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
+    geom_line(size = 1) +
+    facet_grid(rows = vars(variable),
+               labeller = labeller(variable = ebola_control_labs),
+               switch = "y",
+               scales = "free") +
+    labs(color = "Patch:", 
+         linetype = "Control type:",
+         subtitle = ebol_titles[i]
+    ) +
+    scale_color_manual(values = patch_colors) +
+    scale_linetype_manual(values = c("dotted", "solid")) +
+    theme_minimal_grid(12) +
+    theme(
+      axis.title.y = element_blank(),
+      legend.position = "bottom",
+      panel.spacing = unit(c(0), "lines"),
+      plot.margin = unit(c(0.1,0.1,0.1,2), "lines"),
+      strip.background = element_blank(),
+      strip.placement = "outside" 
+    ) +
+    panel_border()
+}
 
 
-# plot controls over time in each patch
-p2 =  states %>%
-  mutate(
-    variable = factor(variable, levels = c("S", "E", "I", "R", "H", "D", "v", "u"))
-  ) %>%
-  filter(variable %in% c("v"), time >= 0, Cu1 == 0.1, Cu2 == 0.1) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
-  geom_line(size = 1) +
-  facet_grid(cols = vars(Cv1),
-             rows = vars(Cv2),
-             labeller = label_both,
-             scales = "free") +
-  labs(y = "Vaccination", 
-       subtitle = "Ebola: Effect of changing the patch-specific cost of vaccination") +
-  scale_linetype_manual(values = c("dotted", "solid"))+
-  theme_bw(12) +
-  theme(
-    legend.position = "none",
-    panel.grid = element_blank()
-  )
-p2a = states %>%
-  mutate(
-    variable = factor(variable, levels = c("S", "E", "I", "R", "H", "D", "v", "u"))
-  ) %>%
-  filter(variable %in% c("u"), time >= 0, Cu1 == 0.1, Cu2 == 0.1) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
-  geom_line(size = 1) +
-  facet_grid(cols = vars(Cv1),
-             rows = vars(Cv2),
-             labeller = label_both,
-             drop = TRUE, # KD: How can we stop the bottom-right panel from getting plotted? Looks ugly IMO
-             scales = "free"
-  ) +
-  labs(y = "Hospitalization", 
-       subtitle = "",
-       linetype = "Control type:",
-       color = "Patch:") +
-  scale_linetype_manual(values = c("dotted", "solid")) +
-  theme_bw(12) +
-  theme(
-    legend.position = "bottom",
-    panel.grid = element_blank()
-  )
+leg <- get_legend(p[[1]])
+p <- lapply(p, function(i){i + theme(legend.position = "none")})
 
-ebola_plots_Cv <- plot_grid(p2, p2a, ncol = 1)
+Ebola_vary_cost_plots <- plot_grid(plotlist = p, ncol = 4)
+Ebola_vary_cost_plots
 
-ebola_plots_Cu <- plot_grid(p1a, p1, ncol = 1)
-
-ggsave("../results/figures/Ebola_vary_cost_vaccination.pdf",
-       ebola_plots_Cv,
-       width = 6, height = 3, scale = 2)
-
-ggsave("../results/figures/Ebola_vary_cost_hospitalization.pdf",
-       ebola_plots_Cu,
+ggsave("../results/figures/Ebola_vary_cost.pdf",
+       Ebola_vary_cost_plots,
        width = 6, height = 3, scale = 2)
 
 #### FIGURE 8: Cholera - Effect of varying patch cost of control----------------
+# setup test parameters
+test_params <- sens_analysis_setup(change_params = chol_mod_details$params[c("C1", "C2", "D1", "D2")],
+                                   multiplier = 10,
+                                   id_col = c("C1", "C2", "D1", "D2", "base"))
 
-## Create test set for movement parameters
-test_params <- expand.grid(
-  control_type = c("unique", "uniform"),
-  C1 = c(0.125,1.25),
-  C2 = c(0.125,1.25),
-  D1 = c(0.0125,0.125), 
-  D2 = c(0.0125,0.125)
-)
-# filter out multiple changes
-test_params$rm_flag = with(test_params,ifelse(C2/C1 == 10 & D2/D1 == 10, 1, 0))
-test_params$rm_flag = with(test_params,ifelse(C1/C2 == 10 & D1/D2 == 10, 1, rm_flag))
-test_params$rm_flag = with(test_params,ifelse(C2/C1 == 10 & D1/D2 == 10, 1, rm_flag))
-test_params$rm_flag = with(test_params,ifelse(C1/C2 == 10 & D2/D1 == 10, 1, rm_flag))
-test_params$rm_flag = with(test_params, ifelse(D1 + D2 == 0.25, 1, rm_flag))
-test_params$rm_flag = with(test_params, ifelse(C1 + C2 == 2.5, 1, rm_flag))
-test_params <- test_params %>%
-  filter(rm_flag == 0) %>%
-  select(-rm_flag)
-
-## Get state data
+# iterate over each parameter set in test_params
 test2 <- foreach(
   i = 1:nrow(test_params),
   .packages = c("deSolve", "tidyverse", "pracma")
 ) %dopar% {
   oc_optim(
     model = "cholera",
-    change_params = test_params[i, 1:5]
+    change_params = test_params[i, 1:6]
   )
 }
 test_params$test_case <- 1:nrow(test_params)
+
+# print number of iterations for each run
+sapply(test2, function(i){i$n_iterations})
 
 # reformat for plotting
 states <- lapply(
@@ -681,125 +638,62 @@ states <- lapply(
   }
 )
 states <- as.data.frame(do.call(rbind, states))
-# initial conditions
-ICs <- lapply(
-  1:nrow(test_params),
-  function(i) { # browser();
-    return(data.frame(
-      test_case = i,
-      reshape2::melt(as.data.frame(test2[[i]]$uncontrolled), "time")
-    ))
-  }
-)
-ICs <- as.data.frame(do.call(rbind, ICs))
-ICs$time = ICs$time - max(ICs$time)
-states <- bind_rows(states, ICs)
 states <- left_join(test_params, states)
+
 # reformat for easy plotting
 states <- states %>%
-  select(-test_case) %>%
   mutate(
     patch = substr(variable, 2, 2),
     variable = substr(variable, 1, 1)
   ) %>%
   mutate(
     plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform")
-  )%>%
+  ) %>%
   mutate(control_type = ifelse(control_type == "unique", "non-uniform", "uniform"))
-rm(ICs)
 
-## Create subplots
-
-## Create Cholera plots
-p1 = states %>%
-  mutate(
-    variable = factor(variable, levels = c("S", "E", "I", "R", "H", "D", "v", "u"))
-  ) %>%
-  filter(variable %in% c("u"), time >= 0, C1 == 0.125, C2 == 0.125) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
-  geom_line(size = 1) +
-  facet_grid(cols = vars(D1),
-             rows = vars(D2),
-             labeller = label_both,
-             scales = "free") +
-  labs(y = "Sanitation", 
-       subtitle = "",
-       linetype = "Control type:",
-       color = "Patch:") +
-  scale_linetype_manual(values = c("dotted", "solid"))+
-  theme_bw(12) +
-  theme(
-    legend.position = "bottom",
-    panel.grid = element_blank()
-  )
-p1a = states %>%
-  mutate(
-    variable = factor(variable, levels = c("S", "E", "I", "R", "H", "D", "v", "u"))
-  ) %>%
-  filter(variable %in% c("v"), time >= 0, C1 == 0.125, C2 == 0.125) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
-  geom_line(size = 1) +
-  facet_grid(cols = vars(D1),
-             rows = vars(D2),
-             labeller = label_both,
-             scales = "free") +
-  labs(y = "Vaccination", 
-       subtitle = "Cholera: Effect of changing the patch-specific cost of sanitation") +
-  scale_linetype_manual(values = c("dotted", "solid"))+
-  theme_bw(12) +
-  theme(
-    legend.position = "none",
-    panel.grid = element_blank()
-  )
+chol_titles <- c("(a) increase cost of vaccination in patch 1", 
+                 "(b) increase cost of vaccination in patch 2",
+                 "(c) increase cost of sanitation in patch 1", 
+                 "(d) increase cost of sanitation in patch 2")
+names(chol_titles) <- c("Cv1", "Cv2", "Cu1", "Cu2")
 
 # plot controls over time in each patch
-p2 =  states %>%
-  mutate(
-    variable = factor(variable, levels = c("S", "E", "I", "R", "H", "D", "v", "u"))
-  ) %>%
-  filter(variable %in% c("v"), time >= 0, D1 == 0.0125, D2 == 0.0125) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
-  geom_line(size = 1) +
-  facet_grid(cols = vars(C1),
-             rows = vars(C2),
-             labeller = label_both,
-             scales = "free") +
-  labs(y = "Vaccination",
-       subtitle = "Cholera: Effect of changing the patch-specific cost of vaccination") +
-  scale_linetype_manual(values = c("dotted", "solid"))+
-  theme_bw(12) +
-  theme(
-    legend.position = "none",
-    panel.grid = element_blank()
-  )
-p2a =  states %>%
-  mutate(
-    variable = factor(variable, levels = c("S", "E", "I", "R", "H", "D", "v", "u"))
-  ) %>%
-  filter(variable %in% c("u"), time >= 0, D1 == 0.0125, D2 == 0.0125) %>%
-  ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
-  geom_line(size = 1) +
-  facet_grid(cols = vars(C1),
-             rows = vars(C2),
-             labeller = label_both,
-             scales = "free") +
-  labs(y = "Sanitation", 
-       subtitle = "",
-       linetype = "Control type:",
-       color = "Patch:") +
-  scale_linetype_manual(values = c("dotted", "solid"))+
-  theme_bw(12) +
-  theme(
-    legend.position = "bottom",
-    panel.grid = element_blank()
-  )
+p<- list()
+for(i in 1:(nrow(test_params)/2 - 1)){
+  p[[i]] <- states %>%
+    filter(test_case %in% c(i, nrow(test_params)/2 + i), 
+           variable %in% c("v", "u")) %>%
+    ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
+    geom_line(size = 1) +
+    facet_grid(rows = vars(variable),
+               labeller = labeller(variable = cholera_control_labs),
+               switch = "y",
+               scales = "free") +
+    labs(color = "Patch:", 
+         linetype = "Control type:",
+         subtitle = chol_titles[i]
+    ) +
+    scale_color_manual(values = patch_colors) +
+    scale_linetype_manual(values = c("dotted", "solid")) +
+    theme_minimal_grid(12) +
+    theme(
+      axis.title.y = element_blank(),
+      legend.position = "bottom",
+      panel.spacing = unit(c(0), "lines"),
+      plot.margin = unit(c(0.1,0.1,0.1,2), "lines"),
+      strip.background = element_blank(),
+      strip.placement = "outside" 
+    ) +
+    panel_border()
+}
 
-cholera_plots_Cv <- plot_grid(p2, p2a, ncol = 1)
-ggsave("../results/figures/Cholera_vary_cost_vaccination.pdf",
-       cholera_plots_Cv,
-       width = 6, height = 3, scale = 2)
 
-cholera_plots_Cu <- plot_grid(p1a, p1, ncol = 1)
-ggsave("../results/figures/Cholera_vary_cost_sanitation.pdf",
-       cholera_plots_Cu,
+leg <- get_legend(p[[1]])
+p <- lapply(p, function(i){i + theme(legend.position = "none")})
+
+
+Cholera_vary_cost_plots <- plot_grid(plotlist = p, ncol = 4)
+
+ggsave("../results/figures/Cholera_vary_cost.pdf",
+       Cholera_vary_cost_plots,
        width = 6, height = 3, scale = 2)

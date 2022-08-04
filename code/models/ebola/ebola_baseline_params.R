@@ -35,8 +35,8 @@ params_ebola <- data.frame(
   epsilonV2=5e4, #5e7 for 2  #1e4 for 1  
   Cu1=0.1, #.001,
   Cu2=0.1, #.001,
-  epsilonU1=5E1, #5e4, 5e5?
-  epsilonU2=5E1, #5e4, 5e5?
+  epsilonU1=5e1, #5e4, 5e5?
+  epsilonU2=5e1, #5e4, 5e5?
   # for baseline control_type
   control_type = "uniform",
   tol= 0.001, # optimization tolerance

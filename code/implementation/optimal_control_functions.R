@@ -23,64 +23,73 @@ oc_optim <- function(model, filepath = "models/",
     if(!any(is.na(change_params))){
       params <- param_changer(change_params, params)
       IC <- IC_setup(params = params,
-                         model_ODE = ode_fn, 
-                         IC_init = init_x_uncontrol, 
-                         response_time = response_time)
+                     model_ODE = ode_fn, 
+                     IC_init = init_x_uncontrol, 
+                     response_time = response_time)
       init_x <- IC$IC
     }
     counter <- 1
     test <- -1
     test_vals <- list() # list to store test
     while (test < 0 & counter < counter_max) {
-      # set previous control, state, and adjoint
-      old_vals <- set_old_variables(c(controls,
-                          list(x = x,lambda = lambda)))
-      # define interpolating functions for v
-      interp_controls <- define_interp_fns(controls, times)
-      # solve states
-      x <- ode(
-        y = init_x, times = times, func = ode_fn, parms = params,
-        interp_controls = interp_controls
-      )
-      x_df <- as.data.frame(x)
-      # define interpolating functions for x (states)
-      x_interp <- lapply(2:ncol(x), function(i) {
-        approxfun(x[, c(1, i)], rule = 2)
-      })
-      # solve adjoint equations (backwards)
-      lambda <- ode(
-        y = lambda_init, times = rev(times), func = adj_fn, parms = params,
-        interp_controls = interp_controls,
-        x_interp = x_interp, x = x
-      )
-      lambda <- lambda[nrow(lambda):1, ]
-      lambda_df <- as.data.frame(lambda)
-      # calculate new controls 
-      controls <- update_optimal_solution(params = params, 
-                                          lambda = lambda_df, 
-                                          x = x_df, 
-                                          optimal_control_fn = optimal_control_fn,
-                                          old_controls = old_vals)
-      # recalculate test
-      test <- calc_test_fn(params$tol, controls, x, lambda, old_vals)
-      test_vals[[counter]] <- test
-      counter <- counter + 1
-    }
-    # if counter = counter_max, then throw an error
-    # if (counter == counter_max) {
-    #   break
+      # If we hit the max number of iterations, give a chance to increase iterations or quit out
+      # if(counter == counter_max - 1){
+      #   warning("max number of iterations reached")
+      #   new_counter_max <- readline("Input additional number of iterations to perform: ")
+      #   if(new_counter_max %in% c("F", "N", "no")) {break} 
+      #   else {
+      #     new_counter_max <- as.integer(new_counter_max)
+      #     counter_max <- counter_max + new_counter_max}
+      # }
+      # else {
+        # set previous control, state, and adjoint
+        old_vals <- set_old_variables(c(controls,
+                                        list(x = x,lambda = lambda)))
+        # define interpolating functions for v
+        interp_controls <- define_interp_fns(controls, times)
+        # solve states
+        x <- ode(
+          y = init_x, times = times, func = ode_fn, parms = params,
+          interp_controls = interp_controls
+        )
+        x_df <- as.data.frame(x)
+        # define interpolating functions for x (states)
+        x_interp <- lapply(2:ncol(x), function(i) {
+          approxfun(x[, c(1, i)], rule = 2)
+        })
+        # solve adjoint equations (backwards)
+        lambda <- ode(
+          y = lambda_init, times = rev(times), func = adj_fn, parms = params,
+          interp_controls = interp_controls,
+          x_interp = x_interp, x = x
+        )
+        lambda <- lambda[nrow(lambda):1, ]
+        lambda_df <- as.data.frame(lambda)
+        # calculate new controls 
+        controls <- update_optimal_solution(params = params, 
+                                            lambda = lambda_df, 
+                                            x = x_df, 
+                                            optimal_control_fn = optimal_control_fn,
+                                            old_controls = old_vals)
+        # recalculate test
+        test <- calc_test_fn(params$tol, controls, x, lambda, old_vals)
+        test_vals[[counter]] <- test
+        counter <- counter + 1
+      }
     # }
+    
     trajectories <- cbind(x_df, do.call(cbind, controls))
     j_vals <- calc_j(times, 
                      cbind(as.data.frame(x), 
                            do.call(cbind, controls)),
                      params)
     if(counter == counter_max){
+      warning("max number of iterations reached")
       return(list(
         trajectories = NA,
-        j = NA, 
+        j = NA,
         uncontrolled = IC$uncontrolled,
-        test_vals = unlist(test_vals), 
+        test_vals = unlist(test_vals),
         n_iterations = counter
       ))
     }
@@ -151,26 +160,26 @@ mult_oc_optim <- function(model, param_sets = NA) {
 run_no_optim <- function(model, control_type) {
   setup <- setup_model(model)
   with(setup, {
-  if (control_type == "none") {
-    params$v1 <- 0
-    params$v2 <- 0
-    params$u1 <- 0
-    params$u2 <- 0
-  } 
-  else if (control_type == "max") {
-    params$v1 <- bounds$V1_max
-    params$v2 <- bounds$V2_max
-    params$u1 <- bounds$U1_max
-    params$u2 <- bounds$U2_max
-  }
-  out <- ode(y = init_x, times = times, func = ode_fn, parms = params)
-  trajectories <- as.data.frame(out)
-  trajectories$v1 <- params$v1
-  trajectories$v2 <- params$v2
-  trajectories$u1 <- params$u1
-  trajectories$u2 <- params$u2
-  j <- calc_j(times, out, params)
-  return(list(trajectories = trajectories, j = j))
+    if (control_type == "none") {
+      params$v1 <- 0
+      params$v2 <- 0
+      params$u1 <- 0
+      params$u2 <- 0
+    } 
+    else if (control_type == "max") {
+      params$v1 <- bounds$V1_max
+      params$v2 <- bounds$V2_max
+      params$u1 <- bounds$U1_max
+      params$u2 <- bounds$U2_max
+    }
+    out <- ode(y = init_x, times = times, func = ode_fn, parms = params)
+    trajectories <- as.data.frame(out)
+    trajectories$v1 <- params$v1
+    trajectories$v2 <- params$v2
+    trajectories$u1 <- params$u1
+    trajectories$u2 <- params$u2
+    j <- calc_j(times, out, params)
+    return(list(trajectories = trajectories, j = j))
   })
 }
 

@@ -22,7 +22,6 @@ source("implementation/optimal_control_functions.R")
 chol_mod_details <- setup_model("cholera")
 ebol_mod_details <- setup_model("ebola")
 
-
 #### FUNCTIONS -----------------------------------------------------------------
 sens_analysis_setup <- function(change_params, 
                                 multiplier, 
@@ -55,16 +54,14 @@ names(control_type_labs) <- c("uniform", "unique")
 # labels
 ebola_control_labs <- c("Vaccination effort", "Hospitalization effort")
 names(ebola_control_labs) <- c("v", "u")
+cholera_control_labs <- c("Vaccination effort", "Sanitation effort")
+names(cholera_control_labs) <- c("v", "u")
 
 #### EBOLA ---------------------------------------------------------------------
 # setup test parameters
-# test_params <- sens_analysis_setup(change_params = ebol_mod_details$params[c("Cv1", "Cv2", "Cu1", "Cu2")], 
-#                                    multiplier = 10, 
-#                                    id_col = c("Cv1", "Cv2", "Cu1", "Cu2", "base"))
-
-test_params <- sens_analysis_setup(change_params = chol_mod_details$params[c("C1", "C2", "D1", "D2")],
+test_params <- sens_analysis_setup(change_params = ebol_mod_details$params[c("Cv1", "Cv2", "Cu1", "Cu2")],
                                    multiplier = 10,
-                                   id_col = c("C1", "C2", "D1", "D2", "base"))
+                                   id_col = c("Cv1", "Cv2", "Cu1", "Cu2", "base"))
 
 # iterate over each parameter set in test_params
 test2 <- foreach(
@@ -72,7 +69,7 @@ test2 <- foreach(
   .packages = c("deSolve", "tidyverse", "pracma")
 ) %dopar% {
   oc_optim(
-    model = "cholera",
+    model = "ebola",
     change_params = test_params[i, 1:6]
   )
 }
@@ -80,6 +77,7 @@ test_params$test_case <- 1:nrow(test_params)
 
 # print number of iterations for each run
 sapply(test2, function(i){i$n_iterations})
+
 
 # reformat for plotting
 states <- lapply(
@@ -154,8 +152,109 @@ for(i in 1:(nrow(test_params)/2 - 1)){
 leg <- get_legend(p[[1]])
 p <- lapply(p, function(i){i + theme(legend.position = "none")})
 
-plot_grid(plotlist = p, ncol = 4)
+Ebola_vary_cost_plots <- plot_grid(plotlist = p, ncol = 4)
+Ebola_vary_cost_plots
 
+ggsave("../results/figures/Ebola_vary_cost.pdf",
+       Ebola_vary_cost_plots,
+       width = 6, height = 3, scale = 2)
+
+#### CHOLERA -------------------------------------------------------------------
+# setup test parameters
+test_params <- sens_analysis_setup(change_params = chol_mod_details$params[c("C1", "C2", "D1", "D2")],
+                                   multiplier = 10,
+                                   id_col = c("C1", "C2", "D1", "D2", "base"))
+
+# iterate over each parameter set in test_params
+test2 <- foreach(
+  i = 1:nrow(test_params),
+  .packages = c("deSolve", "tidyverse", "pracma")
+) %dopar% {
+  oc_optim(
+    model = "cholera",
+    change_params = test_params[i, 1:6]
+  )
+}
+test_params$test_case <- 1:nrow(test_params)
+
+# print number of iterations for each run
+sapply(test2, function(i){i$n_iterations})
+
+# reformat for plotting
+states <- lapply(
+  1:nrow(test_params),
+  function(i) { # browser();
+    return(data.frame(
+      test_case = i,
+      reshape2::melt(test2[[i]]$trajectories, "time")
+    ))
+  }
+)
+states <- as.data.frame(do.call(rbind, states))
+states <- left_join(test_params, states)
+
+
+# reformat for easy plotting
+states <- states %>%
+  mutate(
+    patch = substr(variable, 2, 2),
+    variable = substr(variable, 1, 1)
+  ) %>%
+  mutate(
+    plot_var = ifelse(control_type == "unique", paste("patch", patch), "uniform")
+  ) %>%
+  mutate(control_type = ifelse(control_type == "unique", "non-uniform", "uniform"))
+
+
+
+
+######## Cholera plots ########
+chol_titles <- c("(a) increase cost of vaccination in patch 1", 
+                 "(b) increase cost of vaccination in patch 2",
+                 "(c) increase cost of sanitation in patch 1", 
+                 "(d) increase cost of sanitation in patch 2")
+names(chol_titles) <- c("Cv1", "Cv2", "Cu1", "Cu2")
+
+# plot controls over time in each patch
+p<- list()
+for(i in 1:(nrow(test_params)/2 - 1)){
+  p[[i]] <- states %>%
+    filter(test_case %in% c(i, nrow(test_params)/2 + i), 
+           variable %in% c("v", "u")) %>%
+    ggplot(aes(x = time, y = value, color = patch, linetype = control_type)) +
+    geom_line(size = 1) +
+    facet_grid(rows = vars(variable),
+               labeller = labeller(variable = cholera_control_labs),
+               switch = "y",
+               scales = "free") +
+    labs(color = "Patch:", 
+         linetype = "Control type:",
+         subtitle = chol_titles[i]
+    ) +
+    scale_color_manual(values = patch_colors) +
+    scale_linetype_manual(values = c("dotted", "solid")) +
+    theme_minimal_grid(12) +
+    theme(
+      axis.title.y = element_blank(),
+      legend.position = "bottom",
+      panel.spacing = unit(c(0), "lines"),
+      plot.margin = unit(c(0.1,0.1,0.1,2), "lines"),
+      strip.background = element_blank(),
+      strip.placement = "outside" 
+    ) +
+    panel_border()
+}
+
+
+leg <- get_legend(p[[1]])
+p <- lapply(p, function(i){i + theme(legend.position = "none")})
+
+
+Cholera_vary_cost_plots <- plot_grid(plotlist = p, ncol = 4)
+
+ggsave("../results/figures/Cholera_vary_cost.pdf",
+       Cholera_vary_cost_plots,
+       width = 6, height = 3, scale = 2)
 
 ######## SECOND EXAMPLE ########
 test_params <- expand.grid(
