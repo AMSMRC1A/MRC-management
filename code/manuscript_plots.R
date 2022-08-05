@@ -342,7 +342,83 @@ test <- states %>%
   pull(time) %>%
   min()
 
+#### FIGURE 4: Ebola relative costs --------------------------------------------
 
+# relative costs
+j_vals <- lapply(
+  1:nrow(test_params),
+  function(i) {
+    j <- test2[[i]][["j"]]
+    j <- c(j, j_tot = sum(j[substr(names(j), 1, 1) == "j"]))
+    return(data.frame(test_case = i, melt(j)))
+  }
+)
+j_vals <- as.data.frame(do.call(rbind, j_vals))
+j_vals <- left_join(test_params, j_vals, by = "test_case") %>%
+  rename(variable = L1)
+
+patch_labs <- c("Patch 1", "Patch 2", "Total")
+names(patch_labs) <- c("1", "2", "t")
+
+var_labs <- c("Vaccinations", "Hospitalizations", "Cases", "Total cost")
+names(var_labs) <- c("vacc", "hosp", "case", "to")
+
+fig4 <- j_vals %>%
+  select(-test_case) %>%
+  dcast(variable + model ~ control_type) %>%
+  mutate(
+    type = ifelse(substr(variable, 1, 1) == "j", "cost",
+                  ifelse(substr(variable, 1, 1) == "e", "epi", "res")
+    ),
+    patch = substr(variable, nchar(variable), nchar(variable)),
+    variable_short = substr(variable, unlist(gregexpr("_", variable)) + 1, nchar(variable) - 1),
+    rel_change = (unique / uniform)-1 # this treats "unique" as the before and "uniform" as the after
+  ) %>%
+  filter(
+    model == "ebola",
+    variable %in% c(paste0("j_", c("tot")),
+                    paste0("epi_", c("case1", "case2", "hosp1", "hosp2", "")),
+                    paste0("res_", c("vacc1", "vacc2")))
+  ) %>%
+  mutate(variable_short = factor(variable_short, levels = c("vacc", "hosp", "case", "to")),
+         text_pos = ifelse(rel_change < 0, 1, 0)) %>%
+  ggplot(aes(x = variable_short, y = rel_change)) +
+  geom_col(position = "dodge", color = "black") +
+  geom_text(aes(label = paste0(round(rel_change*100,1), "%"), vjust = text_pos)) +
+  geom_hline(yintercept = 0) +
+  facet_grid(
+    cols = vars(patch),
+    labeller = labeller(patch = patch_labs),
+    scales = "free",
+    space = "free_x"
+  ) +
+  labs(
+    x = "",
+    y = "",
+    title = "Ebola: Percent change from uniform to non-uniform policy"
+  ) +
+  # scale_fill_brewer(palette = "Greys", ) +
+  scale_x_discrete(labels = var_labs) +
+  scale_y_continuous(labels = percent) +
+  theme_minimal(18) +
+  theme(
+    legend.position = "bottom",
+    panel.border = element_rect(color = "lightgrey", fill = NA),
+    panel.grid.major.x = element_blank(),
+    panel.spacing = unit(0, "cm")
+  )
+
+ggsave("../results/figures/Ebola_relative_costs.pdf",
+       plot = fig4,
+       width = 6, height = 3, scale = 2)
+
+
+## values for text
+j_vals %>%
+  select(-test_case) %>%
+  dcast(variable + model ~ control_type) %>%
+  filter(model == "ebola", 
+         substr(variable, 1,3) == "epi")
 
 
 #### FIGURE 5: Cholera infection trajectories + control effort -----------------
@@ -431,7 +507,7 @@ ggsave("../results/figures/Appendix_cholera_no control.pdf",
        plot = figA1,
        width = 6, height = 2, scale = 2)
 
-#### COST PLOT FUNCTIONS -------------------------------------------------------
+#### FIGURE 6: Cholera relative costs ------------------------------------------
 
 # relative costs
 j_vals <- lapply(
@@ -449,71 +525,11 @@ j_vals <- left_join(test_params, j_vals, by = "test_case") %>%
 patch_labs <- c("Patch 1", "Patch 2", "Total")
 names(patch_labs) <- c("1", "2", "t")
 
-
-#### FIGURE 4: Ebola relative costs ---------------------------------------------
-var_labs <- c("Vaccination", "Hospitalization", "Cases", "Total cost")
-names(var_labs) <- c("vacc", "sani", "case", "to")
-
-fig4 <- j_vals %>%
-  select(-test_case) %>%
-  dcast(variable + model ~ control_type) %>%
-  mutate(
-    type = ifelse(substr(variable, 1, 1) == "j", "cost",
-                  ifelse(substr(variable, 1, 1) == "e", "epi", "res")
-    ),
-    patch = substr(variable, nchar(variable), nchar(variable)),
-    variable_short = substr(variable, unlist(gregexpr("_", variable)) + 1, nchar(variable) - 1),
-    rel_change = (unique / uniform)-1 # this treats "unique" as the before and "uniform" as the after
-  ) %>%
-  filter(
-    model == "ebola",
-    !(variable %in% c(paste0("j_", c("case1", "case2", "vacc1", "vacc2", "sani1", "sani2")), 
-                      paste0("epi_", c("hosp1", "hosp2", "death1", "death2"))))
-  ) %>%
-  mutate(variable_short = factor(variable_short, levels = c("vacc", "sani", "case", "to")),
-         text_pos = ifelse(rel_change < 0, 1, 0)) %>%
-  ggplot(aes(x = variable_short, y = rel_change)) +
-  geom_col(position = "dodge", color = "black") +
-  geom_text(aes(label = paste0(round(rel_change*100,1), "%"), vjust = text_pos)) +
-  geom_hline(yintercept = 0) +
-  facet_grid(
-    cols = vars(patch),
-    labeller = labeller(patch = patch_labs),
-    scales = "free",
-    space = "free_x"
-  ) +
-  labs(
-    x = "",
-    y = "",
-    title = "Ebola: Percent change from uniform to non-uniform policy"
-  ) +
-  # scale_fill_brewer(palette = "Greys", ) +
-  scale_x_discrete(labels = var_labs) +
-  scale_y_continuous(labels = percent) +
-  theme_minimal(18) +
-  theme(
-    legend.position = "bottom",
-    panel.border = element_rect(color = "lightgrey", fill = NA),
-    panel.grid.major.x = element_blank(),
-    panel.spacing = unit(0, "cm")
-  )
-
-ggsave("../results/figures/Ebola_relative_costs.pdf",
-       plot = fig4,
-       width = 6, height = 3, scale = 2)
-
-
-## values for text
-j_vals %>%
-  select(-test_case) %>%
-  dcast(variable + model ~ control_type) %>%
-  filter(model == "ebola", 
-         substr(variable, 1,3) == "epi")
-
-#### FIGURE 6: Cholera relative costs ------------------------------------------
 var_labs <- c("Vaccination", "Sanitation", "Cases", "Total cost")
 names(var_labs) <- c("vacc", "sani", "case", "to")
+
 fig6 <- j_vals %>%
+  filter(model == "cholera") %>% 
   select(-test_case) %>%
   dcast(variable + model ~ control_type) %>%
   mutate(
@@ -525,8 +541,9 @@ fig6 <- j_vals %>%
     rel_change = (unique/uniform)-1 # this treats "unique" as the before and "uniform" as the after
   ) %>%
   filter(
-    model == "cholera",
-    !(variable %in% paste0("j_", c("case1", "case2", "vacc1", "vacc2", "sani1", "sani2")))
+    variable %in% c(paste0("j_", c("tot")),
+                    paste0("epi_", c("case1", "case2")),
+                    paste0("res_", c("vacc1", "vacc2", "sani1", "sani2")))
   ) %>%
   mutate(variable_short = factor(variable_short, levels = c("vacc", "sani", "case", "to")),
          text_pos = ifelse(rel_change < 0, 1, 0)) %>%
@@ -543,7 +560,7 @@ fig6 <- j_vals %>%
   labs(
     x = "",
     y = "",
-    title = "Cholera: Percent change from uniform to non-uniform policy"
+    title = "Cholera: Percent changes in cost from uniform to non-uniform policy"
   ) +
   # scale_fill_brewer(palette = "Greys", ) +
   scale_x_discrete(labels = var_labs) +
@@ -555,6 +572,7 @@ fig6 <- j_vals %>%
     panel.grid.major.x = element_blank(),
     panel.spacing = unit(0, "cm")
   )
+
 ggsave("../results/figures/Cholera_relative_costs.pdf",
        plot = fig6,
        width = 6, height = 3, scale = 2)
