@@ -598,7 +598,7 @@ names(cholera_control_labs) <- c("v", "u")
 test_params <- sens_analysis_setup(change_params = ebol_mod_details$params[c("Cv1", "Cv2", "Cu1", "Cu2")],
                                    multiplier = 10,
                                    id_col = c("Cv1", "Cv2", "Cu1", "Cu2", "base"))
-test_params <- test_params[-c(2,7),1:6]
+test_params <- test_params[-c(2,7),1:6] # KD: removes the cases that weren't converging
 
 # iterate over each parameter set in test_params
 test2 <- foreach(
@@ -643,10 +643,10 @@ states <- states %>%
   mutate(control_type = ifelse(control_type == "unique", "non-uniform", "uniform"))
 
 
-ebol_titles <- c("(a) increase cost of vaccination in patch 1", 
+ebol_titles <- c("(a) increase cost of vaccination in Patch 1", 
                  #"(b) increase cost of vaccination in patch 2",
-                 "(c) increase cost of hospitalization in patch 1", 
-                 "(d) increase cost of hospitalization in patch 2")
+                 "(b) increase cost of hospitalization in Patch 1", 
+                 "(c) increase cost of hospitalization in Patch 2")
 names(ebol_titles) <- c("Cv1",
                         #"Cv2",
                         "Cu1",
@@ -686,7 +686,7 @@ for(i in 1:(nrow(test_params)/2 - 1)){
 leg <- get_legend(p[[1]])
 p <- lapply(p, function(i){i + theme(legend.position = "none")})
 
-Ebola_vary_cost_plots <- plot_grid(plotlist = p, ncol = 4)
+Ebola_vary_cost_plots <- plot_grid(plotlist = p, ncol = 3)
 Ebola_vary_cost_plots
 
 ggsave("../results/figures/Ebola_vary_cost.pdf",
@@ -698,6 +698,7 @@ ggsave("../results/figures/Ebola_vary_cost.pdf",
 test_params <- sens_analysis_setup(change_params = chol_mod_details$params[c("C1", "C2", "D1", "D2")],
                                    multiplier = 10,
                                    id_col = c("C1", "C2", "D1", "D2", "base"))
+test_params <- test_params[-c(4,9),1:6] # KD: removes the cases we're not considering, inc. cost of sanitation in Patch 2
 
 # iterate over each parameter set in test_params
 test2 <- foreach(
@@ -738,11 +739,12 @@ states <- states %>%
   ) %>%
   mutate(control_type = ifelse(control_type == "unique", "non-uniform", "uniform"))
 
-chol_titles <- c("(a) increase cost of vaccination in patch 1", 
-                 "(b) increase cost of vaccination in patch 2",
-                 "(c) increase cost of sanitation in patch 1", 
-                 "(d) increase cost of sanitation in patch 2")
-names(chol_titles) <- c("Cv1", "Cv2", "Cu1", "Cu2")
+chol_titles <- c("(a) increase cost of vaccination in Patch 1", 
+                 "(b) increase cost of vaccination in Patch 2",
+                 "(c) increase cost of sanitation in Patch 1" 
+                 # "(d) increase cost of sanitation in Patch 2"
+                 )
+names(chol_titles) <- c("Cv1", "Cv2", "Cu1") #, "Cu2")
 
 # plot controls over time in each patch
 p<- list()
@@ -779,7 +781,7 @@ leg <- get_legend(p[[1]])
 p <- lapply(p, function(i){i + theme(legend.position = "none")})
 
 
-Cholera_vary_cost_plots <- plot_grid(plotlist = p, ncol = 4)
+Cholera_vary_cost_plots <- plot_grid(plotlist = p, ncol = 3)
 
 ggsave("../results/figures/Cholera_vary_cost.pdf",
        Cholera_vary_cost_plots,
