@@ -377,7 +377,7 @@ fig4 <- j_vals %>%
   filter(
     model == "ebola",
     variable %in% c(paste0("j_", c("tot")),
-                    paste0("epi_", c("case1", "case2", "hosp1", "hosp2", "")),
+                    paste0("epi_", c("case1", "case2", "hosp1", "hosp2")),
                     paste0("res_", c("vacc1", "vacc2")))
   ) %>%
   mutate(variable_short = factor(variable_short, levels = c("vacc", "hosp", "case", "to")),
@@ -560,7 +560,7 @@ fig6 <- j_vals %>%
   labs(
     x = "",
     y = "",
-    title = "Cholera: Percent changes in cost from uniform to non-uniform policy"
+    title = "Cholera: Percent change from uniform to non-uniform policy"
   ) +
   # scale_fill_brewer(palette = "Greys", ) +
   scale_x_discrete(labels = var_labs) +

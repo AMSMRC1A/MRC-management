@@ -204,6 +204,8 @@ calc_j_cholera <- function(times, optim_states, params) {
     # calculate epi outcomes
     epi_case1 = expression((beta_I1 * S1 * I1 + (1 - u1) * beta_W1 * S1 * W1)), 
     epi_case2 = expression((beta_I2 * S2 * I2 + (1 - u2) * beta_W2 * S2 * W2)),
+    epi_death1 = expression(delta1*I1),
+    epi_death2 = expression(delta2*I2),
     # calculate resource distribution
     res_vacc1 = expression(v1*S1), 
     res_vacc2 = expression(v2*S2), 
@@ -222,10 +224,12 @@ calc_j_cholera <- function(times, optim_states, params) {
     j_sani2 = trapz(x, j_vals[[6]]), 
     epi_case1 = trapz(x, j_vals[[7]]),
     epi_case2 = trapz(x, j_vals[[8]]),
-    res_vacc1 = trapz(x, j_vals[[9]]),
-    res_vacc2 = trapz(x, j_vals[[10]]),
-    res_sani1 = trapz(x, j_vals[[11]]),
-    res_sani2 = trapz(x, j_vals[[12]])
+    epi_death1 = trapz(x, j_vals[[9]]),
+    epi_death2 = trapz(x, j_vals[[10]]),
+    res_vacc1 = trapz(x, j_vals[[11]]),
+    res_vacc2 = trapz(x, j_vals[[12]]),
+    res_sani1 = trapz(x, j_vals[[13]]),
+    res_sani2 = trapz(x, j_vals[[14]])
   ))
 }
 
