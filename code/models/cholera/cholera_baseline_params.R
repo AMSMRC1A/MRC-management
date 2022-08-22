@@ -6,7 +6,7 @@ params_cholera <- data.frame(
   beta_W1 = 1.01E-5, beta_W2 = 1.01E-5, # transmission rate from water (consider increasing an order of magnitude)
   v1 = 0, v2 = 0, # vaccination rate
   u1 = 0, u2 = 0, # reduction in transmission due to sanitation
-  m1 = 0, m2 = 0, # movement rate (non-infected)
+  m1 = 5e-4, m2 = 5e-4, # movement rate (non-infected)
   n1 = 0, n2 = 0, # movement rate (infected)
   gamma1 = 0.25, gamma2 = 0.25, # recovery rate
   delta1 = 5E-4, delta2 = 5E-4, # disease induced mortality
