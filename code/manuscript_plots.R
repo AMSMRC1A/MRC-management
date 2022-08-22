@@ -811,7 +811,6 @@ names(chol_titles) <- c("Cv1", "Cv2", "Cu1") #, "Cu2")
 # plot controls over time in each patch
 p<- list()
 for(i in 1:(nrow(test_params)/2 - 1)){
-  browser()
   p[[i]] <- states %>%
     filter(test_case %in% c(i, nrow(test_params)/2 + i), 
            variable %in% c("v", "u")) %>%
