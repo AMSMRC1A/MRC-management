@@ -41,6 +41,8 @@ sens_analysis_setup <- function(change_params,
 
 
 #### RUN COST CHANGE OPTIMAL CONTROL CASES ----------------------------------------
+ebol_mod_details <- setup_model("ebola")
+
 # setup test parameters
 test_params <- sens_analysis_setup(change_params = ebol_mod_details$params[c("Cv1", "Cv2", "Cu1", "Cu2")],
                                    multiplier = 10,

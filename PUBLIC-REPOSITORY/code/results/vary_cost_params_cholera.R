@@ -40,6 +40,7 @@ sens_analysis_setup <- function(change_params,
 }
 
 #### RUN COST CHANGE OPTIMAL CONTROL CASES ----------------------------------------
+chol_mod_details <- setup_model("cholera")
 
 # setup test parameters
 test_params <- sens_analysis_setup(change_params = chol_mod_details$params[c("C1", "C2", "D1", "D2")],
